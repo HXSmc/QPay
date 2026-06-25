@@ -37,18 +37,31 @@ function seed(): Store {
   };
 }
 
+// Backfill fields added after a store was first written (e.g. table.items),
+// so stores created by older versions don't crash newer code.
+function normalize(s: Store): Store {
+  return {
+    tables: (s.tables ?? []).map((t) => ({
+      ...t,
+      items: Array.isArray(t.items) ? t.items : [],
+    })),
+    transactions: s.transactions ?? [],
+    menu: s.menu ?? null,
+  };
+}
+
 async function readStore(): Promise<Store> {
   if (useKv) {
     const { kv } = await import("@vercel/kv");
     const s = await kv.get<Store>(KV_KEY);
-    if (s) return s;
+    if (s) return normalize(s);
     const fresh = seed();
     await kv.set(KV_KEY, fresh);
     return fresh;
   }
   try {
     const raw = await fs.readFile(STORE_FILE, "utf8");
-    return JSON.parse(raw) as Store;
+    return normalize(JSON.parse(raw) as Store);
   } catch {
     const s = seed();
     await writeStore(s);

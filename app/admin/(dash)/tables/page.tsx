@@ -147,7 +147,7 @@ export default function TablesPage() {
                   border: "1.5px solid #DBE3F4",
                 }}
               >
-                {t.items.length ? `Order · ${t.items.length}` : "Add order"}
+                {t.items?.length ? `Order · ${t.items.length}` : "Add order"}
               </button>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button

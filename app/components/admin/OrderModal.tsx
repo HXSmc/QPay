@@ -15,7 +15,7 @@ export function OrderModal({
   onSaved: (t: LiveTable) => void;
 }) {
   const [items, setItems] = useState<OrderItem[]>(
-    table.items.map((i) => ({ ...i })),
+    (table.items ?? []).map((i) => ({ ...i })),
   );
   const [name, setName] = useState("");
   const [qty, setQty] = useState(1);
@@ -296,7 +296,7 @@ export function OrderModal({
         >
           <button
             onClick={() => save([])}
-            disabled={busy || table.items.length === 0}
+            disabled={busy || (table.items?.length ?? 0) === 0}
             style={{
               padding: "12px 16px",
               background: "#fff",
@@ -306,8 +306,8 @@ export function OrderModal({
               fontFamily: "inherit",
               fontSize: 14,
               fontWeight: 700,
-              cursor: busy || table.items.length === 0 ? "default" : "pointer",
-              opacity: table.items.length === 0 ? 0.5 : 1,
+              cursor: busy || (table.items?.length ?? 0) === 0 ? "default" : "pointer",
+              opacity: (table.items?.length ?? 0) === 0 ? 0.5 : 1,
             }}
           >
             Clear table
