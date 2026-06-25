@@ -1,0 +1,169 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { QRCodeSVG } from "qrcode.react";
+import { BRAND } from "../../lib/data";
+import { getAppBaseUrl } from "../../lib/url";
+
+export function QrModal({
+  tableNum,
+  onClose,
+}: {
+  tableNum: string;
+  onClose: () => void;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [url, setUrl] = useState("");
+
+  useEffect(() => {
+    setUrl(`${getAppBaseUrl()}/customer?table=${tableNum}`);
+  }, [tableNum]);
+
+  const svgString = () => {
+    const svg = wrapRef.current?.querySelector("svg");
+    if (!svg) return "";
+    return new XMLSerializer().serializeToString(svg);
+  };
+
+  const downloadSvg = () => {
+    const s = svgString();
+    if (!s) return;
+    const blob = new Blob([s], { type: "image/svg+xml;charset=utf-8" });
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = `qpay-table-${tableNum}.svg`;
+    a.click();
+    URL.revokeObjectURL(href);
+  };
+
+  const print = () => {
+    const s = svgString();
+    if (!s) return;
+    const w = window.open("", "_blank", "width=420,height=560");
+    if (!w) return;
+    w.document.write(`<!doctype html><html><head><title>QPay Table ${tableNum}</title>
+      <style>body{font-family:system-ui,sans-serif;text-align:center;padding:40px}
+      h1{font-size:20px;margin:0 0 4px}p{color:#475569;margin:0 0 24px}</style></head>
+      <body><h1>The Copper Kitchen</h1><p>Scan to pay · Table ${tableNum}</p>${s}
+      <script>window.onload=function(){window.print();}<\/script></body></html>`);
+    w.document.close();
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        background: "rgba(11,18,33,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 16,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: "100%",
+          maxWidth: 360,
+          background: "#fff",
+          borderRadius: 22,
+          padding: 28,
+          textAlign: "center",
+          boxShadow: "0 30px 70px rgba(11,18,33,0.4)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Table {tableNum} QR</h3>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              border: "none",
+              background: "#F1F5F9",
+              borderRadius: 9,
+              width: 32,
+              height: 32,
+              cursor: "pointer",
+              color: "#475569",
+              fontSize: 18,
+              lineHeight: 1,
+            }}
+          >
+            ×
+          </button>
+        </div>
+        <p style={{ fontSize: 13, color: "#475569", margin: "0 0 18px" }}>
+          Diners scan to open the bill for this table.
+        </p>
+
+        <div
+          ref={wrapRef}
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            padding: 18,
+            background: "#F8FAFC",
+            borderRadius: 16,
+            border: "1px solid #E2E8F0",
+          }}
+        >
+          {url && (
+            <QRCodeSVG value={url} size={196} level="M" fgColor="#0B1221" />
+          )}
+        </div>
+
+        <div
+          style={{
+            fontSize: 11.5,
+            color: "#94A3B8",
+            margin: "12px 0 18px",
+            wordBreak: "break-all",
+          }}
+        >
+          {url}
+        </div>
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            onClick={downloadSvg}
+            style={{
+              flex: 1,
+              padding: 12,
+              background: BRAND,
+              color: "#fff",
+              border: "none",
+              borderRadius: 12,
+              fontFamily: "inherit",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Download SVG
+          </button>
+          <button
+            onClick={print}
+            style={{
+              flex: 1,
+              padding: 12,
+              background: "#fff",
+              color: "#0B1221",
+              border: "1.5px solid #E2E8F0",
+              borderRadius: 12,
+              fontFamily: "inherit",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Print
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
