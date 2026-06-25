@@ -1,7 +1,19 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { TABLES, TRANSACTIONS } from "./data";
-import type { LiveTable, MenuMeta, Store, TableStatus, Transaction } from "./types";
+import { fmt, ITEMS, TABLES, TRANSACTIONS } from "./data";
+import type {
+  LiveTable,
+  MenuMeta,
+  OrderItem,
+  Store,
+  TableStatus,
+  Transaction,
+} from "./types";
+
+function orderAmount(items: OrderItem[]): string {
+  if (!items.length) return "—";
+  return fmt(items.reduce((a, it) => a + it.price, 0));
+}
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
@@ -13,7 +25,13 @@ const useKv = !!process.env.KV_REST_API_URL;
 
 function seed(): Store {
   return {
-    tables: TABLES.map((t) => ({ ...t })),
+    tables: TABLES.map((t) => {
+      if (t.num === "12") {
+        const items = ITEMS.map((i) => ({ ...i }));
+        return { ...t, items, status: "unpaid" as TableStatus, amount: orderAmount(items) };
+      }
+      return { ...t, items: [] };
+    }),
     transactions: TRANSACTIONS.map((t) => ({ ...t })),
     menu: null,
   };
@@ -59,10 +77,31 @@ export async function createTable(): Promise<LiveTable> {
     num: String(maxNum + 1),
     status: "open",
     amount: "—",
+    items: [],
   };
   s.tables.push(table);
   await writeStore(s);
   return table;
+}
+
+export async function getTable(num: string): Promise<LiveTable | null> {
+  const s = await readStore();
+  return s.tables.find((x) => x.num === num) ?? null;
+}
+
+export async function setTableItems(
+  num: string,
+  items: OrderItem[],
+): Promise<LiveTable | null> {
+  const s = await readStore();
+  const t = s.tables.find((x) => x.num === num);
+  if (!t) return null;
+  t.items = items;
+  t.amount = orderAmount(items);
+  if (items.length === 0) t.status = "open";
+  else if (t.status === "open") t.status = "unpaid";
+  await writeStore(s);
+  return t;
 }
 
 export async function setTableStatus(

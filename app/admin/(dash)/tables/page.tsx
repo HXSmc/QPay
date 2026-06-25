@@ -5,13 +5,18 @@ import { BRAND, STATUS_PALETTE } from "../../../lib/data";
 import { createTable, listTables, setTableStatus } from "../../../lib/api";
 import type { LiveTable, TableStatus } from "../../../lib/types";
 import { QrModal } from "../../../components/admin/QrModal";
+import { OrderModal } from "../../../components/admin/OrderModal";
 
 const CYCLE: TableStatus[] = ["open", "unpaid", "partial", "cleared"];
 
 export default function TablesPage() {
   const [tables, setTables] = useState<LiveTable[]>([]);
   const [qrFor, setQrFor] = useState<string | null>(null);
+  const [orderFor, setOrderFor] = useState<LiveTable | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const applyTable = (t: LiveTable) =>
+    setTables((prev) => prev.map((x) => (x.num === t.num ? t : x)));
 
   useEffect(() => {
     listTables().then(setTables).catch(() => {});
@@ -126,7 +131,25 @@ export default function TablesPage() {
               >
                 {p.label}
               </div>
-              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              <button
+                onClick={() => setOrderFor(t)}
+                style={{
+                  width: "100%",
+                  marginTop: 14,
+                  padding: "8px 0",
+                  borderRadius: 9,
+                  fontFamily: "inherit",
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  background: "#EEF2FF",
+                  color: BRAND,
+                  border: "1.5px solid #DBE3F4",
+                }}
+              >
+                {t.items.length ? `Order · ${t.items.length}` : "Add order"}
+              </button>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button
                   onClick={() => setQrFor(t.num)}
                   style={{ ...smallBtn, background: BRAND, color: "#fff", border: "none" }}
@@ -146,6 +169,13 @@ export default function TablesPage() {
       </div>
 
       {qrFor && <QrModal tableNum={qrFor} onClose={() => setQrFor(null)} />}
+      {orderFor && (
+        <OrderModal
+          table={orderFor}
+          onClose={() => setOrderFor(null)}
+          onSaved={applyTable}
+        />
+      )}
     </div>
   );
 }

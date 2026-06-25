@@ -13,6 +13,7 @@ export interface LiveTable {
   num: string;
   status: TableStatus;
   amount: string;
+  items: OrderItem[];
 }
 
 export interface Transaction {

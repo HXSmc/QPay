@@ -1,3 +1,4 @@
+import { BrandHeader } from "./components/site/BrandHeader";
 import { MarketingView } from "./components/MarketingView";
 
 export default function Page() {
@@ -10,6 +11,7 @@ export default function Page() {
         WebkitFontSmoothing: "antialiased",
       }}
     >
+      <BrandHeader />
       <MarketingView />
     </div>
   );

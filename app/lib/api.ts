@@ -1,4 +1,10 @@
-import type { LiveTable, MenuMeta, TableStatus, Transaction } from "./types";
+import type {
+  LiveTable,
+  MenuMeta,
+  OrderItem,
+  TableStatus,
+  Transaction,
+} from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -29,6 +35,23 @@ export async function setTableStatus(
 export async function deleteTable(num: string): Promise<void> {
   const res = await fetch(`/api/tables/${num}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`${res.status}`);
+}
+
+export async function getTable(num: string): Promise<LiveTable> {
+  return json(await fetch(`/api/tables/${num}`, { cache: "no-store" }));
+}
+
+export async function setTableItems(
+  num: string,
+  items: OrderItem[],
+): Promise<LiveTable> {
+  return json(
+    await fetch(`/api/tables/${num}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ items }),
+    }),
+  );
 }
 
 export async function listTransactions(): Promise<Transaction[]> {

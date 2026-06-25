@@ -1,13 +1,16 @@
+import { BrandHeader } from "../components/site/BrandHeader";
 import { CustomerView } from "../components/CustomerView";
+import { getTable } from "../lib/store";
 
 export const dynamic = "force-dynamic";
 
-export default function CustomerPage({
+export default async function CustomerPage({
   searchParams,
 }: {
   searchParams: { table?: string };
 }) {
   const tableNumber = searchParams.table?.trim() || "12";
+  const table = await getTable(tableNumber);
   return (
     <div
       style={{
@@ -17,7 +20,8 @@ export default function CustomerPage({
         WebkitFontSmoothing: "antialiased",
       }}
     >
-      <CustomerView tableNumber={tableNumber} />
+      <BrandHeader />
+      <CustomerView tableNumber={tableNumber} items={table?.items ?? []} />
     </div>
   );
 }

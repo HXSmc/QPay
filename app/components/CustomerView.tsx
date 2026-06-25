@@ -1,15 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import {
-  BRAND,
-  fmt,
-  ITEMS,
-  SUBTOTAL,
-  TAX,
-  TIP_PCT,
-} from "../lib/data";
-import type { SplitMode, TipKey } from "../lib/types";
+import { BRAND, fmt, TIP_PCT } from "../lib/data";
+import type { OrderItem, SplitMode, TipKey } from "../lib/types";
 import { MenuModal } from "./site/MenuModal";
 
 const SPLIT_DEFS: { key: SplitMode; label: string }[] = [
@@ -26,21 +19,33 @@ const TIP_DEFS: { key: TipKey; label: string }[] = [
   { key: "custom", label: "Custom" },
 ];
 
-export function CustomerView({ tableNumber = "12" }: { tableNumber?: string }) {
+export function CustomerView({
+  tableNumber = "12",
+  items = [],
+}: {
+  tableNumber?: string;
+  items?: OrderItem[];
+}) {
   const [split, setSplit] = useState<SplitMode>("full");
   const [tip, setTip] = useState<TipKey>("15");
   const [customTip, setCustomTip] = useState("12.00");
   const [peopleAtTable, setPeopleAtTable] = useState(4);
   const [payingFor, setPayingFor] = useState(1);
-  const [selectedQty, setSelectedQty] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [selectedQty, setSelectedQty] = useState<number[]>(() =>
+    items.map(() => 0),
+  );
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // --- bill totals ---
-  const base = SUBTOTAL + TAX;
+  const hasOrder = items.length > 0;
+
+  // --- bill totals (derived from this table's order) ---
+  const subtotal = +items.reduce((a, it) => a + it.price, 0).toFixed(2);
+  const tax = +(subtotal * 0.08).toFixed(2);
+  const base = subtotal + tax;
   const isCustomTip = tip === "custom";
   const tipAmt = isCustomTip
     ? Number(customTip) || 0
-    : +(SUBTOTAL * TIP_PCT[tip]).toFixed(2);
+    : +(subtotal * TIP_PCT[tip]).toFixed(2);
   const total = +(base + tipAmt).toFixed(2);
 
   // --- split equally ---
@@ -58,15 +63,15 @@ export function CustomerView({ tableNumber = "12" }: { tableNumber?: string }) {
   const payingDec = () => setPayingFor((pf) => Math.max(1, pf - 1));
 
   // --- pay per item ---
-  const unitPrice = (i: number) => ITEMS[i].price / ITEMS[i].qty;
-  const itemSubtotal = ITEMS.reduce(
-    (a, _it, i) => a + unitPrice(i) * selectedQty[i],
+  const unitPrice = (i: number) => items[i].price / items[i].qty;
+  const itemSubtotal = items.reduce(
+    (a, _it, i) => a + unitPrice(i) * (selectedQty[i] ?? 0),
     0,
   );
-  const proportion = SUBTOTAL > 0 ? itemSubtotal / SUBTOTAL : 0;
+  const proportion = subtotal > 0 ? itemSubtotal / subtotal : 0;
   const itemYouPay = +(
     itemSubtotal +
-    TAX * proportion +
+    tax * proportion +
     tipAmt * proportion
   ).toFixed(2);
   const selectedUnits = selectedQty.reduce((a, n) => a + n, 0);
@@ -258,6 +263,52 @@ export function CustomerView({ tableNumber = "12" }: { tableNumber?: string }) {
               View menu
             </button>
 
+            {!hasOrder ? (
+              <div
+                style={{
+                  marginTop: 8,
+                  padding: "36px 20px",
+                  textAlign: "center",
+                  background: "#F8FAFC",
+                  border: "1px dashed #CBD5E1",
+                  borderRadius: 16,
+                }}
+              >
+                <div
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 13,
+                    background: "#EEF2FF",
+                    color: BRAND,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    margin: "0 auto 14px",
+                  }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 2v7c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2V2" />
+                    <path d="M7 2v20" />
+                    <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+                  </svg>
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800 }}>No items yet</div>
+                <div
+                  style={{
+                    fontSize: 13.5,
+                    color: "#64748B",
+                    fontWeight: 500,
+                    marginTop: 6,
+                    lineHeight: 1.5,
+                  }}
+                >
+                  Your server is still adding items to this table. Your bill will
+                  appear here shortly.
+                </div>
+              </div>
+            ) : (
+              <>
             {/* Order summary */}
             <div
               style={{
@@ -271,7 +322,7 @@ export function CustomerView({ tableNumber = "12" }: { tableNumber?: string }) {
             >
               Order summary
             </div>
-            {ITEMS.map((it) => (
+            {items.map((it) => (
               <div
                 key={it.name}
                 style={{
@@ -322,8 +373,8 @@ export function CustomerView({ tableNumber = "12" }: { tableNumber?: string }) {
               }}
             >
               {[
-                ["Subtotal", fmt(SUBTOTAL)],
-                ["Tax (8%)", fmt(TAX)],
+                ["Subtotal", fmt(subtotal)],
+                ["Tax (8%)", fmt(tax)],
                 ["Tip", fmt(tipAmt)],
               ].map(([label, val]) => (
                 <div
@@ -568,7 +619,7 @@ export function CustomerView({ tableNumber = "12" }: { tableNumber?: string }) {
                 >
                   Tap the items you&apos;re paying for
                 </div>
-                {ITEMS.map((it, i) => {
+                {items.map((it, i) => {
                   const q = selectedQty[i];
                   const sel = q > 0;
                   const isMulti = it.qty > 1;
@@ -949,6 +1000,8 @@ export function CustomerView({ tableNumber = "12" }: { tableNumber?: string }) {
               </svg>
               Secured by QPay · 256-bit encryption
             </div>
+              </>
+            )}
           </div>
         </div>
       </div>
