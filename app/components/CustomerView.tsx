@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { billDue, BRAND, fmt, TIP_PCT } from "../lib/data";
 import { payTable } from "../lib/api";
 import type { OrderItem, SplitMode, TipKey } from "../lib/types";
@@ -27,6 +28,15 @@ export function CustomerView({
   tableNumber?: string;
   items?: OrderItem[];
 }) {
+  const router = useRouter();
+
+  // The bill is "live": re-fetch the server component so order edits made in
+  // admin (e.g. adding to the order a second time) appear without a re-scan.
+  useEffect(() => {
+    const id = setInterval(() => router.refresh(), 4000);
+    return () => clearInterval(id);
+  }, [router]);
+
   const [split, setSplit] = useState<SplitMode>("full");
   const [tip, setTip] = useState<TipKey>("15");
   const [customTip, setCustomTip] = useState("12.00");
