@@ -20,8 +20,25 @@ const STORE_FILE = path.join(DATA_DIR, "store.json");
 export const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
 const KV_KEY = "qpay:store";
-// KV mode on Vercel (or Upstash); disk mode locally when the env is absent.
+// Backend precedence: Supabase (shared serverless store) → Vercel KV → disk.
+const useSupabase = !!process.env.SUPABASE_URL;
 const useKv = !!process.env.KV_REST_API_URL;
+const SB_TABLE = "store";
+
+// Lazily-created, memoized Supabase client (dynamic import so the dep isn't
+// bundled when running in disk/KV mode).
+let _sb: import("@supabase/supabase-js").SupabaseClient | undefined;
+async function sb() {
+  if (!_sb) {
+    const { createClient } = await import("@supabase/supabase-js");
+    _sb = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } },
+    );
+  }
+  return _sb;
+}
 
 function seed(): Store {
   return {
@@ -58,6 +75,18 @@ function normalize(s: Store): Store {
 }
 
 async function readStore(): Promise<Store> {
+  if (useSupabase) {
+    const client = await sb();
+    const { data } = await client
+      .from(SB_TABLE)
+      .select("value")
+      .eq("key", KV_KEY)
+      .maybeSingle();
+    if (data?.value) return normalize(data.value as Store);
+    const fresh = seed();
+    await writeStore(fresh);
+    return fresh;
+  }
   if (useKv) {
     const { kv } = await import("@vercel/kv");
     const s = await kv.get<Store>(KV_KEY);
@@ -77,6 +106,13 @@ async function readStore(): Promise<Store> {
 }
 
 async function writeStore(s: Store): Promise<void> {
+  if (useSupabase) {
+    const client = await sb();
+    await client
+      .from(SB_TABLE)
+      .upsert({ key: KV_KEY, value: s }, { onConflict: "key" });
+    return;
+  }
   if (useKv) {
     const { kv } = await import("@vercel/kv");
     await kv.set(KV_KEY, s);
