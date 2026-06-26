@@ -7,6 +7,7 @@ export default function AdminDashLayout({
 }) {
   return (
     <div
+      className="qp-admin-shell"
       style={{
         display: "flex",
         background: "#F8FAFC",

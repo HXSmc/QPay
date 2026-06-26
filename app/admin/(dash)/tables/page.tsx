@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BRAND, STATUS_PALETTE } from "../../../lib/data";
-import { createTable, listTables, setTableStatus } from "../../../lib/api";
+import { billDue, BRAND, fmt, STATUS_PALETTE } from "../../../lib/data";
+import {
+  createTable,
+  deleteTable,
+  listTables,
+  setTableItems,
+} from "../../../lib/api";
 import type { LiveTable, TableStatus } from "../../../lib/types";
 import { QrModal } from "../../../components/admin/QrModal";
 import { OrderModal } from "../../../components/admin/OrderModal";
-
-const CYCLE: TableStatus[] = ["open", "unpaid", "partial", "cleared"];
 
 export default function TablesPage() {
   const [tables, setTables] = useState<LiveTable[]>([]);
@@ -32,10 +35,15 @@ export default function TablesPage() {
     }
   };
 
-  const cycleStatus = async (t: LiveTable) => {
-    const next = CYCLE[(CYCLE.indexOf(t.status) + 1) % CYCLE.length];
-    const updated = await setTableStatus(t.num, next);
-    setTables((prev) => prev.map((x) => (x.num === t.num ? updated : x)));
+  const clearTable = async (t: LiveTable) => {
+    const updated = await setTableItems(t.num, []);
+    applyTable(updated);
+  };
+
+  const removeTable = async (t: LiveTable) => {
+    if (!confirm(`Delete Table ${t.num}? This can't be undone.`)) return;
+    await deleteTable(t.num);
+    setTables((prev) => prev.filter((x) => x.num !== t.num));
   };
 
   const smallBtn = {
@@ -49,7 +57,7 @@ export default function TablesPage() {
   } as const;
 
   return (
-    <div style={{ padding: "30px 36px" }}>
+    <div className="qp-page" style={{ padding: "30px 36px" }}>
       <div
         style={{
           display: "flex",
@@ -63,7 +71,7 @@ export default function TablesPage() {
             Tables &amp; QR codes
           </h1>
           <p style={{ fontSize: 14, color: "#64748B", margin: "5px 0 0", fontWeight: 600 }}>
-            Add tables, update status, and generate a scan-to-pay QR for each.
+            Add tables, generate a scan-to-pay QR, then clear or delete when done.
           </p>
         </div>
         <button
@@ -131,6 +139,11 @@ export default function TablesPage() {
               >
                 {p.label}
               </div>
+              {t.status === "partial" && (
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: "#64748B", marginTop: 7 }}>
+                  Paid {fmt(t.paid)} of {fmt(billDue(t.items))}
+                </div>
+              )}
               <button
                 onClick={() => setOrderFor(t)}
                 style={{
@@ -157,12 +170,32 @@ export default function TablesPage() {
                   QR
                 </button>
                 <button
-                  onClick={() => cycleStatus(t)}
-                  style={{ ...smallBtn, background: "#fff", color: "#0B1221", border: "1.5px solid #E2E8F0" }}
+                  onClick={() => removeTable(t)}
+                  style={{ ...smallBtn, background: "#fff", color: "#DC2626", border: "1.5px solid #FECACA" }}
                 >
-                  Status
+                  Delete
                 </button>
               </div>
+              {t.status === "cleared" && (
+                <button
+                  onClick={() => clearTable(t)}
+                  style={{
+                    width: "100%",
+                    marginTop: 8,
+                    padding: "8px 0",
+                    borderRadius: 9,
+                    fontFamily: "inherit",
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    background: "#16A34A",
+                    color: "#fff",
+                    border: "none",
+                  }}
+                >
+                  Clear table
+                </button>
+              )}
             </div>
           );
         })}

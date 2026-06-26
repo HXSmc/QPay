@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { fmt, ITEMS, TABLES, TRANSACTIONS } from "./data";
+import { billDue, fmt, ITEMS, TABLES, TRANSACTIONS } from "./data";
 import type {
   LiveTable,
   MenuMeta,
@@ -28,9 +28,15 @@ function seed(): Store {
     tables: TABLES.map((t) => {
       if (t.num === "12") {
         const items = ITEMS.map((i) => ({ ...i }));
-        return { ...t, items, status: "unpaid" as TableStatus, amount: orderAmount(items) };
+        return {
+          ...t,
+          items,
+          status: "unpaid" as TableStatus,
+          amount: orderAmount(items),
+          paid: 0,
+        };
       }
-      return { ...t, items: [] };
+      return { ...t, items: [], paid: 0 };
     }),
     transactions: TRANSACTIONS.map((t) => ({ ...t })),
     menu: null,
@@ -44,6 +50,7 @@ function normalize(s: Store): Store {
     tables: (s.tables ?? []).map((t) => ({
       ...t,
       items: Array.isArray(t.items) ? t.items : [],
+      paid: typeof t.paid === "number" ? t.paid : 0,
     })),
     transactions: s.transactions ?? [],
     menu: s.menu ?? null,
@@ -91,6 +98,7 @@ export async function createTable(): Promise<LiveTable> {
     status: "open",
     amount: "—",
     items: [],
+    paid: 0,
   };
   s.tables.push(table);
   await writeStore(s);
@@ -111,8 +119,28 @@ export async function setTableItems(
   if (!t) return null;
   t.items = items;
   t.amount = orderAmount(items);
-  if (items.length === 0) t.status = "open";
-  else if (t.status === "open") t.status = "unpaid";
+  if (items.length === 0) {
+    t.status = "open";
+    t.paid = 0;
+  } else if (t.status === "open") {
+    t.status = "unpaid";
+  }
+  await writeStore(s);
+  return t;
+}
+
+/** Record a mock payment toward a table's bill; auto-sets partial/cleared status. */
+export async function payTable(
+  num: string,
+  amount: number,
+): Promise<LiveTable | null> {
+  const s = await readStore();
+  const t = s.tables.find((x) => x.num === num);
+  if (!t) return null;
+  t.paid = +(((t.paid ?? 0) + amount).toFixed(2));
+  const due = billDue(t.items);
+  if (t.paid + 0.01 >= due) t.status = "cleared";
+  else if (t.paid > 0) t.status = "partial";
   await writeStore(s);
   return t;
 }

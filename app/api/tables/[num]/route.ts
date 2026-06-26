@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   deleteTable,
   getTable,
+  payTable,
   setTableItems,
   setTableStatus,
 } from "@/app/lib/store";
@@ -41,7 +42,19 @@ export async function PATCH(
   const body = (await req.json().catch(() => ({}))) as {
     status?: TableStatus;
     items?: unknown;
+    pay?: unknown;
   };
+
+  if (body.pay !== undefined) {
+    if (typeof body.pay !== "number" || !(body.pay > 0)) {
+      return NextResponse.json({ error: "invalid pay" }, { status: 400 });
+    }
+    const updated = await payTable(params.num, body.pay);
+    if (!updated) {
+      return NextResponse.json({ error: "not found" }, { status: 404 });
+    }
+    return NextResponse.json(updated);
+  }
 
   if (body.items !== undefined) {
     const items = sanitizeItems(body.items);

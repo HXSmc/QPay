@@ -5,6 +5,10 @@ export const BRAND = "#2E5BFF";
 /** Format a number as a USD currency string, e.g. 12.5 -> "$12.50". */
 export const fmt = (n: number) => "$" + n.toFixed(2);
 
+/** Bill owed for an order: subtotal + 8% tax (tip excluded — it varies per payer). */
+export const billDue = (items: OrderItem[]) =>
+  +(items.reduce((a, it) => a + it.price, 0) * 1.08).toFixed(2);
+
 /** Items on the bill. Truffle Burger and Sparkling Water are multi-quantity. */
 export const ITEMS: OrderItem[] = [
   { name: "Truffle Burger", qty: 2, price: 36.0 },
@@ -34,18 +38,18 @@ export const STATUS_PALETTE: Record<
   open: { c: "#94A3B8", bg: "#F8FAFC", label: "Open" },
 };
 
-export const TABLES: Omit<LiveTable, "items">[] = [
-  { num: "1", status: "cleared", amount: "$124" },
-  { num: "2", status: "partial", amount: "$88" },
-  { num: "3", status: "unpaid", amount: "$210" },
-  { num: "4", status: "cleared", amount: "$56" },
+export const TABLES: Omit<LiveTable, "items" | "paid">[] = [
+  { num: "1", status: "open", amount: "—" },
+  { num: "2", status: "open", amount: "—" },
+  { num: "3", status: "open", amount: "—" },
+  { num: "4", status: "open", amount: "—" },
   { num: "5", status: "open", amount: "—" },
-  { num: "6", status: "partial", amount: "$143" },
-  { num: "7", status: "cleared", amount: "$77" },
-  { num: "8", status: "unpaid", amount: "$162" },
+  { num: "6", status: "open", amount: "—" },
+  { num: "7", status: "open", amount: "—" },
+  { num: "8", status: "open", amount: "—" },
   { num: "9", status: "open", amount: "—" },
-  { num: "10", status: "cleared", amount: "$94" },
-  { num: "11", status: "partial", amount: "$118" },
+  { num: "10", status: "open", amount: "—" },
+  { num: "11", status: "open", amount: "—" },
   { num: "12", status: "open", amount: "—" },
 ];
 

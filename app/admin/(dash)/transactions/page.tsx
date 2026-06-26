@@ -14,7 +14,7 @@ export default function TransactionsPage() {
   }, []);
 
   return (
-    <div style={{ padding: "30px 36px" }}>
+    <div className="qp-page" style={{ padding: "30px 36px" }}>
       <div
         style={{
           display: "flex",
@@ -49,7 +49,7 @@ export default function TransactionsPage() {
         </button>
       </div>
 
-      <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 18, padding: 22 }}>
+      <div className="qp-scroll-x" style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 18, padding: 22 }}>
         <div
           style={{
             display: "grid",

@@ -45,7 +45,7 @@ export default function MenuPage() {
   const isPdf = meta?.mime === "application/pdf";
 
   return (
-    <div style={{ padding: "30px 36px", maxWidth: 760 }}>
+    <div className="qp-page" style={{ padding: "30px 36px", maxWidth: 760 }}>
       <h1 style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
         Menu
       </h1>

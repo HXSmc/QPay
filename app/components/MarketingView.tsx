@@ -127,6 +127,7 @@ export function MarketingView() {
         }}
       >
         <div
+          className="qp-hero-grid qp-section"
           style={{
             maxWidth: 1120,
             margin: "0 auto",
@@ -165,6 +166,7 @@ export function MarketingView() {
               Trusted by 3,200+ restaurants
             </div>
             <h1
+              className="qp-hero-title"
               style={{
                 fontSize: 58,
                 lineHeight: 1.04,
@@ -281,6 +283,7 @@ export function MarketingView() {
 
           {/* Phone mockup */}
           <div
+            className="qp-hide-mobile"
             style={{
               position: "relative",
               display: "flex",
@@ -398,6 +401,7 @@ export function MarketingView() {
       {/* SOLUTIONS GRID */}
       <div
         id="solutions"
+        className="qp-section"
         style={{ maxWidth: 1120, margin: "0 auto", padding: "64px 32px 24px", scrollMarginTop: 72 }}
       >
         <div
@@ -441,6 +445,7 @@ export function MarketingView() {
           </p>
         </div>
         <div
+          className="qp-grid-4"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4,1fr)",
@@ -500,6 +505,7 @@ export function MarketingView() {
       {/* ROI METRICS BAND */}
       <div style={{ maxWidth: 1120, margin: "64px auto", padding: "0 32px" }}>
         <div
+          className="qp-section"
           style={{
             background: "#0B1221",
             borderRadius: 28,
@@ -540,6 +546,7 @@ export function MarketingView() {
             </h2>
           </div>
           <div
+            className="qp-grid-4"
             style={{
               position: "relative",
               display: "grid",
@@ -580,6 +587,7 @@ export function MarketingView() {
       {/* FOOTER CTA */}
       <div style={{ background: "#EEF2FF", borderTop: "1px solid #E2E8F0" }}>
         <div
+          className="qp-section"
           style={{
             maxWidth: 1120,
             margin: "0 auto",

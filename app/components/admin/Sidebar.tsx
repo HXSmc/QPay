@@ -93,6 +93,7 @@ export function Sidebar() {
 
   return (
     <div
+      className="qp-sidebar"
       style={{
         width: 236,
         flexShrink: 0,
@@ -135,6 +136,7 @@ export function Sidebar() {
         <span style={{ fontSize: 17, fontWeight: 800 }}>QPay</span>
       </Link>
       <div
+        className="qp-hide-mobile"
         style={{
           fontSize: 11,
           fontWeight: 700,
@@ -201,7 +203,7 @@ export function Sidebar() {
         >
           MR
         </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="qp-hide-mobile" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13.5, fontWeight: 600 }}>Maria Reyes</div>
           <div style={{ fontSize: 12, color: "#64748B" }}>Floor Manager</div>
         </div>

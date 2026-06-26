@@ -45,3 +45,75 @@ body {
   background: #161f33 !important;
   color: #fff !important;
 }
+
+/* Mobile / phone view. Inline styles are the desktop base; these override the
+   breaking layout properties on small screens (!important beats inline). */
+@media (max-width: 768px) {
+  .qp-page {
+    padding: 20px 16px !important;
+  }
+
+  .qp-section {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+    padding-top: 40px !important;
+    padding-bottom: 40px !important;
+  }
+
+  .qp-hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+
+  .qp-hero-title {
+    font-size: 34px !important;
+  }
+
+  .qp-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .qp-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .qp-hide-mobile {
+    display: none !important;
+  }
+
+  /* Wide row-based "tables" keep their columns and scroll instead of crushing. */
+  .qp-scroll-x {
+    overflow-x: auto !important;
+  }
+
+  .qp-scroll-x > * {
+    min-width: 520px !important;
+  }
+
+  /* Admin shell: sidebar becomes a horizontal top bar. */
+  .qp-admin-shell {
+    flex-direction: column !important;
+  }
+
+  .qp-sidebar {
+    width: 100% !important;
+    min-height: auto !important;
+    position: static !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    overflow-x: auto !important;
+    gap: 6px !important;
+    padding: 10px 12px !important;
+  }
+
+  .qp-sidebar a {
+    margin-bottom: 0 !important;
+    white-space: nowrap !important;
+  }
+}
+
+@media (max-width: 460px) {
+  .qp-grid-4 {
+    grid-template-columns: 1fr !important;
+  }
+}

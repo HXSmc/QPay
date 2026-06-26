@@ -64,7 +64,7 @@ export default function SettingsPage() {
   } as const;
 
   return (
-    <div style={{ padding: "30px 36px", maxWidth: 640 }}>
+    <div className="qp-page" style={{ padding: "30px 36px", maxWidth: 640 }}>
       <h1 style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
         Settings
       </h1>

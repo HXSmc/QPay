@@ -21,7 +21,7 @@ const STATS = [
 
 export default function AnalyticsPage() {
   return (
-    <div style={{ padding: "30px 36px" }}>
+    <div className="qp-page" style={{ padding: "30px 36px" }}>
       <h1 style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
         Analytics
       </h1>
@@ -29,7 +29,7 @@ export default function AnalyticsPage() {
         Revenue and tipping trends across the week.
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18, marginBottom: 24 }}>
+      <div className="qp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18, marginBottom: 24 }}>
         {STATS.map((s) => (
           <div key={s.label} style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 18, padding: 20 }}>
             <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: "-0.02em" }}>{s.value}</div>

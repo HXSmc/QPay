@@ -32,6 +32,19 @@ export async function setTableStatus(
   );
 }
 
+export async function payTable(
+  num: string,
+  amount: number,
+): Promise<LiveTable> {
+  return json(
+    await fetch(`/api/tables/${num}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pay: amount }),
+    }),
+  );
+}
+
 export async function deleteTable(num: string): Promise<void> {
   const res = await fetch(`/api/tables/${num}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`${res.status}`);

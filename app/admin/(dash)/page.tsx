@@ -30,7 +30,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div style={{ padding: "30px 36px" }}>
+    <div className="qp-page" style={{ padding: "30px 36px" }}>
       <div
         style={{
           display: "flex",
@@ -104,7 +104,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Metric cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18, marginBottom: 28 }}>
+      <div className="qp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 18, marginBottom: 28 }}>
         {metrics.map((m) => (
           <div
             key={m.label}
@@ -156,7 +156,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: 18, alignItems: "start" }}>
+      <div className="qp-grid-2" style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: 18, alignItems: "start" }}>
         {/* Live tables */}
         <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 18, padding: 22 }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
@@ -165,7 +165,7 @@ export default function DashboardPage() {
               Manage
             </Link>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 11 }}>
+          <div className="qp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 11 }}>
             {tables.map((t) => {
               const p = STATUS_PALETTE[t.status];
               return (

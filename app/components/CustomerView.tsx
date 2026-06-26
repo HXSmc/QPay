@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BRAND, fmt, TIP_PCT } from "../lib/data";
+import { billDue, BRAND, fmt, TIP_PCT } from "../lib/data";
+import { payTable } from "../lib/api";
 import type { OrderItem, SplitMode, TipKey } from "../lib/types";
 import { MenuModal } from "./site/MenuModal";
 
@@ -35,6 +36,12 @@ export function CustomerView({
     items.map(() => 0),
   );
   const [menuOpen, setMenuOpen] = useState(false);
+  const [paying, setPaying] = useState(false);
+  const [result, setResult] = useState<{
+    paid: number;
+    cleared: boolean;
+    remaining: number;
+  } | null>(null);
 
   const hasOrder = items.length > 0;
 
@@ -97,6 +104,27 @@ export function CustomerView({
     split === "item" && selectedCount === 0
       ? "Select items to pay"
       : "Pay " + fmt(payAmount) + payNote;
+
+  const payDisabled =
+    paying || payAmount <= 0 || (split === "item" && selectedCount === 0);
+
+  const handlePay = async () => {
+    if (payDisabled) return;
+    setPaying(true);
+    try {
+      const updated = await payTable(tableNumber, payAmount);
+      const due = billDue(items);
+      setResult({
+        paid: payAmount,
+        cleared: updated.status === "cleared",
+        remaining: Math.max(0, +(due - updated.paid).toFixed(2)),
+      });
+    } catch {
+      // mock — swallow; button re-enables so user can retry
+    } finally {
+      setPaying(false);
+    }
+  };
 
   const equalNote = `${fmt(perPerson)} per person × ${clampedPaying}`;
   const itemNote =
@@ -883,9 +911,61 @@ export function CustomerView({
               </div>
             )}
 
+            {/* Payment result */}
+            {result && (
+              <div
+                style={{
+                  marginTop: 24,
+                  padding: "16px 18px",
+                  borderRadius: 16,
+                  border: "1px solid " + (result.cleared ? "#86EFAC" : "#FCD34D"),
+                  background: result.cleared ? "#F0FDF4" : "#FFFBEB",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    fontSize: 15,
+                    fontWeight: 800,
+                    color: result.cleared ? "#16A34A" : "#B45309",
+                  }}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 6 9 17l-4-4" />
+                  </svg>
+                  Paid {fmt(result.paid)}
+                </div>
+                <div
+                  style={{
+                    fontSize: 13.5,
+                    fontWeight: 600,
+                    color: "#475569",
+                    marginTop: 6,
+                  }}
+                >
+                  {result.cleared
+                    ? "Bill fully paid — thanks!"
+                    : `Partial payment received · ${fmt(result.remaining)} remaining`}
+                </div>
+              </div>
+            )}
+
             {/* Apple / Google pay */}
             <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
               <button
+                onClick={handlePay}
+                disabled={payDisabled}
                 style={{
                   flex: 1,
                   display: "flex",
@@ -900,7 +980,8 @@ export function CustomerView({
                   fontFamily: "inherit",
                   fontSize: 14.5,
                   fontWeight: 700,
-                  cursor: "pointer",
+                  cursor: payDisabled ? "default" : "pointer",
+                  opacity: payDisabled ? 0.55 : 1,
                 }}
               >
                 <svg
@@ -914,6 +995,8 @@ export function CustomerView({
                 Pay
               </button>
               <button
+                onClick={handlePay}
+                disabled={payDisabled}
                 style={{
                   flex: 1,
                   display: "flex",
@@ -928,7 +1011,8 @@ export function CustomerView({
                   fontFamily: "inherit",
                   fontSize: 14.5,
                   fontWeight: 700,
-                  cursor: "pointer",
+                  cursor: payDisabled ? "default" : "pointer",
+                  opacity: payDisabled ? 0.55 : 1,
                 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24">
@@ -954,6 +1038,8 @@ export function CustomerView({
             </div>
 
             <button
+              onClick={handlePay}
+              disabled={payDisabled}
               className="qp-cta-lift"
               style={{
                 width: "100%",
@@ -966,12 +1052,13 @@ export function CustomerView({
                 fontFamily: "inherit",
                 fontSize: 17,
                 fontWeight: 800,
-                cursor: "pointer",
+                cursor: payDisabled ? "default" : "pointer",
+                opacity: payDisabled ? 0.55 : 1,
                 boxShadow: "0 10px 24px rgba(46,91,255,0.3)",
                 transition: "all .15s",
               }}
             >
-              {payLabel}
+              {paying ? "Processing…" : payLabel}
             </button>
             <div
               style={{

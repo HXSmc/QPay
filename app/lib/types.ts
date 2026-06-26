@@ -14,6 +14,8 @@ export interface LiveTable {
   status: TableStatus;
   amount: string;
   items: OrderItem[];
+  /** Cumulative dollars paid toward this table's bill (mock payments). */
+  paid: number;
 }
 
 export interface Transaction {
