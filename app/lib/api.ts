@@ -35,12 +35,28 @@ export async function setTableStatus(
 export async function payTable(
   num: string,
   amount: number,
+  opts?: { id?: string; items?: number[] },
 ): Promise<LiveTable> {
   return json(
     await fetch(`/api/tables/${num}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pay: amount }),
+      body: JSON.stringify({ pay: amount, id: opts?.id, payItems: opts?.items }),
+    }),
+  );
+}
+
+/** Heartbeat this phone's live item hold and read back the merged table state. */
+export async function syncTable(
+  num: string,
+  id: string,
+  qty: number[],
+): Promise<LiveTable> {
+  return json(
+    await fetch(`/api/tables/${num}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ sync: { id, qty } }),
     }),
   );
 }

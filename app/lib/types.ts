@@ -9,13 +9,27 @@ export interface OrderItem {
 
 export type TableStatus = "unpaid" | "partial" | "cleared" | "open";
 
+/** A phone's live, advisory hold on item units while it's choosing (pre-payment). */
+export interface Reservation {
+  /** Per-phone client id. */
+  id: string;
+  /** Units held per item, index-aligned to LiveTable.items. */
+  qty: number[];
+  /** Last heartbeat (ms epoch); stale reservations are pruned. */
+  ts: number;
+}
+
 export interface LiveTable {
   num: string;
   status: TableStatus;
   amount: string;
   items: OrderItem[];
-  /** Cumulative dollars paid toward this table's bill (mock payments). */
+  /** Cumulative principal paid toward this table's bill (subtotal+tax; tip untracked). */
   paid: number;
+  /** Units already paid per item (index-aligned to items); these lock permanently. */
+  paidQty: number[];
+  /** Live holds from phones currently choosing items. */
+  reservations: Reservation[];
 }
 
 export interface Transaction {

@@ -38,7 +38,10 @@ export const STATUS_PALETTE: Record<
   open: { c: "#94A3B8", bg: "#F8FAFC", label: "Open" },
 };
 
-export const TABLES: Omit<LiveTable, "items" | "paid">[] = [
+export const TABLES: Omit<
+  LiveTable,
+  "items" | "paid" | "paidQty" | "reservations"
+>[] = [
   { num: "1", status: "open", amount: "—" },
   { num: "2", status: "open", amount: "—" },
   { num: "3", status: "open", amount: "—" },

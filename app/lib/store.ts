@@ -5,6 +5,7 @@ import type {
   LiveTable,
   MenuMeta,
   OrderItem,
+  Reservation,
   Store,
   TableStatus,
   Transaction,
@@ -13,6 +14,16 @@ import type {
 function orderAmount(items: OrderItem[]): string {
   if (!items.length) return "—";
   return fmt(items.reduce((a, it) => a + it.price, 0));
+}
+
+const zeros = (n: number): number[] => Array.from({ length: n }, () => 0);
+
+/** Reservations older than this (ms) are considered abandoned and dropped. */
+const RESV_TTL_MS = 8000;
+
+function pruneReservations(rs: Reservation[]): Reservation[] {
+  const cutoff = Date.now() - RESV_TTL_MS;
+  return (rs ?? []).filter((r) => r.ts >= cutoff && r.qty.some((q) => q > 0));
 }
 
 const DATA_DIR = path.join(process.cwd(), "data");
@@ -51,9 +62,11 @@ function seed(): Store {
           status: "unpaid" as TableStatus,
           amount: orderAmount(items),
           paid: 0,
+          paidQty: zeros(items.length),
+          reservations: [],
         };
       }
-      return { ...t, items: [], paid: 0 };
+      return { ...t, items: [], paid: 0, paidQty: [], reservations: [] };
     }),
     transactions: TRANSACTIONS.map((t) => ({ ...t })),
     menu: null,
@@ -64,11 +77,18 @@ function seed(): Store {
 // so stores created by older versions don't crash newer code.
 function normalize(s: Store): Store {
   return {
-    tables: (s.tables ?? []).map((t) => ({
-      ...t,
-      items: Array.isArray(t.items) ? t.items : [],
-      paid: typeof t.paid === "number" ? t.paid : 0,
-    })),
+    tables: (s.tables ?? []).map((t) => {
+      const items = Array.isArray(t.items) ? t.items : [];
+      const pq = Array.isArray(t.paidQty) ? t.paidQty : [];
+      return {
+        ...t,
+        items,
+        paid: typeof t.paid === "number" ? t.paid : 0,
+        // Coerce paidQty to match items length (defaults to 0 for new indices).
+        paidQty: items.map((_, i) => (typeof pq[i] === "number" ? pq[i] : 0)),
+        reservations: Array.isArray(t.reservations) ? t.reservations : [],
+      };
+    }),
     transactions: s.transactions ?? [],
     menu: s.menu ?? null,
   };
@@ -135,6 +155,8 @@ export async function createTable(): Promise<LiveTable> {
     amount: "—",
     items: [],
     paid: 0,
+    paidQty: [],
+    reservations: [],
   };
   s.tables.push(table);
   await writeStore(s);
@@ -155,6 +177,9 @@ export async function setTableItems(
   if (!t) return null;
   t.items = items;
   t.amount = orderAmount(items);
+  // Editing the order resets per-item payment locks and any live holds.
+  t.paidQty = zeros(items.length);
+  t.reservations = [];
   if (items.length === 0) {
     t.status = "open";
     t.paid = 0;
@@ -165,16 +190,58 @@ export async function setTableItems(
   return t;
 }
 
-/** Record a mock payment toward a table's bill; auto-sets partial/cleared status. */
-export async function payTable(
+/** Upsert a phone's live item hold (heartbeat) and prune abandoned holds. */
+export async function syncReservation(
   num: string,
-  amount: number,
+  id: string,
+  qty: number[],
 ): Promise<LiveTable | null> {
   const s = await readStore();
   const t = s.tables.find((x) => x.num === num);
   if (!t) return null;
-  t.paid = +(((t.paid ?? 0) + amount).toFixed(2));
+  const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
+  const mine = (qty ?? []).map((n) => (typeof n === "number" && n > 0 ? n : 0));
+  t.reservations = mine.some((n) => n > 0)
+    ? [...others, { id, qty: mine, ts: Date.now() }]
+    : others;
+  await writeStore(s);
+  return t;
+}
+
+/**
+ * Record a mock payment. Clamps to the remaining balance (no overpay), locks
+ * paid item units, and clears the caller's live hold. Auto-sets status.
+ */
+export async function payTable(
+  num: string,
+  amount: number,
+  opts?: { id?: string; items?: number[] },
+): Promise<LiveTable | null> {
+  const s = await readStore();
+  const t = s.tables.find((x) => x.num === num);
+  if (!t) return null;
+
   const due = billDue(t.items);
+  const remaining = Math.max(0, +(due - (t.paid ?? 0)).toFixed(2));
+  const applied = Math.min(Math.max(0, amount), remaining);
+  t.paid = +(((t.paid ?? 0) + applied).toFixed(2));
+
+  // Lock paid item units (capped at ordered qty).
+  if (opts?.items) {
+    if (!Array.isArray(t.paidQty) || t.paidQty.length !== t.items.length) {
+      t.paidQty = zeros(t.items.length);
+    }
+    t.items.forEach((it, i) => {
+      const add = typeof opts.items![i] === "number" ? opts.items![i] : 0;
+      t.paidQty[i] = Math.min(t.paidQty[i] + Math.max(0, add), it.qty);
+    });
+  }
+
+  // Drop the caller's hold + any stale holds.
+  t.reservations = pruneReservations(t.reservations).filter(
+    (r) => r.id !== opts?.id,
+  );
+
   if (t.paid + 0.01 >= due) t.status = "cleared";
   else if (t.paid > 0) t.status = "partial";
   await writeStore(s);

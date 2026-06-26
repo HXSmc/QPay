@@ -21,7 +21,7 @@ export default async function CustomerPage({
       }}
     >
       <BrandHeader />
-      <CustomerView tableNumber={tableNumber} items={table?.items ?? []} />
+      <CustomerView tableNumber={tableNumber} initialTable={table} />
     </div>
   );
 }
