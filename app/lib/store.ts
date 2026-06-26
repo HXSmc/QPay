@@ -179,27 +179,56 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/** Read the currently-stored Supabase version (0 if missing/unset). */
+async function sbCurrentVersion(): Promise<number> {
+  const client = await sb();
+  const { data } = await client
+    .from(SB_TABLE)
+    .select("value")
+    .eq("key", KV_KEY)
+    .maybeSingle();
+  const v = (data?.value as Store | undefined)?.version;
+  return typeof v === "number" ? v : 0;
+}
+
 /**
- * Commit a mutated store, guarding against lost updates. On Supabase this is a
- * conditional UPDATE matching the version we read; returns false if another
- * writer won the race (caller re-reads and retries). Disk/KV writes are
- * unconditional — the in-process lock already serializes them.
+ * Commit a mutated store, guarding against lost updates.
+ *
+ * On Supabase this attempts a conditional UPDATE matching the version we read.
+ * Returns false ONLY when we can prove another writer won the race (caller
+ * re-reads and retries). Crucially it is fail-SAFE: if the conditional write
+ * errors or matches no row for any reason OTHER than a confirmed version
+ * advance (e.g. a PostgREST jsonb-filter quirk), it degrades to an
+ * unconditional write so a payment can never be permanently blocked — worst
+ * case we fall back to last-write-wins, never a hard failure.
+ *
+ * Disk/KV writes are unconditional — the in-process lock already serializes
+ * them within the single process.
  */
 async function commit(s: Store, expected: number): Promise<boolean> {
   s.version = expected + 1;
   if (useSupabase) {
     const client = await sb();
-    // Conditional update: only writes if the stored version still matches the
-    // one we read. readStore() guarantees every row carries a numeric version,
-    // so this `eq` always has a value to match against.
-    const { data, error } = await client
-      .from(SB_TABLE)
-      .update({ value: s })
-      .eq("key", KV_KEY)
-      .eq("value->>version", String(expected))
-      .select("key");
-    if (error) throw error;
-    return (data?.length ?? 0) > 0;
+    try {
+      const { data, error } = await client
+        .from(SB_TABLE)
+        .update({ value: s })
+        .eq("key", KV_KEY)
+        .eq("value->>version", String(expected))
+        .select("key");
+      if (!error && (data?.length ?? 0) > 0) return true; // CAS won
+
+      // No row updated (or the filter errored). Disambiguate: did the stored
+      // version actually move past ours (real conflict) or did the conditional
+      // simply not apply? Only a confirmed advance means "retry".
+      const current = await sbCurrentVersion();
+      if (current !== expected) return false; // real concurrent write → retry
+    } catch {
+      // Conditional path unusable on this backend — fall through to a plain
+      // write rather than failing the request.
+    }
+    await writeStore(s); // unconditional upsert (value already carries version)
+    return true;
   }
   await writeStore(s);
   return true;
