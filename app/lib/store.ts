@@ -70,6 +70,7 @@ function seed(): Store {
     }),
     transactions: TRANSACTIONS.map((t) => ({ ...t })),
     menu: null,
+    version: 0,
   };
 }
 
@@ -91,6 +92,7 @@ function normalize(s: Store): Store {
     }),
     transactions: s.transactions ?? [],
     menu: s.menu ?? null,
+    version: typeof s.version === "number" ? s.version : 0,
   };
 }
 
@@ -102,7 +104,14 @@ async function readStore(): Promise<Store> {
       .select("value")
       .eq("key", KV_KEY)
       .maybeSingle();
-    if (data?.value) return normalize(data.value as Store);
+    if (data?.value) {
+      const raw = data.value as Store;
+      const norm = normalize(raw);
+      // One-time backfill: persist a version on legacy rows written before
+      // optimistic concurrency existed, so the CAS in commit() can match it.
+      if (typeof raw.version !== "number") await writeStore(norm);
+      return norm;
+    }
     const fresh = seed();
     await writeStore(fresh);
     return fresh;
@@ -142,25 +151,107 @@ async function writeStore(s: Store): Promise<void> {
   await fs.writeFile(STORE_FILE, JSON.stringify(s, null, 2), "utf8");
 }
 
+// ---------------------------------------------------------------------------
+// Concurrency control
+//
+// The store is a single blob with read-modify-write semantics, so two
+// concurrent mutations (e.g. a phone heartbeating while another pays) can read
+// the same snapshot and clobber each other → lost update. We defend in two
+// layers:
+//   1. An in-process async lock serializes mutations within one Node instance
+//      (covers disk/KV and same-instance Supabase requests).
+//   2. Optimistic concurrency (a `version` stamped in the blob) makes Supabase
+//      writes a compare-and-swap, so cross-instance serverless requests can't
+//      clobber either — a stale write is rejected and the mutation retried.
+// ---------------------------------------------------------------------------
+
+const MAX_RETRIES = 6;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Promise-chain mutex: each mutation waits for the previous to settle.
+let lock: Promise<unknown> = Promise.resolve();
+function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = lock.then(fn, fn);
+  lock = run.then(
+    () => {},
+    () => {},
+  );
+  return run;
+}
+
+/**
+ * Commit a mutated store, guarding against lost updates. On Supabase this is a
+ * conditional UPDATE matching the version we read; returns false if another
+ * writer won the race (caller re-reads and retries). Disk/KV writes are
+ * unconditional — the in-process lock already serializes them.
+ */
+async function commit(s: Store, expected: number): Promise<boolean> {
+  s.version = expected + 1;
+  if (useSupabase) {
+    const client = await sb();
+    // Conditional update: only writes if the stored version still matches the
+    // one we read. readStore() guarantees every row carries a numeric version,
+    // so this `eq` always has a value to match against.
+    const { data, error } = await client
+      .from(SB_TABLE)
+      .update({ value: s })
+      .eq("key", KV_KEY)
+      .eq("value->>version", String(expected))
+      .select("key");
+    if (error) throw error;
+    return (data?.length ?? 0) > 0;
+  }
+  await writeStore(s);
+  return true;
+}
+
+/**
+ * Read-modify-write with serialization + optimistic-concurrency retry. `apply`
+ * mutates the fresh store in place and returns the caller's result plus whether
+ * a write is needed (skip writes for not-found / no-op so we don't bump the
+ * version pointlessly). `apply` may run more than once, so it must be a pure
+ * function of the store it's handed.
+ */
+async function mutate<T>(
+  apply: (s: Store) => { result: T; write: boolean },
+): Promise<T> {
+  return withLock(async () => {
+    for (let attempt = 0; ; attempt++) {
+      const s = await readStore();
+      const expected = s.version ?? 0;
+      const { result, write } = apply(s);
+      if (!write) return result;
+      if (await commit(s, expected)) return result;
+      if (attempt >= MAX_RETRIES) {
+        throw new Error("store: write conflict (max retries exceeded)");
+      }
+      await sleep(15 * (attempt + 1));
+    }
+  });
+}
+
 export async function listTables(): Promise<LiveTable[]> {
   return (await readStore()).tables;
 }
 
 export async function createTable(): Promise<LiveTable> {
-  const s = await readStore();
-  const maxNum = s.tables.reduce((m, t) => Math.max(m, Number(t.num) || 0), 0);
-  const table: LiveTable = {
-    num: String(maxNum + 1),
-    status: "open",
-    amount: "—",
-    items: [],
-    paid: 0,
-    paidQty: [],
-    reservations: [],
-  };
-  s.tables.push(table);
-  await writeStore(s);
-  return table;
+  return mutate((s) => {
+    const maxNum = s.tables.reduce(
+      (m, t) => Math.max(m, Number(t.num) || 0),
+      0,
+    );
+    const table: LiveTable = {
+      num: String(maxNum + 1),
+      status: "open",
+      amount: "—",
+      items: [],
+      paid: 0,
+      paidQty: [],
+      reservations: [],
+    };
+    s.tables.push(table);
+    return { result: table, write: true };
+  });
 }
 
 export async function getTable(num: string): Promise<LiveTable | null> {
@@ -172,22 +263,22 @@ export async function setTableItems(
   num: string,
   items: OrderItem[],
 ): Promise<LiveTable | null> {
-  const s = await readStore();
-  const t = s.tables.find((x) => x.num === num);
-  if (!t) return null;
-  t.items = items;
-  t.amount = orderAmount(items);
-  // Editing the order resets per-item payment locks and any live holds.
-  t.paidQty = zeros(items.length);
-  t.reservations = [];
-  if (items.length === 0) {
-    t.status = "open";
-    t.paid = 0;
-  } else if (t.status === "open") {
-    t.status = "unpaid";
-  }
-  await writeStore(s);
-  return t;
+  return mutate((s) => {
+    const t = s.tables.find((x) => x.num === num);
+    if (!t) return { result: null, write: false };
+    t.items = items;
+    t.amount = orderAmount(items);
+    // Editing the order resets per-item payment locks and any live holds.
+    t.paidQty = zeros(items.length);
+    t.reservations = [];
+    if (items.length === 0) {
+      t.status = "open";
+      t.paid = 0;
+    } else if (t.status === "open") {
+      t.status = "unpaid";
+    }
+    return { result: t, write: true };
+  });
 }
 
 /** Upsert a phone's live item hold (heartbeat) and prune abandoned holds. */
@@ -196,16 +287,18 @@ export async function syncReservation(
   id: string,
   qty: number[],
 ): Promise<LiveTable | null> {
-  const s = await readStore();
-  const t = s.tables.find((x) => x.num === num);
-  if (!t) return null;
-  const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
-  const mine = (qty ?? []).map((n) => (typeof n === "number" && n > 0 ? n : 0));
-  t.reservations = mine.some((n) => n > 0)
-    ? [...others, { id, qty: mine, ts: Date.now() }]
-    : others;
-  await writeStore(s);
-  return t;
+  return mutate((s) => {
+    const t = s.tables.find((x) => x.num === num);
+    if (!t) return { result: null, write: false };
+    const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
+    const mine = (qty ?? []).map((n) =>
+      typeof n === "number" && n > 0 ? n : 0,
+    );
+    t.reservations = mine.some((n) => n > 0)
+      ? [...others, { id, qty: mine, ts: Date.now() }]
+      : others;
+    return { result: t, write: true };
+  });
 }
 
 /**
@@ -217,58 +310,58 @@ export async function payTable(
   amount: number,
   opts?: { id?: string; items?: number[] },
 ): Promise<LiveTable | null> {
-  const s = await readStore();
-  const t = s.tables.find((x) => x.num === num);
-  if (!t) return null;
+  return mutate((s) => {
+    const t = s.tables.find((x) => x.num === num);
+    if (!t || t.items.length === 0) return { result: t ?? null, write: false };
 
-  const due = billDue(t.items);
-  const remaining = Math.max(0, +(due - (t.paid ?? 0)).toFixed(2));
-  const applied = Math.min(Math.max(0, amount), remaining);
-  t.paid = +(((t.paid ?? 0) + applied).toFixed(2));
+    const due = billDue(t.items);
+    const remaining = Math.max(0, +(due - (t.paid ?? 0)).toFixed(2));
+    const applied = Math.min(Math.max(0, amount), remaining);
+    t.paid = +(((t.paid ?? 0) + applied).toFixed(2));
 
-  // Lock paid item units (capped at ordered qty).
-  if (opts?.items) {
-    if (!Array.isArray(t.paidQty) || t.paidQty.length !== t.items.length) {
-      t.paidQty = zeros(t.items.length);
+    // Lock paid item units (capped at ordered qty).
+    if (opts?.items) {
+      if (!Array.isArray(t.paidQty) || t.paidQty.length !== t.items.length) {
+        t.paidQty = zeros(t.items.length);
+      }
+      t.items.forEach((it, i) => {
+        const add = typeof opts.items![i] === "number" ? opts.items![i] : 0;
+        t.paidQty[i] = Math.min(t.paidQty[i] + Math.max(0, add), it.qty);
+      });
     }
-    t.items.forEach((it, i) => {
-      const add = typeof opts.items![i] === "number" ? opts.items![i] : 0;
-      t.paidQty[i] = Math.min(t.paidQty[i] + Math.max(0, add), it.qty);
-    });
-  }
 
-  // Drop the caller's hold + any stale holds.
-  t.reservations = pruneReservations(t.reservations).filter(
-    (r) => r.id !== opts?.id,
-  );
+    // Drop the caller's hold + any stale holds.
+    t.reservations = pruneReservations(t.reservations).filter(
+      (r) => r.id !== opts?.id,
+    );
 
-  if (t.paid + 0.01 >= due) t.status = "cleared";
-  else if (t.paid > 0) t.status = "partial";
-  await writeStore(s);
-  return t;
+    if (t.paid + 0.01 >= due) t.status = "cleared";
+    else if (t.paid > 0) t.status = "partial";
+    return { result: t, write: true };
+  });
 }
 
 export async function setTableStatus(
   num: string,
   status: TableStatus,
 ): Promise<LiveTable | null> {
-  const s = await readStore();
-  const t = s.tables.find((x) => x.num === num);
-  if (!t) return null;
-  t.status = status;
-  if (status === "open") t.amount = "—";
-  else if (t.amount === "—") t.amount = "$0";
-  await writeStore(s);
-  return t;
+  return mutate((s) => {
+    const t = s.tables.find((x) => x.num === num);
+    if (!t) return { result: null, write: false };
+    t.status = status;
+    if (status === "open") t.amount = "—";
+    else if (t.amount === "—") t.amount = "$0";
+    return { result: t, write: true };
+  });
 }
 
 export async function deleteTable(num: string): Promise<boolean> {
-  const s = await readStore();
-  const before = s.tables.length;
-  s.tables = s.tables.filter((x) => x.num !== num);
-  if (s.tables.length === before) return false;
-  await writeStore(s);
-  return true;
+  return mutate((s) => {
+    const before = s.tables.length;
+    s.tables = s.tables.filter((x) => x.num !== num);
+    if (s.tables.length === before) return { result: false, write: false };
+    return { result: true, write: true };
+  });
 }
 
 export async function listTransactions(): Promise<Transaction[]> {
@@ -280,13 +373,15 @@ export async function getMenu(): Promise<MenuMeta | null> {
 }
 
 export async function setMenu(meta: MenuMeta): Promise<void> {
-  const s = await readStore();
-  s.menu = meta;
-  await writeStore(s);
+  await mutate((s) => {
+    s.menu = meta;
+    return { result: undefined, write: true };
+  });
 }
 
 export async function clearMenu(): Promise<void> {
-  const s = await readStore();
-  s.menu = null;
-  await writeStore(s);
+  await mutate((s) => {
+    s.menu = null;
+    return { result: undefined, write: true };
+  });
 }

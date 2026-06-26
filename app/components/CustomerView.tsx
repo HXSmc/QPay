@@ -191,7 +191,11 @@ export function CustomerView({
     if (payDisabled) return;
     setPaying(true);
     try {
-      const next = await payTable(tableNumber, payAmount, {
+      // Send the PRINCIPAL only — `paid` tracks the bill owed; the tip is
+      // cosmetic/per-payer and must not eat into the shared remaining balance
+      // (otherwise partial pays mark the bill cleared while the restaurant
+      // under-collects principal by the tip).
+      const next = await payTable(tableNumber, principal, {
         id: clientId,
         items: split === "item" ? selectedQty : undefined,
       });

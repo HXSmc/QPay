@@ -51,4 +51,6 @@ export interface Store {
   tables: LiveTable[];
   transactions: Transaction[];
   menu: MenuMeta | null;
+  /** Optimistic-concurrency counter; bumped on every committed write. */
+  version?: number;
 }
