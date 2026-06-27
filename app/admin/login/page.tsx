@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BRAND } from "../../lib/data";
 import { login } from "../../lib/api";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "../../lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,7 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [from, setFrom] = useState("/admin");
+  const [from, setFrom] = useState("");
 
   useEffect(() => {
     const f = new URLSearchParams(window.location.search).get("from");
@@ -24,13 +23,17 @@ export default function LoginPage() {
     e.preventDefault();
     setBusy(true);
     setError("");
-    const ok = await login(email, password);
+    const role = await login(email, password);
     setBusy(false);
-    if (ok) {
-      router.push(from);
+    if (role) {
+      // Route by role: the super account manages admins; admins get the
+      // restaurant dashboard. Honor an explicit `from` only for admins.
+      const dest =
+        role === "super" ? "/admin/superadmin" : from || "/admin";
+      router.push(dest);
       router.refresh();
     } else {
-      setError("Invalid credentials. Use the demo login below.");
+      setError("Invalid credentials.");
     }
   };
 
@@ -151,42 +154,19 @@ export default function LoginPage() {
           <div
             style={{
               marginTop: 18,
-              padding: "12px 14px",
-              background: "#F8FAFC",
-              border: "1px dashed #CBD5E1",
-              borderRadius: 12,
-              fontSize: 13,
-              color: "#475569",
-              lineHeight: 1.6,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 12.5,
+              color: "#64748B",
+              fontWeight: 600,
             }}
           >
-            <strong style={{ color: "#0B1221" }}>Demo credentials</strong>
-            <br />
-            Email: <code>{DEMO_EMAIL}</code>
-            <br />
-            Password: <code>{DEMO_PASSWORD}</code>
-            <br />
-            <button
-              type="button"
-              onClick={() => {
-                setEmail(DEMO_EMAIL);
-                setPassword(DEMO_PASSWORD);
-              }}
-              style={{
-                marginTop: 8,
-                padding: "7px 12px",
-                background: "#fff",
-                border: "1px solid #E2E8F0",
-                borderRadius: 9,
-                fontFamily: "inherit",
-                fontSize: 12.5,
-                fontWeight: 700,
-                color: BRAND,
-                cursor: "pointer",
-              }}
-            >
-              Fill demo login
-            </button>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            Accounts are issued by your administrator.
           </div>
         </div>
       </div>

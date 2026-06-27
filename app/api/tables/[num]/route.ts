@@ -8,7 +8,7 @@ import {
   syncReservation,
 } from "@/app/lib/store";
 import type { OrderItem, TableStatus } from "@/app/lib/types";
-import { isAdminRequest } from "@/app/lib/auth";
+import { getSession } from "@/app/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -100,14 +100,17 @@ export async function PATCH(
   }
 
   if (body.items !== undefined) {
-    if (!(await isAdminRequest(req))) {
+    const session = await getSession(req);
+    if (!session) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     const items = sanitizeItems(body.items);
     if (!items) {
       return NextResponse.json({ error: "invalid items" }, { status: 400 });
     }
-    const updated = await setTableItems(params.num, items);
+    // Scoped to the caller's own tables — a 404 covers both "no such table" and
+    // "not yours" so ownership isn't leaked.
+    const updated = await setTableItems(params.num, items, session.sub);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -115,13 +118,14 @@ export async function PATCH(
   }
 
   if (body.status) {
-    if (!(await isAdminRequest(req))) {
+    const session = await getSession(req);
+    if (!session) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     if (!VALID.includes(body.status)) {
       return NextResponse.json({ error: "invalid status" }, { status: 400 });
     }
-    const updated = await setTableStatus(params.num, body.status);
+    const updated = await setTableStatus(params.num, body.status, session.sub);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -135,10 +139,11 @@ export async function DELETE(
   req: Request,
   { params }: { params: { num: string } },
 ) {
-  if (!(await isAdminRequest(req))) {
+  const session = await getSession(req);
+  if (!session) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const ok = await deleteTable(params.num);
+  const ok = await deleteTable(params.num, session.sub);
   if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

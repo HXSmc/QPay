@@ -40,7 +40,7 @@ export const STATUS_PALETTE: Record<
 
 export const TABLES: Omit<
   LiveTable,
-  "items" | "paid" | "paidQty" | "reservations"
+  "owner" | "items" | "paid" | "paidQty" | "reservations"
 >[] = [
   { num: "1", status: "open", amount: "—" },
   { num: "2", status: "open", amount: "—" },
@@ -63,7 +63,7 @@ export const METHOD_COLOR: Record<string, { c: string; bg: string }> = {
   Mastercard: { c: "#475569", bg: "#F1F5F9" },
 };
 
-export const TRANSACTIONS: Transaction[] = [
+export const TRANSACTIONS: Omit<Transaction, "owner">[] = [
   { time: "8:41 PM", table: "4", amount: "$56.00", method: "Apple Pay" },
   { time: "8:36 PM", table: "7", amount: "$77.49", method: "Google Pay" },
   { time: "8:29 PM", table: "1", amount: "$124.20", method: "Visa •4242" },

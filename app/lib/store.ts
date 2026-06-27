@@ -1,11 +1,14 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { billDue, fmt, ITEMS, TABLES, TRANSACTIONS } from "./data";
+import { billDue, fmt } from "./data";
+import { hashPassword } from "./auth";
 import type {
+  AdminUser,
   LiveTable,
   MenuMeta,
   OrderItem,
   Reservation,
+  Role,
   Store,
   TableStatus,
   Transaction,
@@ -68,25 +71,24 @@ async function sb() {
   return _sb;
 }
 
+// The single super account that owns the admin console. Overridable via env;
+// defaults match the credentials provisioned for this deployment. The password
+// is only ever stored as a PBKDF2 digest (hashed in ensureSuperadmin).
+const SUPER_EMAIL = (process.env.SUPERADMIN_EMAIL || "AliTheAdmin@gmail.com")
+  .trim()
+  .toLowerCase();
+const SUPER_PASSWORD = process.env.SUPERADMIN_PASSWORD || "QPayAdmin_1";
+
+// A fresh store has NO tables or transactions and NO admins — every admin is
+// created by the super account and starts with an empty, isolated dashboard.
+// The super account itself is injected lazily by ensureSuperadmin (it needs an
+// async hash, which seed() can't do).
 function seed(): Store {
   return {
-    tables: TABLES.map((t) => {
-      if (t.num === "12") {
-        const items = ITEMS.map((i) => ({ ...i }));
-        return {
-          ...t,
-          items,
-          status: "unpaid" as TableStatus,
-          amount: orderAmount(items),
-          paid: 0,
-          paidQty: zeros(items.length),
-          reservations: [],
-        };
-      }
-      return { ...t, items: [], paid: 0, paidQty: [], reservations: [] };
-    }),
-    transactions: TRANSACTIONS.map((t) => ({ ...t })),
+    tables: [],
+    transactions: [],
     menu: null,
+    users: [],
     version: 0,
   };
 }
@@ -100,6 +102,9 @@ function normalize(s: Store): Store {
       const pq = Array.isArray(t.paidQty) ? t.paidQty : [];
       return {
         ...t,
+        // Legacy rows predate per-owner scoping; "" = orphan (hidden from every
+        // dashboard) rather than silently leaking into someone's account.
+        owner: typeof t.owner === "string" ? t.owner : "",
         items,
         paid: typeof t.paid === "number" ? t.paid : 0,
         // Coerce paidQty to match items length (defaults to 0 for new indices).
@@ -107,10 +112,40 @@ function normalize(s: Store): Store {
         reservations: Array.isArray(t.reservations) ? t.reservations : [],
       };
     }),
-    transactions: s.transactions ?? [],
+    transactions: (s.transactions ?? []).map((tx) => ({
+      ...tx,
+      owner: typeof tx.owner === "string" ? tx.owner : "",
+    })),
     menu: s.menu ?? null,
+    users: Array.isArray(s.users) ? s.users : [],
     version: typeof s.version === "number" ? s.version : 0,
   };
+}
+
+// Inject the super account if it's missing (first boot, or a store seeded
+// before users existed). Mutates `s` in place; returns true if it added one.
+// Persisting is the caller's job (done in readStore, without bumping version —
+// same pattern as the legacy version backfill).
+async function ensureSuperadmin(s: Store): Promise<boolean> {
+  if (s.users.some((u) => u.role === "super")) return false;
+  s.users.push({
+    id: globalThis.crypto.randomUUID(),
+    email: SUPER_EMAIL,
+    passwordHash: await hashPassword(SUPER_PASSWORD),
+    role: "super",
+    createdAt: new Date().toISOString(),
+  });
+  return true;
+}
+
+// Normalize + guarantee the super account exists, persisting (without bumping
+// the version) only when a backfill actually changed the blob. `legacy` forces
+// a write for the one-time version backfill on pre-CAS rows.
+async function finalize(raw: Store, legacy: boolean): Promise<Store> {
+  const s = normalize(raw);
+  const addedSuper = await ensureSuperadmin(s);
+  if (legacy || addedSuper) await writeStore(s);
+  return s;
 }
 
 async function readStore(): Promise<Store> {
@@ -129,31 +164,24 @@ async function readStore(): Promise<Store> {
     }
     if (data?.value) {
       const raw = data.value as Store;
-      const norm = normalize(raw);
-      // One-time backfill: persist a version on legacy rows written before
-      // optimistic concurrency existed, so the CAS in commit() can match it.
-      if (typeof raw.version !== "number") await writeStore(norm);
-      return norm;
+      // Legacy rows (written before optimistic concurrency) lack a version;
+      // backfill it so the CAS in commit() can match.
+      return finalize(raw, typeof raw.version !== "number");
     }
-    const fresh = seed();
-    await writeStore(fresh);
+    const fresh = await finalize(seed(), false);
     return fresh;
   }
   if (useKv) {
     const { kv } = await import("@vercel/kv");
     const s = await kv.get<Store>(KV_KEY);
-    if (s) return normalize(s);
-    const fresh = seed();
-    await kv.set(KV_KEY, fresh);
-    return fresh;
+    if (s) return finalize(s, false);
+    return finalize(seed(), false);
   }
   try {
     const raw = await fs.readFile(STORE_FILE, "utf8");
-    return normalize(JSON.parse(raw) as Store);
+    return finalize(JSON.parse(raw) as Store, false);
   } catch {
-    const s = seed();
-    await writeStore(s);
-    return s;
+    return finalize(seed(), false);
   }
 }
 
@@ -288,18 +316,22 @@ async function mutate<T>(
   });
 }
 
-export async function listTables(): Promise<LiveTable[]> {
-  return (await readStore()).tables;
+/** Tables owned by one admin (dashboards are strictly per-owner). */
+export async function listTables(owner: string): Promise<LiveTable[]> {
+  return (await readStore()).tables.filter((t) => t.owner === owner);
 }
 
-export async function createTable(): Promise<LiveTable> {
+export async function createTable(owner: string): Promise<LiveTable> {
   return mutate((s) => {
+    // Numbers are globally unique across all owners so a customer's
+    // /api/tables/[num] URL is unambiguous; each admin only ever sees its own.
     const maxNum = s.tables.reduce(
       (m, t) => Math.max(m, Number(t.num) || 0),
       0,
     );
     const table: LiveTable = {
       num: String(maxNum + 1),
+      owner,
       status: "open",
       amount: "—",
       items: [],
@@ -320,9 +352,10 @@ export async function getTable(num: string): Promise<LiveTable | null> {
 export async function setTableItems(
   num: string,
   items: OrderItem[],
+  owner: string,
 ): Promise<LiveTable | null> {
   return mutate((s) => {
-    const t = s.tables.find((x) => x.num === num);
+    const t = s.tables.find((x) => x.num === num && x.owner === owner);
     if (!t) return { result: null, write: false };
     t.items = items;
     t.amount = orderAmount(items);
@@ -429,6 +462,9 @@ export async function payTable(
         table: num,
         amount: fmt(applied),
         method: opts?.method || "Card",
+        // Receipts are scoped to the table's owner so each admin's ledger is
+        // independent — a customer paying never crosses accounts.
+        owner: t.owner,
       });
     }
 
@@ -441,9 +477,10 @@ export async function payTable(
 export async function setTableStatus(
   num: string,
   status: TableStatus,
+  owner: string,
 ): Promise<LiveTable | null> {
   return mutate((s) => {
-    const t = s.tables.find((x) => x.num === num);
+    const t = s.tables.find((x) => x.num === num && x.owner === owner);
     if (!t) return { result: null, write: false };
     t.status = status;
     if (status === "open") t.amount = "—";
@@ -452,17 +489,101 @@ export async function setTableStatus(
   });
 }
 
-export async function deleteTable(num: string): Promise<boolean> {
+export async function deleteTable(
+  num: string,
+  owner: string,
+): Promise<boolean> {
   return mutate((s) => {
     const before = s.tables.length;
-    s.tables = s.tables.filter((x) => x.num !== num);
+    s.tables = s.tables.filter((x) => !(x.num === num && x.owner === owner));
     if (s.tables.length === before) return { result: false, write: false };
     return { result: true, write: true };
   });
 }
 
-export async function listTransactions(): Promise<Transaction[]> {
-  return (await readStore()).transactions;
+/** Receipts for one admin (ledger is strictly per-owner). */
+export async function listTransactions(owner: string): Promise<Transaction[]> {
+  return (await readStore()).transactions.filter((t) => t.owner === owner);
+}
+
+// ---------------------------------------------------------------------------
+// User accounts (login)
+// ---------------------------------------------------------------------------
+
+/** Public (non-secret) view of an account — never exposes the password hash. */
+export interface PublicUser {
+  id: string;
+  email: string;
+  role: Role;
+  createdAt: string;
+}
+
+const publicUser = (u: AdminUser): PublicUser => ({
+  id: u.id,
+  email: u.email,
+  role: u.role,
+  createdAt: u.createdAt,
+});
+
+/** Full account record (incl. hash) for an email — for login verification. */
+export async function findUserByEmail(
+  email: string,
+): Promise<AdminUser | null> {
+  const norm = email.trim().toLowerCase();
+  const s = await readStore();
+  return s.users.find((u) => u.email === norm) ?? null;
+}
+
+export async function getUserById(id: string): Promise<AdminUser | null> {
+  const s = await readStore();
+  return s.users.find((u) => u.id === id) ?? null;
+}
+
+/** Admin accounts (super excluded) — for the super console. */
+export async function listAdmins(): Promise<PublicUser[]> {
+  const s = await readStore();
+  return s.users.filter((u) => u.role === "admin").map(publicUser);
+}
+
+/**
+ * Create an admin account. Email must be unique (case-insensitive). Returns the
+ * new public user, or null if the email is already taken.
+ */
+export async function createAdmin(
+  email: string,
+  passwordHash: string,
+): Promise<PublicUser | null> {
+  const norm = email.trim().toLowerCase();
+  return mutate((s) => {
+    if (s.users.some((u) => u.email === norm)) {
+      return { result: null, write: false };
+    }
+    const user: AdminUser = {
+      id: globalThis.crypto.randomUUID(),
+      email: norm,
+      passwordHash,
+      role: "admin",
+      createdAt: new Date().toISOString(),
+    };
+    s.users.push(user);
+    return { result: publicUser(user), write: true };
+  });
+}
+
+/**
+ * Delete an admin account and cascade-remove its tables + receipts so no
+ * orphaned, inaccessible data is left behind. The super account can't be
+ * deleted. Returns false if no such admin existed.
+ */
+export async function deleteAdmin(id: string): Promise<boolean> {
+  return mutate((s) => {
+    const u = s.users.find((x) => x.id === id);
+    if (!u || u.role !== "admin") return { result: false, write: false };
+    s.users = s.users.filter((x) => x.id !== id);
+    s.tables = s.tables.filter((t) => t.owner !== id);
+    s.transactions = s.transactions.filter((t) => t.owner !== id);
+    return { result: true, write: true };
+  });
 }
 
 export async function getMenu(): Promise<MenuMeta | null> {

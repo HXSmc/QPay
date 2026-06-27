@@ -21,6 +21,8 @@ export interface Reservation {
 
 export interface LiveTable {
   num: string;
+  /** Admin user id that owns this table. Tables are private to their owner. */
+  owner: string;
   status: TableStatus;
   amount: string;
   items: OrderItem[];
@@ -37,6 +39,24 @@ export interface Transaction {
   table: string;
   amount: string;
   method: string;
+  /** Admin user id that owns the table this payment was made against. */
+  owner: string;
+}
+
+/** A login role. The single `super` account manages `admin` accounts. */
+export type Role = "super" | "admin";
+
+/**
+ * A login account. Passwords are never stored in plaintext — `passwordHash` is
+ * a PBKDF2 `salt.derivedKey` digest (see app/lib/auth.ts).
+ */
+export interface AdminUser {
+  id: string;
+  /** Normalized (lowercased, trimmed) email — the login identifier. */
+  email: string;
+  passwordHash: string;
+  role: Role;
+  createdAt: string;
 }
 
 export interface MenuMeta {
@@ -51,6 +71,8 @@ export interface Store {
   tables: LiveTable[];
   transactions: Transaction[];
   menu: MenuMeta | null;
+  /** Login accounts (one `super`, plus admins it creates). */
+  users: AdminUser[];
   /** Optimistic-concurrency counter; bumped on every committed write. */
   version?: number;
 }

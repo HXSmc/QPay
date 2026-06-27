@@ -1,16 +1,27 @@
-// Mock prototype auth — hardcoded demo credentials, no user DB.
-// The session cookie is an HMAC-signed, expiring token (not a guessable
-// constant), so it can't be forged by simply setting `qpay_admin=1`. All crypto
-// uses the Web Crypto API (`crypto.subtle`) so the same code runs in both the
-// Edge middleware and Node route handlers.
-export const DEMO_EMAIL = "admin@qpay.com";
-export const DEMO_PASSWORD = "demo1234";
+// Real authentication primitives for QPay.
+//
+// Security-critical module. There are NO hardcoded login credentials here:
+// accounts live in the store (app/lib/store.ts) and passwords are stored only
+// as PBKDF2 digests. The session cookie is an HMAC-signed, expiring token that
+// carries the user's id + role, so it can't be forged and the server can scope
+// every request to the calling user's own data.
+//
+// All crypto uses the Web Crypto API (`crypto.subtle`) so the exact same code
+// runs in both the Edge middleware and the Node route handlers.
+import type { Role } from "./types";
+
 export const AUTH_COOKIE = "qpay_admin";
 
 const TTL_MS = 8 * 60 * 60 * 1000; // 8h, matches the cookie maxAge
 // Set SESSION_SECRET in the environment for real signing; the fallback only
 // keeps local dev working and should be overridden in any shared deployment.
 const SECRET = process.env.SESSION_SECRET || "qpay-dev-secret-change-me";
+
+// PBKDF2 work factor. 210k SHA-256 iterations ~ OWASP 2023 guidance; high
+// enough to slow offline cracking, cheap enough for a serverless login.
+const PBKDF2_ITERS = 210_000;
+const HASH_BYTES = 32;
+const SALT_BYTES = 16;
 
 const enc = new TextEncoder();
 
@@ -19,6 +30,70 @@ function b64url(bytes: Uint8Array): string {
   for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
   return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
+
+function fromB64url(s: string): Uint8Array {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = b64.length % 4 ? "=".repeat(4 - (b64.length % 4)) : "";
+  const bin = atob(b64 + pad);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Password hashing (PBKDF2-SHA256)
+// ---------------------------------------------------------------------------
+
+async function pbkdf2(password: string, salt: Uint8Array): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"],
+  );
+  const bits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      hash: "SHA-256",
+      salt: salt as BufferSource,
+      iterations: PBKDF2_ITERS,
+    },
+    key,
+    HASH_BYTES * 8,
+  );
+  return new Uint8Array(bits);
+}
+
+/** Hash a password as `salt.digest` (both base64url). */
+export async function hashPassword(password: string): Promise<string> {
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
+  const digest = await pbkdf2(password, salt);
+  return `${b64url(salt)}.${b64url(digest)}`;
+}
+
+/** Constant-time-verify a password against a stored `salt.digest`. */
+export async function verifyPassword(
+  password: string,
+  stored: string,
+): Promise<boolean> {
+  const dot = stored.indexOf(".");
+  if (dot <= 0) return false;
+  let salt: Uint8Array;
+  let want: Uint8Array;
+  try {
+    salt = fromB64url(stored.slice(0, dot));
+    want = fromB64url(stored.slice(dot + 1));
+  } catch {
+    return false;
+  }
+  const got = await pbkdf2(password, salt);
+  return timingSafeEqualBytes(got, want);
+}
+
+// ---------------------------------------------------------------------------
+// HMAC signing + constant-time compares
+// ---------------------------------------------------------------------------
 
 async function sign(data: string): Promise<string> {
   const key = await crypto.subtle.importKey(
@@ -40,23 +115,59 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-/** Mint a signed `exp.signature` session token. */
-export async function createSessionToken(): Promise<string> {
-  const exp = String(Date.now() + TTL_MS);
-  return `${exp}.${await sign(exp)}`;
+function timingSafeEqualBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
 }
 
-/** True iff the token is well-formed, unexpired, and the signature verifies. */
-export async function verifySessionToken(
+// ---------------------------------------------------------------------------
+// Session tokens — `payload.signature`, payload = b64url(JSON{sub,role,exp})
+// ---------------------------------------------------------------------------
+
+export interface Session {
+  /** User id. */
+  sub: string;
+  role: Role;
+  /** Expiry, ms epoch. */
+  exp: number;
+}
+
+/** Mint a signed session token for a user. */
+export async function createSessionToken(
+  sub: string,
+  role: Role,
+): Promise<string> {
+  const payload = b64url(
+    enc.encode(JSON.stringify({ sub, role, exp: Date.now() + TTL_MS })),
+  );
+  return `${payload}.${await sign(payload)}`;
+}
+
+/** Decode + verify a token. Returns the session, or null if invalid/expired. */
+export async function verifySession(
   token?: string | null,
-): Promise<boolean> {
-  if (!token) return false;
+): Promise<Session | null> {
+  if (!token) return null;
   const dot = token.lastIndexOf(".");
-  if (dot <= 0) return false;
-  const exp = token.slice(0, dot);
+  if (dot <= 0) return null;
+  const payload = token.slice(0, dot);
   const sig = token.slice(dot + 1);
-  if (!/^\d+$/.test(exp) || Number(exp) < Date.now()) return false;
-  return safeEqual(sig, await sign(exp));
+  // Verify the signature BEFORE trusting any payload bytes.
+  if (!safeEqual(sig, await sign(payload))) return null;
+  let data: unknown;
+  try {
+    data = JSON.parse(new TextDecoder().decode(fromB64url(payload)));
+  } catch {
+    return null;
+  }
+  if (!data || typeof data !== "object") return null;
+  const { sub, role, exp } = data as Record<string, unknown>;
+  if (typeof sub !== "string" || !sub) return null;
+  if (role !== "super" && role !== "admin") return null;
+  if (typeof exp !== "number" || exp < Date.now()) return null;
+  return { sub, role, exp };
 }
 
 function readCookie(header: string | null, name: string): string | null {
@@ -68,8 +179,12 @@ function readCookie(header: string | null, name: string): string | null {
   return null;
 }
 
-/** Verify the admin session cookie on an incoming Request (route handlers). */
+/** Decode the session from an incoming Request (route handlers). */
+export async function getSession(req: Request): Promise<Session | null> {
+  return verifySession(readCookie(req.headers.get("cookie"), AUTH_COOKIE));
+}
+
+/** True iff the request carries any valid session (admin or super). */
 export async function isAdminRequest(req: Request): Promise<boolean> {
-  const token = readCookie(req.headers.get("cookie"), AUTH_COOKIE);
-  return verifySessionToken(token);
+  return (await getSession(req)) !== null;
 }

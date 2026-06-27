@@ -1,9 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { BRAND } from "../../lib/data";
-import { logout } from "../../lib/api";
+import { getMe, logout, type Me } from "../../lib/api";
 
 const NAV = [
   {
@@ -84,6 +85,16 @@ const NAV = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const [me, setMe] = useState<Me | null>(null);
+
+  useEffect(() => {
+    getMe().then(setMe).catch(() => {});
+  }, []);
+
+  const initials = (me?.email ?? "")
+    .split("@")[0]
+    .slice(0, 2)
+    .toUpperCase() || "QP";
 
   const signOut = async () => {
     await logout();
@@ -201,11 +212,21 @@ export function Sidebar() {
             fontSize: 13,
           }}
         >
-          MR
+          {initials}
         </div>
         <div className="qp-hide-mobile" style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 600 }}>Maria Reyes</div>
-          <div style={{ fontSize: 12, color: "#64748B" }}>Floor Manager</div>
+          <div
+            style={{
+              fontSize: 13.5,
+              fontWeight: 600,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {me?.email ?? "…"}
+          </div>
+          <div style={{ fontSize: 12, color: "#64748B" }}>Administrator</div>
         </div>
         <button
           onClick={signOut}

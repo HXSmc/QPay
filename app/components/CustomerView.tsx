@@ -43,6 +43,7 @@ export function CustomerView({
   const [table, setTable] = useState<LiveTable>(
     initialTable ?? {
       num: tableNumber,
+      owner: "",
       status: "open",
       amount: "—",
       items: [],

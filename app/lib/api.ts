@@ -2,9 +2,23 @@ import type {
   LiveTable,
   MenuMeta,
   OrderItem,
+  Role,
   TableStatus,
   Transaction,
 } from "./types";
+
+export interface Me {
+  id: string;
+  email: string;
+  role: Role;
+}
+
+export interface AdminAccount {
+  id: string;
+  email: string;
+  role: Role;
+  createdAt: string;
+}
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
@@ -107,18 +121,55 @@ export async function deleteMenu(): Promise<void> {
   if (!res.ok) throw new Error(`${res.status}`);
 }
 
+/** Sign in. Returns the role on success, or null on bad credentials. */
 export async function login(
   email: string,
   password: string,
-): Promise<boolean> {
+): Promise<Role | null> {
   const res = await fetch("/api/auth/login", {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
-  return res.ok;
+  if (!res.ok) return null;
+  const data = (await res.json().catch(() => ({}))) as { role?: Role };
+  return data.role ?? "admin";
 }
 
 export async function logout(): Promise<void> {
   await fetch("/api/auth/logout", { method: "POST" });
+}
+
+export async function getMe(): Promise<Me> {
+  return json(await fetch("/api/auth/me", { cache: "no-store" }));
+}
+
+// --- Super-account admin management ---
+
+export async function listAdmins(): Promise<AdminAccount[]> {
+  return json(await fetch("/api/admins", { cache: "no-store" }));
+}
+
+/** Create an admin. Returns the new account, or an error message on failure. */
+export async function createAdmin(
+  email: string,
+  password: string,
+): Promise<{ ok: true; account: AdminAccount } | { ok: false; error: string }> {
+  const res = await fetch("/api/admins", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = (await res.json().catch(() => ({}))) as
+    | AdminAccount
+    | { error?: string };
+  if (!res.ok) {
+    return { ok: false, error: (data as { error?: string }).error || "failed" };
+  }
+  return { ok: true, account: data as AdminAccount };
+}
+
+export async function deleteAdmin(id: string): Promise<void> {
+  const res = await fetch(`/api/admins/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`${res.status}`);
 }
