@@ -1,6 +1,6 @@
 import { BrandHeader } from "../components/site/BrandHeader";
 import { CustomerView } from "../components/CustomerView";
-import { getPublicRestaurant, getTable } from "../lib/store";
+import { getPublicRestaurant, getTableByToken } from "../lib/store";
 import { DEFAULT_TAX_RATE } from "../lib/data";
 
 export const dynamic = "force-dynamic";
@@ -10,12 +10,11 @@ export default async function CustomerPage({
 }: {
   searchParams: { table?: string; t?: string };
 }) {
-  const tableNumber = searchParams.table?.trim() || "";
   const token = searchParams.t?.trim() || "";
-  const raw = tableNumber ? await getTable(tableNumber) : null;
-  // Only hand the table to the client if the QR capability token matches; never
-  // leak the owner id or the token itself into the client payload.
-  const ok = raw && token && raw.token === token;
+  // Resolve by the unique token — the `table` number in the URL is now per-owner
+  // and can't identify a table on its own. The token IS the capability.
+  const raw = token ? await getTableByToken(token) : null;
+  const ok = !!raw;
   const table = ok
     ? (() => {
         const { owner: _o, token: _t, ...rest } = raw;
@@ -24,8 +23,10 @@ export default async function CustomerPage({
         return rest;
       })()
     : null;
+  // Display the table's own (per-owner) number, falling back to the URL value.
+  const tableNumber = table?.num || searchParams.table?.trim() || "";
   // Non-secret display name + tax rate for the scanned table's restaurant.
-  const info = ok ? await getPublicRestaurant(tableNumber) : null;
+  const info = ok ? await getPublicRestaurant(token) : null;
 
   return (
     <div

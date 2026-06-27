@@ -246,10 +246,14 @@ export async function listTables(owner: string): Promise<LiveTable[]> {
 export async function createTable(owner: string): Promise<LiveTable> {
   if (useSupabase) return rel.createTable(owner);
   return mutateBlob((s) => {
-    s.seq =
-      Math.max(s.seq ?? 0, ...s.tables.map((t) => Number(t.num) || 0), 0) + 1;
+    // Per-owner numbering (admin A: 1,2 · admin B: 1).
+    const num =
+      Math.max(
+        0,
+        ...s.tables.filter((t) => t.owner === owner).map((t) => Number(t.num) || 0),
+      ) + 1;
     const table: LiveTable = {
-      num: String(s.seq),
+      num: String(num),
       owner,
       token: newToken(),
       status: "open",
@@ -267,6 +271,18 @@ export async function createTable(owner: string): Promise<LiveTable> {
 export async function getTable(num: string): Promise<LiveTable | null> {
   if (useSupabase) return rel.getTable(num);
   return (await readStoreBlob()).tables.find((x) => x.num === num) ?? null;
+}
+
+/** Resolve a table by its unique capability token (the customer path). */
+export async function getTableByToken(
+  token: string,
+): Promise<LiveTable | null> {
+  if (useSupabase) return rel.getTableByToken(token);
+  return (
+    (await readStoreBlob()).tables.find((x) =>
+      constantTimeEqual(x.token, token),
+    ) ?? null
+  );
 }
 
 export async function setTableItems(
@@ -296,10 +312,8 @@ export async function syncReservation(
 ): Promise<LiveTable | null> {
   if (useSupabase) return rel.syncReservation(num, id, qty, token);
   return mutateBlob((s) => {
-    const t = s.tables.find((x) => x.num === num);
-    if (!t || !constantTimeEqual(t.token, token)) {
-      return { result: null, write: false };
-    }
+    const t = s.tables.find((x) => constantTimeEqual(x.token, token));
+    if (!t) return { result: null, write: false };
     const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
     const mine = clampHold(t.items, qty);
     t.reservations = mine.some((n) => n > 0)
@@ -316,10 +330,8 @@ export async function payTable(
 ): Promise<LiveTable | null> {
   if (useSupabase) return rel.payTable(num, amount, opts);
   return mutateBlob((s) => {
-    const t = s.tables.find((x) => x.num === num);
-    if (!t || !constantTimeEqual(t.token, opts.token)) {
-      return { result: null, write: false };
-    }
+    const t = s.tables.find((x) => constantTimeEqual(x.token, opts.token));
+    if (!t) return { result: null, write: false };
     if (t.items.length === 0) return { result: t, write: false };
     const { txn } = applyPayment(t, amount, opts, settingsFor(s, t.owner).taxRate);
     if (txn) {
@@ -596,10 +608,8 @@ export async function getMenuForTable(
 ): Promise<MenuMeta | null> {
   if (useSupabase) return rel.getMenuForTable(num, token);
   const s = await readStoreBlob();
-  const t = s.tables.find((x) => x.num === num);
-  return t && constantTimeEqual(t.token, token)
-    ? s.menus[t.owner] ?? null
-    : null;
+  const t = s.tables.find((x) => constantTimeEqual(x.token, token));
+  return t ? s.menus[t.owner] ?? null : null;
 }
 
 export async function setMenu(owner: string, meta: MenuMeta): Promise<void> {
@@ -640,11 +650,11 @@ export async function setSettings(
 }
 
 export async function getPublicRestaurant(
-  num: string,
+  token: string,
 ): Promise<{ name: string; taxRate: number } | null> {
-  if (useSupabase) return rel.getPublicRestaurant(num);
+  if (useSupabase) return rel.getPublicRestaurant(token);
   const s = await readStoreBlob();
-  const t = s.tables.find((x) => x.num === num);
+  const t = s.tables.find((x) => constantTimeEqual(x.token, token));
   if (!t) return null;
   const set = settingsFor(s, t.owner);
   const user = s.users.find((u) => u.id === t.owner);

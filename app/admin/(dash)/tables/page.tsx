@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { billDue, BRAND, fmt, STATUS_PALETTE } from "../../../lib/data";
 import {
   createTable,
@@ -24,6 +24,13 @@ export default function TablesPage() {
   const applyTable = (t: LiveTable) =>
     setTables((prev) => prev.map((x) => (x.num === t.num ? t : x)));
 
+  // Pause live polling while an order is being edited so a refresh can't yank
+  // the card out from under the open modal.
+  const orderOpenRef = useRef(false);
+  useEffect(() => {
+    orderOpenRef.current = orderFor !== null;
+  }, [orderFor]);
+
   useEffect(() => {
     listTables().then(setTables).catch(() => {});
     getSettings()
@@ -33,6 +40,15 @@ export default function TablesPage() {
         setRestaurantName(me.email.split("@")[0]);
       })
       .catch(() => {});
+
+    // Live refresh: poll the owner-scoped table list so payment state (e.g. a
+    // customer fully paying → "cleared" + the Clear button) appears without a
+    // manual page refresh. Pauses when the tab is hidden or an order is open.
+    const id = setInterval(() => {
+      if (document.hidden || orderOpenRef.current) return;
+      listTables().then(setTables).catch(() => {});
+    }, 3000);
+    return () => clearInterval(id);
   }, []);
 
   const addTable = async () => {

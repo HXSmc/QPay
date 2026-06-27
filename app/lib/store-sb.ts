@@ -11,7 +11,7 @@
 // blob fallback. Domain logic (payment math, settings merge) lives in
 // store-core.ts so the two backends never drift.
 
-import { constantTimeEqual, hashPassword } from "./auth";
+import { hashPassword } from "./auth";
 import { sb } from "./supabase";
 import {
   applyPayment,
@@ -46,6 +46,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // ---------------------------------------------------------------------------
 
 type TableRow = {
+  id: string;
   num: number | string;
   owner: string;
   token: string;
@@ -204,37 +205,50 @@ export async function listTables(owner: string): Promise<LiveTable[]> {
   return (data ?? []).map((r) => rowToTable(r as TableRow));
 }
 
+type Eq = [string, string | number];
+
+/** Internal: fetch a single raw row (incl. id + version) by equality filters. */
+async function rawTableBy(eqs: Eq[]): Promise<TableRow | null> {
+  const client = await sb();
+  let q = client.from("tables").select("*");
+  for (const [c, v] of eqs) q = q.eq(c, v);
+  const { data, error } = await q.maybeSingle();
+  if (error) throw new Error(`store: table read failed — ${error.message}`);
+  return (data as TableRow) ?? null;
+}
+
+/** Resolve a table by its unique capability token (the customer path). */
+export async function getTableByToken(
+  token: string,
+): Promise<LiveTable | null> {
+  const r = await rawTableBy([["token", token]]);
+  return r ? rowToTable(r) : null;
+}
+
+/**
+ * Resolve a table by its (now per-owner, non-unique) display number. Returns the
+ * first match — admin/internal callers should pass owner too via the dedicated
+ * functions; customer callers use getTableByToken.
+ */
 export async function getTable(num: string): Promise<LiveTable | null> {
   const client = await sb();
   const { data, error } = await client
     .from("tables")
     .select("*")
     .eq("num", Number(num))
-    .maybeSingle();
+    .limit(1);
   if (error) throw new Error(`store: table read failed — ${error.message}`);
-  return data ? rowToTable(data as TableRow) : null;
-}
-
-/** Internal: fetch a raw row incl. version for CAS. */
-async function rawTable(num: string): Promise<TableRow | null> {
-  const client = await sb();
-  const { data, error } = await client
-    .from("tables")
-    .select("*")
-    .eq("num", Number(num))
-    .maybeSingle();
-  if (error) throw new Error(`store: table read failed — ${error.message}`);
-  return (data as TableRow) ?? null;
+  return data && data[0] ? rowToTable(data[0] as TableRow) : null;
 }
 
 /**
- * Compare-and-swap a table update. `apply` mutates a fresh LiveTable copy and
- * returns the fields to write plus optional side effects (a ledger txn). Retries
- * on a lost CAS. Returns the updated table, or null if `apply` signals not-found
- * / no-op.
+ * Compare-and-swap a table update. The row is located by `eqs` (token for the
+ * customer path, owner+num for the admin path) and the conditional UPDATE keys on
+ * the surrogate `id` + `version`. Retries on a lost CAS. Returns the updated
+ * table, or null if not found / no-op.
  */
 async function casTable(
-  num: string,
+  eqs: Eq[],
   apply: (
     t: LiveTable,
     ctx: { taxRate: number },
@@ -245,8 +259,9 @@ async function casTable(
 ): Promise<LiveTable | null> {
   const client = await sb();
   for (let attempt = 0; ; attempt++) {
-    const row = await rawTable(num);
+    const row = await rawTableBy(eqs);
     if (!row) return null;
+    const id = row.id;
     const version = Number(row.version) || 0;
     const t = rowToTable(row);
     const taxRate = (await settingsRow(t.owner)).taxRate;
@@ -256,8 +271,6 @@ async function casTable(
     const { data, error } = await client
       .from("tables")
       .update({
-        owner: t.owner,
-        token: t.token,
         status: t.status,
         amount: t.amount,
         items: t.items,
@@ -266,9 +279,9 @@ async function casTable(
         reservations: t.reservations,
         version: version + 1,
       })
-      .eq("num", Number(num))
+      .eq("id", id)
       .eq("version", version)
-      .select("num");
+      .select("id");
     if (error) throw new Error(`store: table CAS failed — ${error.message}`);
     if ((data?.length ?? 0) > 0) {
       if (res.txn) await insertTxn(res.txn);
@@ -284,8 +297,11 @@ async function casTable(
 
 export async function createTable(owner: string): Promise<LiveTable> {
   const client = await sb();
-  // next_table_num() is an RPC over a Postgres sequence → monotonic, never reused.
-  const { data: numData, error: numErr } = await client.rpc("next_table_num");
+  // Per-owner monotonic allocation (admin A: 1,2 · admin B: 1). Never reused
+  // within an owner.
+  const { data: numData, error: numErr } = await client.rpc("next_table_num", {
+    p_owner: owner,
+  });
   if (numErr) throw new Error(`store: num alloc failed — ${numErr.message}`);
   const num = Number(numData);
   const table: LiveTable = {
@@ -320,8 +336,8 @@ export async function setTableItems(
   items: OrderItem[],
   owner: string,
 ): Promise<LiveTable | null> {
-  return casTable(num, (t, { taxRate }) => {
-    if (t.owner !== owner) return { write: false };
+  // Located by (owner, num) — unique per owner.
+  return casTable([["owner", owner], ["num", Number(num)]], (t, { taxRate }) => {
     t.items = items;
     t.amount = orderAmount(items, taxRate);
     // Editing the order resets per-item locks, holds, and carried principal.
@@ -339,9 +355,8 @@ export async function syncReservation(
   qty: number[],
   token: string,
 ): Promise<LiveTable | null> {
-  // Token gate happens against the freshly-read row inside the CAS.
-  return casTable(num, (t) => {
-    if (!constantTimeEqual(t.token, token)) return { write: false };
+  // Resolve by the unique token — the num in the URL is now ambiguous.
+  return casTable([["token", token]], (t) => {
     const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
     const mine = clampHold(t.items, qty);
     t.reservations = mine.some((n) => n > 0)
@@ -356,8 +371,8 @@ export async function payTable(
   amount: number,
   opts: { id?: string; items?: number[]; method?: string; token: string },
 ): Promise<LiveTable | null> {
-  return casTable(num, (t, { taxRate }) => {
-    if (!constantTimeEqual(t.token, opts.token)) return { write: false };
+  // Resolve by the unique token (capability) — a match IS the authorization.
+  return casTable([["token", opts.token]], (t, { taxRate }) => {
     if (t.items.length === 0) return { write: false };
     const { txn } = applyPayment(t, amount, opts, taxRate);
     return { write: true, txn };
@@ -369,8 +384,7 @@ export async function setTableStatus(
   status: TableStatus,
   owner: string,
 ): Promise<LiveTable | null> {
-  return casTable(num, (t) => {
-    if (t.owner !== owner) return { write: false };
+  return casTable([["owner", owner], ["num", Number(num)]], (t) => {
     t.status = status;
     if (status === "open") t.amount = "—";
     else if (t.amount === "—") t.amount = "$0";
@@ -386,9 +400,9 @@ export async function deleteTable(
   const { data, error } = await client
     .from("tables")
     .delete()
-    .eq("num", Number(num))
     .eq("owner", owner)
-    .select("num");
+    .eq("num", Number(num))
+    .select("id");
   if (error) throw new Error(`store: table delete failed — ${error.message}`);
   return (data?.length ?? 0) > 0;
 }
@@ -660,8 +674,9 @@ export async function getMenuForTable(
   num: string,
   token: string,
 ): Promise<MenuMeta | null> {
-  const t = await rawTable(num);
-  if (!t || !constantTimeEqual(t.token, token)) return null;
+  // Resolve by the unique token (num is now per-owner / ambiguous).
+  const t = await rawTableBy([["token", token]]);
+  if (!t) return null;
   return getMenu(t.owner);
 }
 
@@ -692,9 +707,10 @@ export async function clearMenu(owner: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function getPublicRestaurant(
-  num: string,
+  token: string,
 ): Promise<{ name: string; taxRate: number } | null> {
-  const t = await rawTable(num);
+  // Resolve by the unique token (the customer scanned a specific table).
+  const t = await rawTableBy([["token", token]]);
   if (!t) return null;
   const set = await settingsRow(t.owner);
   const user = await getUserById(t.owner);

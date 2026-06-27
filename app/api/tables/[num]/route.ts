@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import {
   authedUser,
   deleteTable,
-  getTable,
+  getTableByToken,
   payTable,
   setTableItems,
   setTableStatus,
   syncReservation,
 } from "@/app/lib/store";
-import { constantTimeEqual, isSameOrigin } from "@/app/lib/auth";
+import { isSameOrigin } from "@/app/lib/auth";
 import { allow, clientIp } from "@/app/lib/ratelimit";
 import type { OrderItem, TableStatus } from "@/app/lib/types";
 
@@ -56,15 +56,13 @@ function sanitizeItems(raw: unknown): OrderItem[] | null {
   return items;
 }
 
-export async function GET(
-  req: Request,
-  { params }: { params: { num: string } },
-) {
-  const table = await getTable(params.num);
-  // Require the capability token from the QR URL (?t=…). A 404 for both
-  // "missing" and "wrong token" so a sequential num can't be enumerated.
+export async function GET(req: Request) {
+  // Resolve by the capability token from the QR URL (?t=…); `num` is now
+  // per-owner so it can't identify a table on its own. A 404 for both "missing"
+  // and "wrong token" so nothing can be enumerated.
   const token = new URL(req.url).searchParams.get("t");
-  if (!table || !token || !constantTimeEqual(token, table.token)) {
+  const table = token ? await getTableByToken(token) : null;
+  if (!table) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
   return NextResponse.json(publicTable(table));
