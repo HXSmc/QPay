@@ -13,9 +13,10 @@ import type { Role } from "./types";
 export const AUTH_COOKIE = "qpay_admin";
 
 const TTL_MS = 8 * 60 * 60 * 1000; // 8h, matches the cookie maxAge
-// Set SESSION_SECRET in the environment for real signing; the fallback only
-// keeps local dev working and should be overridden in any shared deployment.
-const SECRET = process.env.SESSION_SECRET || "qpay-dev-secret-change-me";
+const DEV_FALLBACK_SECRET = "qpay-dev-secret-change-me";
+// The HMAC signing key. In production it MUST come from the environment — a
+// source-committed fallback would let anyone forge a (super-admin) session.
+const SECRET = process.env.SESSION_SECRET || DEV_FALLBACK_SECRET;
 
 // PBKDF2 work factor. 210k SHA-256 iterations ~ OWASP 2023 guidance; high
 // enough to slow offline cracking, cheap enough for a serverless login.
@@ -96,6 +97,17 @@ export async function verifyPassword(
 // ---------------------------------------------------------------------------
 
 async function sign(data: string): Promise<string> {
+  // Fail closed: never sign or verify with the public dev fallback in prod.
+  // Checked lazily (at request time, not module load) so the build doesn't trip
+  // it before the env is wired up.
+  if (
+    process.env.NODE_ENV === "production" &&
+    SECRET === DEV_FALLBACK_SECRET
+  ) {
+    throw new Error(
+      "SESSION_SECRET must be set in production (refusing to sign sessions with a public fallback key)",
+    );
+  }
   const key = await crypto.subtle.importKey(
     "raw",
     enc.encode(SECRET),

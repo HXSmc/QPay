@@ -97,25 +97,27 @@ function seed(): Store {
 // so stores created by older versions don't crash newer code.
 function normalize(s: Store): Store {
   return {
-    tables: (s.tables ?? []).map((t) => {
-      const items = Array.isArray(t.items) ? t.items : [];
-      const pq = Array.isArray(t.paidQty) ? t.paidQty : [];
-      return {
-        ...t,
-        // Legacy rows predate per-owner scoping; "" = orphan (hidden from every
-        // dashboard) rather than silently leaking into someone's account.
-        owner: typeof t.owner === "string" ? t.owner : "",
-        items,
-        paid: typeof t.paid === "number" ? t.paid : 0,
-        // Coerce paidQty to match items length (defaults to 0 for new indices).
-        paidQty: items.map((_, i) => (typeof pq[i] === "number" ? pq[i] : 0)),
-        reservations: Array.isArray(t.reservations) ? t.reservations : [],
-      };
-    }),
-    transactions: (s.transactions ?? []).map((tx) => ({
-      ...tx,
-      owner: typeof tx.owner === "string" ? tx.owner : "",
-    })),
+    // Drop legacy rows that predate per-owner scoping (no owner): they belong to
+    // no account, so they'd be unmanageable yet still publicly readable/payable
+    // by table number. Purging them on read keeps every table owned + isolated.
+    tables: (s.tables ?? [])
+      .filter((t) => typeof t.owner === "string" && t.owner !== "")
+      .map((t) => {
+        const items = Array.isArray(t.items) ? t.items : [];
+        const pq = Array.isArray(t.paidQty) ? t.paidQty : [];
+        return {
+          ...t,
+          owner: t.owner as string,
+          items,
+          paid: typeof t.paid === "number" ? t.paid : 0,
+          // Coerce paidQty to match items length (0 for new indices).
+          paidQty: items.map((_, i) => (typeof pq[i] === "number" ? pq[i] : 0)),
+          reservations: Array.isArray(t.reservations) ? t.reservations : [],
+        };
+      }),
+    transactions: (s.transactions ?? []).filter(
+      (tx) => typeof tx.owner === "string" && tx.owner !== "",
+    ),
     menu: s.menu ?? null,
     users: Array.isArray(s.users) ? s.users : [],
     version: typeof s.version === "number" ? s.version : 0,

@@ -14,6 +14,14 @@ export const dynamic = "force-dynamic";
 
 const VALID: TableStatus[] = ["unpaid", "partial", "cleared", "open"];
 
+// Public (customer) responses must not disclose the owning admin's internal
+// user id — strip it. (Admin responses legitimately echo the caller's own id.)
+function publicTable<T extends { owner: string }>(t: T): Omit<T, "owner"> {
+  const { owner: _owner, ...rest } = t;
+  void _owner;
+  return rest;
+}
+
 // Unit counts (item holds / paid quantities) must be non-negative integers.
 const MAX_ITEMS = 100;
 function numArray(raw: unknown): number[] | null {
@@ -46,7 +54,7 @@ export async function GET(
 ) {
   const table = await getTable(params.num);
   if (!table) return NextResponse.json({ error: "not found" }, { status: 404 });
-  return NextResponse.json(table);
+  return NextResponse.json(publicTable(table));
 }
 
 export async function PATCH(
@@ -73,7 +81,7 @@ export async function PATCH(
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
-    return NextResponse.json(updated);
+    return NextResponse.json(publicTable(updated));
   }
 
   if (body.pay !== undefined) {
@@ -96,7 +104,7 @@ export async function PATCH(
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
-    return NextResponse.json(updated);
+    return NextResponse.json(publicTable(updated));
   }
 
   if (body.items !== undefined) {
