@@ -126,6 +126,17 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // On Vercel the filesystem is read-only, so without a Blob store there is no
+  // place to persist an upload — fail with a clear message instead of a 500.
+  if (!useBlob && process.env.VERCEL) {
+    return NextResponse.json(
+      {
+        error:
+          "menu storage is not configured — add a Vercel Blob store (BLOB_READ_WRITE_TOKEN) to enable uploads",
+      },
+      { status: 503 },
+    );
+  }
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) {
