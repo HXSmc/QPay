@@ -10,6 +10,7 @@ import {
   UPLOAD_DIR,
 } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { MenuMeta } from "@/app/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +23,8 @@ const EXT: Record<string, string> = {
   "application/pdf": "pdf",
 };
 
-const MAX_BYTES = 8 * 1024 * 1024; // 8 MB upload cap
+const ALLOWED_TYPES = Object.keys(EXT);
+const MAX_BYTES = 20 * 1024 * 1024; // 20 MB upload cap (client-direct upload)
 
 const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 
@@ -59,6 +61,67 @@ export async function POST(req: Request) {
   if (!isSameOrigin(req)) {
     return NextResponse.json({ error: "bad origin" }, { status: 403 });
   }
+
+  const contentType = req.headers.get("content-type") || "";
+
+  // Client-direct upload (prod): the browser uploads straight to Vercel Blob,
+  // bypassing the 4.5MB serverless request-body limit that blocked larger menu
+  // PDFs/photos. This route only (a) mints a scoped upload token after auth, and
+  // (b) persists the menu metadata when the upload finishes.
+  if (useBlob && contentType.includes("application/json")) {
+    const body = (await req.json().catch(() => null)) as HandleUploadBody | null;
+    if (!body) return NextResponse.json({ error: "bad body" }, { status: 400 });
+    try {
+      const result = await handleUpload({
+        body,
+        request: req,
+        onBeforeGenerateToken: async (_pathname, clientPayload) => {
+          // Auth is enforced HERE — only a signed-in admin can get a token.
+          const user = await authedUser(req);
+          if (!user) throw new Error("unauthorized");
+          const originalName =
+            (() => {
+              try {
+                return (JSON.parse(clientPayload || "{}") as { originalName?: string })
+                  .originalName;
+              } catch {
+                return undefined;
+              }
+            })() || "menu";
+          return {
+            allowedContentTypes: ALLOWED_TYPES,
+            maximumSizeInBytes: MAX_BYTES,
+            addRandomSuffix: true,
+            tokenPayload: JSON.stringify({ userId: user.id, originalName }),
+          };
+        },
+        onUploadCompleted: async ({ blob, tokenPayload }) => {
+          // Fired server-to-server by Vercel Blob after the upload lands.
+          const { userId, originalName } = JSON.parse(tokenPayload || "{}") as {
+            userId: string;
+            originalName: string;
+          };
+          const previous = await getMenu(userId);
+          await setMenu(userId, {
+            filename: blob.pathname,
+            url: blob.url,
+            mime: blob.contentType || "application/octet-stream",
+            originalName: originalName || "menu",
+            uploadedAt: new Date().toISOString(),
+          });
+          await removeFile(previous);
+        },
+      });
+      return NextResponse.json(result);
+    } catch (e) {
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : "upload failed" },
+        { status: 400 },
+      );
+    }
+  }
+
+  // Multipart fallback (local dev / no Blob token): small files via the server.
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

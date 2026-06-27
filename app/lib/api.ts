@@ -19,6 +19,12 @@ export interface AdminAccount {
   email: string;
   role: Role;
   createdAt: string;
+  /** ISO expiry, or null for never-expiring (manual admins). */
+  expiresAt: string | null;
+  /** `demo` = self-service trial from the marketing site. */
+  source: "manual" | "demo";
+  /** False once the expiry has passed. */
+  active: boolean;
 }
 
 async function json<T>(res: Response): Promise<T> {
@@ -139,9 +145,34 @@ export async function getMenu(
 }
 
 export async function uploadMenu(file: File): Promise<MenuMeta> {
-  const fd = new FormData();
-  fd.append("file", file);
-  return json(await fetch("/api/menu", { method: "POST", body: fd }));
+  // Prod path: upload straight to Vercel Blob (no 4.5MB serverless body cap).
+  // The /api/menu route mints a scoped token (after auth) and persists the meta.
+  try {
+    const { upload } = await import("@vercel/blob/client");
+    const blob = await upload(`menu/${file.name}`, file, {
+      access: "public",
+      handleUploadUrl: "/api/menu",
+      contentType: file.type,
+      clientPayload: JSON.stringify({ originalName: file.name }),
+    });
+    return {
+      filename: blob.pathname,
+      url: blob.url,
+      mime: file.type,
+      originalName: file.name,
+      uploadedAt: new Date().toISOString(),
+    };
+  } catch (e) {
+    // Genuine rejections (auth / unsupported type / too large) must surface.
+    const msg = e instanceof Error ? e.message : "";
+    if (/unauthorized|content type|too large|maximum|not allowed/i.test(msg)) {
+      throw e;
+    }
+    // Otherwise fall back to the server multipart path (local dev / no Blob).
+    const fd = new FormData();
+    fd.append("file", file);
+    return json(await fetch("/api/menu", { method: "POST", body: fd }));
+  }
 }
 
 export async function deleteMenu(): Promise<void> {
@@ -202,6 +233,46 @@ export async function deleteAdmin(id: string): Promise<void> {
   if (!res.ok) throw new Error(`${res.status}`);
 }
 
+/** Renew an admin's trial by `days` (default 30 server-side). */
+export async function renewAdmin(
+  id: string,
+  days?: number,
+): Promise<{ ok: true; account: AdminAccount } | { ok: false; error: string }> {
+  const res = await fetch(`/api/admins/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "renew", days }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    account?: AdminAccount;
+    error?: string;
+  };
+  if (!res.ok || !data.account) {
+    return { ok: false, error: data.error || "failed" };
+  }
+  return { ok: true, account: data.account };
+}
+
+/** Edit an admin's email and/or password (super only). */
+export async function updateAdmin(
+  id: string,
+  patch: { email?: string; password?: string },
+): Promise<{ ok: true; account: AdminAccount } | { ok: false; error: string }> {
+  const res = await fetch(`/api/admins/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    account?: AdminAccount;
+    error?: string;
+  };
+  if (!res.ok || !data.account) {
+    return { ok: false, error: data.error || "failed" };
+  }
+  return { ok: true, account: data.account };
+}
+
 // --- Restaurant settings (admin's own) ---
 
 export async function getSettings(): Promise<RestaurantSettings> {
@@ -222,12 +293,19 @@ export async function saveSettings(
 
 // --- Marketing demo-request lead ---
 
+export interface LeadResult {
+  /** created = trial admin issued + emailed; exists = email already had an account. */
+  status: "created" | "exists";
+  /** Whether the credential / contact-sales email actually went out. */
+  emailed: boolean;
+}
+
 export async function submitLead(input: {
   name: string;
   email: string;
   restaurant: string;
-}): Promise<void> {
-  await json(
+}): Promise<LeadResult> {
+  return json(
     await fetch("/api/leads", {
       method: "POST",
       headers: { "content-type": "application/json" },

@@ -65,6 +65,9 @@ export interface LoginAttempt {
  * A login account. Passwords are never stored in plaintext — `passwordHash` is
  * a PBKDF2 `salt.derivedKey` digest (see app/lib/auth.ts).
  */
+/** How an account came to exist. `demo` = self-service trial from the marketing site. */
+export type AccountSource = "manual" | "demo";
+
 export interface AdminUser {
   id: string;
   /** Normalized (lowercased, trimmed) email — the login identifier. */
@@ -72,6 +75,14 @@ export interface AdminUser {
   passwordHash: string;
   role: Role;
   createdAt: string;
+  /**
+   * Access expiry (ISO). `null`/absent = never expires (super + manually-created
+   * admins). Trial admins issued from the demo form expire 7 days out; an expired
+   * account is instantly denied access (re-validated every request, like delete).
+   */
+  expiresAt?: string | null;
+  /** Provenance — `demo` accounts are self-service trials. Defaults to `manual`. */
+  source?: AccountSource;
 }
 
 export interface MenuMeta {

@@ -11,6 +11,8 @@ export const SITE = {
   legalUpdated: "June 2026",
   /** Sales contact (also used for the tel: link + clipboard copy). */
   salesPhone: "+966566201233",
+  /** Sales email — used in the "contact sales" demo email + sender reply-to. */
+  salesEmail: "sales@qpay.com",
   /** Dedicated contact for privacy / data requests. */
   privacyEmail: "privacy@qpay.com",
   salesHours: "Sun–Thu · 9am–6pm",

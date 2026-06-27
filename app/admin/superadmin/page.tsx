@@ -9,9 +9,51 @@ import {
   getMe,
   listAdmins,
   logout,
+  renewAdmin,
+  updateAdmin,
   type AdminAccount,
   type Me,
 } from "../../lib/api";
+
+const BADGE_COLORS: Record<string, { bg: string; fg: string }> = {
+  blue: { bg: "#DBEAFE", fg: "#1D4ED8" },
+  slate: { bg: "#F1F5F9", fg: "#475569" },
+  green: { bg: "#DCFCE7", fg: "#15803D" },
+  red: { bg: "#FEE2E2", fg: "#DC2626" },
+};
+
+function badge(tone: keyof typeof BADGE_COLORS | string): React.CSSProperties {
+  const c = BADGE_COLORS[tone] ?? BADGE_COLORS.slate;
+  return {
+    fontSize: 11,
+    fontWeight: 800,
+    letterSpacing: "0.02em",
+    textTransform: "uppercase",
+    padding: "2px 8px",
+    borderRadius: 999,
+    background: c.bg,
+    color: c.fg,
+  };
+}
+
+function rowBtn(
+  fg: string,
+  border: string,
+  danger = false,
+): React.CSSProperties {
+  return {
+    padding: "8px 14px",
+    background: danger ? "#fff" : "#fff",
+    color: fg,
+    border: `1.5px solid ${border}`,
+    borderRadius: 10,
+    fontFamily: "inherit",
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  };
+}
 
 export default function SuperadminPage() {
   const router = useRouter();
@@ -22,6 +64,11 @@ export default function SuperadminPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
+  // Per-row inline editing of an admin's email + password.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editEmail, setEditEmail] = useState("");
+  const [editPassword, setEditPassword] = useState("");
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   const refresh = () =>
     listAdmins()
@@ -69,6 +116,71 @@ export default function SuperadminPage() {
       refresh();
     } catch {
       setError(`Couldn't delete ${a.email}. Please retry.`);
+    }
+  };
+
+  const renew = async (a: AdminAccount) => {
+    setError("");
+    setNotice("");
+    setRowBusy(a.id);
+    try {
+      const res = await renewAdmin(a.id);
+      if (res.ok) {
+        setNotice(
+          `Renewed ${a.email} — now valid until ${new Date(
+            res.account.expiresAt ?? "",
+          ).toLocaleDateString()}.`,
+        );
+        refresh();
+      } else {
+        setError(res.error);
+      }
+    } catch {
+      setError(`Couldn't renew ${a.email}. Please retry.`);
+    } finally {
+      setRowBusy(null);
+    }
+  };
+
+  const startEdit = (a: AdminAccount) => {
+    setEditingId(a.id);
+    setEditEmail(a.email);
+    setEditPassword("");
+    setError("");
+    setNotice("");
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditEmail("");
+    setEditPassword("");
+  };
+
+  const saveEdit = async (a: AdminAccount) => {
+    setError("");
+    setNotice("");
+    const patch: { email?: string; password?: string } = {};
+    const trimmed = editEmail.trim();
+    if (trimmed && trimmed !== a.email) patch.email = trimmed;
+    if (editPassword) patch.password = editPassword;
+    if (!patch.email && !patch.password) {
+      cancelEdit();
+      return;
+    }
+    setRowBusy(a.id);
+    try {
+      const res = await updateAdmin(a.id, patch);
+      if (res.ok) {
+        setNotice(`Updated ${res.account.email}.`);
+        cancelEdit();
+        refresh();
+      } else {
+        setError(res.error);
+      }
+    } catch {
+      setError(`Couldn't update ${a.email}. Please retry.`);
+    } finally {
+      setRowBusy(null);
     }
   };
 
@@ -252,39 +364,126 @@ export default function SuperadminPage() {
               <div
                 key={a.id}
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 12,
                   padding: "14px 0",
                   borderBottom: "1px solid #F1F5F9",
                 }}
               >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {a.email}
-                  </div>
-                  <div style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>
-                    Created {new Date(a.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
-                <button
-                  onClick={() => remove(a)}
+                <div
                   style={{
-                    padding: "8px 14px",
-                    background: "#fff",
-                    color: "#DC2626",
-                    border: "1.5px solid #FECACA",
-                    borderRadius: 10,
-                    fontFamily: "inherit",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
                   }}
                 >
-                  Delete
-                </button>
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: 14.5,
+                        fontWeight: 700,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {a.email}
+                      <span style={badge(a.source === "demo" ? "blue" : "slate")}>
+                        {a.source === "demo" ? "Trial" : "Manual"}
+                      </span>
+                      <span style={badge(a.active ? "green" : "red")}>
+                        {a.active ? "Active" : "Expired"}
+                      </span>
+                    </div>
+                    <div
+                      style={{ fontSize: 12, color: "#64748B", fontWeight: 600, marginTop: 3 }}
+                    >
+                      Created {new Date(a.createdAt).toLocaleDateString()}
+                      {a.expiresAt
+                        ? ` · ${a.active ? "expires" : "expired"} ${new Date(
+                            a.expiresAt,
+                          ).toLocaleDateString()}`
+                        : " · no expiry"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <button
+                      onClick={() => renew(a)}
+                      disabled={rowBusy === a.id}
+                      style={rowBtn("#15803D", "#DCFCE7")}
+                    >
+                      {rowBusy === a.id ? "…" : "Renew 30d"}
+                    </button>
+                    <button
+                      onClick={() =>
+                        editingId === a.id ? cancelEdit() : startEdit(a)
+                      }
+                      style={rowBtn("#1D4ED8", "#DBEAFE")}
+                    >
+                      {editingId === a.id ? "Cancel" : "Edit"}
+                    </button>
+                    <button
+                      onClick={() => remove(a)}
+                      style={rowBtn("#DC2626", "#FECACA", true)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+                {editingId === a.id && (
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr auto",
+                      gap: 10,
+                      marginTop: 12,
+                      padding: 14,
+                      background: "#F8FAFC",
+                      borderRadius: 12,
+                      alignItems: "center",
+                    }}
+                    className="qp-grid-2"
+                  >
+                    <input
+                      type="email"
+                      aria-label={`New email for ${a.email}`}
+                      placeholder="New email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      style={field}
+                    />
+                    <input
+                      type="password"
+                      aria-label={`New password for ${a.email}`}
+                      placeholder="New password (min 8, blank = unchanged)"
+                      value={editPassword}
+                      onChange={(e) => setEditPassword(e.target.value)}
+                      style={field}
+                    />
+                    <button
+                      onClick={() => saveEdit(a)}
+                      disabled={rowBusy === a.id}
+                      style={{
+                        padding: "12px 18px",
+                        background: BRAND,
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 11,
+                        fontFamily: "inherit",
+                        fontSize: 14,
+                        fontWeight: 800,
+                        cursor: rowBusy === a.id ? "default" : "pointer",
+                        opacity: rowBusy === a.id ? 0.7 : 1,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {rowBusy === a.id ? "Saving…" : "Save"}
+                    </button>
+                  </div>
+                )}
               </div>
             ))
           )}

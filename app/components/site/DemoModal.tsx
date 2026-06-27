@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BRAND } from "../../lib/data";
-import { submitLead } from "../../lib/api";
+import { submitLead, type LeadResult } from "../../lib/api";
 
 export function DemoModal({
   open,
@@ -12,6 +12,7 @@ export function DemoModal({
   onClose: () => void;
 }) {
   const [sent, setSent] = useState(false);
+  const [result, setResult] = useState<LeadResult | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [restaurant, setRestaurant] = useState("");
@@ -27,6 +28,7 @@ export function DemoModal({
 
   const close = () => {
     setSent(false);
+    setResult(null);
     setName("");
     setEmail("");
     setRestaurant("");
@@ -40,8 +42,11 @@ export function DemoModal({
     setError("");
     setBusy(true);
     try {
-      await submitLead({ name, email, restaurant });
-      if (openRef.current) setSent(true);
+      const res = await submitLead({ name, email, restaurant });
+      if (openRef.current) {
+        setResult(res);
+        setSent(true);
+      }
     } catch {
       if (openRef.current)
         setError("Couldn't send your request. Please try again.");
@@ -135,7 +140,7 @@ export function DemoModal({
               </svg>
             </div>
             <h3 style={{ fontSize: 21, fontWeight: 800, margin: "0 0 8px" }}>
-              Request received
+              {result?.status === "exists" ? "Check your inbox" : "Your demo is ready"}
             </h3>
             <p
               style={{
@@ -145,8 +150,28 @@ export function DemoModal({
                 margin: "0 0 22px",
               }}
             >
-              Thanks{name ? `, ${name}` : ""} — our team will reach out shortly to
-              schedule your QPay demo.
+              {result?.status === "exists" ? (
+                <>
+                  Thanks{name ? `, ${name}` : ""} — this email already has a QPay
+                  account, so we&apos;ve sent you a note on how to reach our sales
+                  team to extend or upgrade.
+                </>
+              ) : (
+                <>
+                  Thanks{name ? `, ${name}` : ""} — we&apos;ve emailed your trial
+                  admin login to <strong>{email}</strong>. It&apos;s valid for 7
+                  days. Check your inbox to sign in.
+                </>
+              )}
+              {result && !result.emailed && (
+                <>
+                  {" "}
+                  <span style={{ color: "#B45309", fontWeight: 600 }}>
+                    (Email delivery is still being set up — contact sales if it
+                    doesn&apos;t arrive.)
+                  </span>
+                </>
+              )}
             </p>
             <button
               onClick={close}

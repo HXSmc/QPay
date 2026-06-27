@@ -1,14 +1,36 @@
+// Store facade. All API routes import from here; the public function signatures
+// are the stable boundary. Internally this dispatches to one of two backends:
+//
+//   • Relational Supabase (app/lib/store-sb.ts) when SUPABASE_URL is set — the
+//     production path. Per-row tables, per-row CAS for table mutations.
+//   • A disk/KV jsonb blob (below) for local dev / offline builds.
+//
+// Domain math (payment locking, settings merge) lives in store-core.ts so the
+// two backends can never drift.
+
 import { promises as fs } from "fs";
 import path from "path";
-import { billDue, DEFAULT_TAX_RATE, fmt } from "./data";
 import { constantTimeEqual, getSession, hashPassword } from "./auth";
+import { useSupabase } from "./supabase";
+import * as rel from "./store-sb";
+import {
+  applyPayment,
+  clampHold,
+  coerceSettings,
+  mergeSettings,
+  newToken,
+  nextStatusForItems,
+  orderAmount,
+  pruneReservations,
+  zeros,
+} from "./store-core";
 import type {
+  AccountSource,
   AdminUser,
   Lead,
   LiveTable,
   MenuMeta,
   OrderItem,
-  Reservation,
   RestaurantSettings,
   Role,
   Store,
@@ -16,91 +38,71 @@ import type {
   Transaction,
 } from "./types";
 
-/** Newest-N transactions kept in the hot store blob (older ones are dropped). */
 const MAX_TXN_HISTORY = 1000;
-/** Newest-N marketing leads kept in the store. */
 const MAX_LEADS = 1000;
+/** Trial admins issued from the marketing demo form are valid this many days. */
+export const TRIAL_DAYS = 7;
+/** Default renewal granted from the superadmin console. */
+export const RENEW_DAYS = 30;
 
-/** Settings for an owner, falling back to defaults for any unset field. */
-function settingsFor(s: Store, owner: string): RestaurantSettings {
-  const v = s.settings[owner];
+// ---------------------------------------------------------------------------
+// Public (non-secret) account view
+// ---------------------------------------------------------------------------
+
+export interface PublicUser {
+  id: string;
+  email: string;
+  role: Role;
+  createdAt: string;
+  /** ISO expiry, or null for never-expiring (super + manual admins). */
+  expiresAt: string | null;
+  source: AccountSource;
+  /** Derived: false once an expiry has passed. */
+  active: boolean;
+}
+
+function publicUser(u: AdminUser): PublicUser {
+  const expiresAt = u.expiresAt ?? null;
   return {
-    name: typeof v?.name === "string" ? v.name : "",
-    taxRate: typeof v?.taxRate === "number" ? v.taxRate : DEFAULT_TAX_RATE,
-    autoReceipts: v?.autoReceipts ?? true,
-    tipPrompts: v?.tipPrompts ?? true,
+    id: u.id,
+    email: u.email,
+    role: u.role,
+    createdAt: u.createdAt,
+    expiresAt,
+    source: u.source ?? "manual",
+    active: !expiresAt || new Date(expiresAt).getTime() > Date.now(),
   };
 }
 
-function orderAmount(items: OrderItem[], taxRate: number): string {
-  if (!items.length) return "—";
-  // Show the actual bill (subtotal + tax) so the admin "amount" matches what
-  // `paid` and the customer's total are measured against.
-  return fmt(billDue(items, taxRate));
+/** True once an account's expiry has passed (trial lapsed). */
+function isExpired(u: AdminUser): boolean {
+  return !!u.expiresAt && new Date(u.expiresAt).getTime() <= Date.now();
 }
 
-const zeros = (n: number): number[] => Array.from({ length: n }, () => 0);
-
-/** Reservations older than this (ms) are considered abandoned and dropped. */
-const RESV_TTL_MS = 8000;
-
-function pruneReservations(rs: Reservation[]): Reservation[] {
-  const cutoff = Date.now() - RESV_TTL_MS;
-  return (rs ?? []).filter((r) => r.ts >= cutoff && r.qty.some((q) => q > 0));
+/** Cryptographically-random, email-friendly password (~16 chars, base64url). */
+function genPassword(): string {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(12));
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
+
+// ===========================================================================
+// DISK / KV BLOB BACKEND (local dev fallback)
+// ===========================================================================
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
 export const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
 const KV_KEY = "qpay:store";
-// Backend precedence: Supabase (shared serverless store) → Vercel KV → disk.
-const useSupabase = !!process.env.SUPABASE_URL;
-const useKv = !!process.env.KV_REST_API_URL;
-const SB_TABLE = "store";
+const useKv = !useSupabase && !!process.env.KV_REST_API_URL;
 
-// createClient() wants the bare project URL (https://xxxx.supabase.co), but the
-// Supabase dashboard also surfaces the REST endpoint (…/rest/v1/) and people
-// paste that into the env by mistake — which silently breaks every query. Strip
-// any /rest/v1 suffix and trailing slash so either form works.
-function supabaseUrl(): string {
-  const raw = (process.env.SUPABASE_URL ?? "").trim();
-  return raw.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
-}
-
-// Lazily-created, memoized Supabase client (dynamic import so the dep isn't
-// bundled when running in disk/KV mode).
-let _sb: import("@supabase/supabase-js").SupabaseClient | undefined;
-async function sb() {
-  if (!_sb) {
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!key) {
-      // Misconfiguration: URL set but no service-role key. Fail loudly rather
-      // than letting writes silently no-op (which looks like "state resets").
-      throw new Error(
-        "store: SUPABASE_URL is set but SUPABASE_SERVICE_ROLE_KEY is missing",
-      );
-    }
-    const { createClient } = await import("@supabase/supabase-js");
-    _sb = createClient(supabaseUrl(), key, {
-      auth: { persistSession: false },
-    });
-  }
-  return _sb;
-}
-
-// The single super account that owns the admin console. Overridable via env;
-// defaults match the credentials provisioned for this deployment. The password
-// is only ever stored as a PBKDF2 digest (hashed in ensureSuperadmin).
 const SUPER_EMAIL = (process.env.SUPERADMIN_EMAIL || "AliTheAdmin@gmail.com")
   .trim()
   .toLowerCase();
 const SUPER_PASSWORD = process.env.SUPERADMIN_PASSWORD || "QPayAdmin_1";
 
-// A fresh store has NO tables or transactions and NO admins — every admin is
-// created by the super account and starts with an empty, isolated dashboard.
-// The super account itself is injected lazily by ensureSuperadmin (it needs an
-// async hash, which seed() can't do).
 function seed(): Store {
   return {
     tables: [],
@@ -115,15 +117,12 @@ function seed(): Store {
   };
 }
 
-const newToken = (): string => globalThis.crypto.randomUUID();
+function settingsFor(s: Store, owner: string): RestaurantSettings {
+  return coerceSettings(s.settings[owner]);
+}
 
-// Backfill fields added after a store was first written (e.g. table.items),
-// so stores created by older versions don't crash newer code.
 function normalize(s: Store): Store {
   return {
-    // Drop legacy rows that predate per-owner scoping (no owner): they belong to
-    // no account, so they'd be unmanageable yet still publicly readable/payable
-    // by table number. Purging them on read keeps every table owned + isolated.
     tables: (s.tables ?? [])
       .filter((t) => typeof t.owner === "string" && t.owner !== "")
       .map((t) => {
@@ -132,11 +131,9 @@ function normalize(s: Store): Store {
         return {
           ...t,
           owner: t.owner as string,
-          // Backfill a capability token for tables created before tokens existed.
           token: typeof t.token === "string" && t.token ? t.token : newToken(),
           items,
           paid: typeof t.paid === "number" ? t.paid : 0,
-          // Coerce paidQty to match items length (0 for new indices).
           paidQty: items.map((_, i) => (typeof pq[i] === "number" ? pq[i] : 0)),
           reservations: Array.isArray(t.reservations) ? t.reservations : [],
         };
@@ -145,8 +142,6 @@ function normalize(s: Store): Store {
       (tx) => typeof tx.owner === "string" && tx.owner !== "",
     ),
     leads: Array.isArray(s.leads) ? s.leads : [],
-    // Legacy single global menu (s.menu) can't be attributed to one owner, so it
-    // is not migrated — admins re-upload into their own per-owner slot.
     menus:
       s.menus && typeof s.menus === "object" && !Array.isArray(s.menus)
         ? s.menus
@@ -160,8 +155,6 @@ function normalize(s: Store): Store {
       s.loginAttempts && typeof s.loginAttempts === "object"
         ? s.loginAttempts
         : {},
-    // seq must never go below the highest existing table number, or createTable
-    // could mint a colliding num after a legacy/seed reset.
     seq: Math.max(
       typeof s.seq === "number" ? s.seq : 0,
       ...(s.tables ?? []).map((t) => Number(t.num) || 0),
@@ -171,14 +164,8 @@ function normalize(s: Store): Store {
   };
 }
 
-// Inject the super account if it's missing (first boot, or a store seeded
-// before users existed). Mutates `s` in place; returns true if it added one.
-// Persisting is the caller's job (done in readStore, without bumping version —
-// same pattern as the legacy version backfill).
-async function ensureSuperadmin(s: Store): Promise<boolean> {
+async function ensureSuperadminBlob(s: Store): Promise<boolean> {
   if (s.users.some((u) => u.role === "super")) return false;
-  // Fail closed: never seed the master account from the source-committed
-  // defaults in production — require the credentials to come from the env.
   if (
     process.env.NODE_ENV === "production" &&
     (!process.env.SUPERADMIN_EMAIL || !process.env.SUPERADMIN_PASSWORD)
@@ -193,78 +180,30 @@ async function ensureSuperadmin(s: Store): Promise<boolean> {
     passwordHash: await hashPassword(SUPER_PASSWORD),
     role: "super",
     createdAt: new Date().toISOString(),
+    source: "manual",
+    expiresAt: null,
   });
   return true;
 }
 
-// Normalize + guarantee the super account exists, persisting (without bumping
-// the version) only when a backfill actually changed the blob. `legacy` forces
-// a write for the one-time version backfill on pre-CAS rows.
-async function finalize(raw: Store, legacy: boolean): Promise<Store> {
-  const s = normalize(raw);
-  const addedSuper = await ensureSuperadmin(s);
-  if (legacy || addedSuper) {
-    // Persist the backfill through the version CAS (not an unconditional write)
-    // so a read-path migration can never clobber a payment another instance
-    // committed concurrently — a lost CAS just means someone else already
-    // persisted a newer store, and our in-memory copy is still fine to return.
-    const expected = s.version ?? 0;
-    await commit(s, expected).catch(() => {});
+async function readStoreBlob(): Promise<Store> {
+  let raw: Store;
+  if (useKv) {
+    const { kv } = await import("@vercel/kv");
+    raw = (await kv.get<Store>(KV_KEY)) ?? seed();
+  } else {
+    try {
+      raw = JSON.parse(await fs.readFile(STORE_FILE, "utf8")) as Store;
+    } catch {
+      raw = seed();
+    }
   }
+  const s = normalize(raw);
+  if (await ensureSuperadminBlob(s)) await writeStoreBlob(s);
   return s;
 }
 
-async function readStore(): Promise<Store> {
-  if (useSupabase) {
-    const client = await sb();
-    const { data, error } = await client
-      .from(SB_TABLE)
-      .select("value")
-      .eq("key", KV_KEY)
-      .maybeSingle();
-    // A read error (missing `store` table, bad key, network) must NOT fall
-    // through to seeding — that would overwrite live data with demo defaults on
-    // every blip. Surface it so the misconfiguration is visible.
-    if (error) {
-      throw new Error(`store: Supabase read failed — ${error.message}`);
-    }
-    if (data?.value) {
-      const raw = data.value as Store;
-      // Legacy rows (written before optimistic concurrency) lack a version;
-      // backfill it so the CAS in commit() can match.
-      return finalize(raw, typeof raw.version !== "number");
-    }
-    const fresh = await finalize(seed(), false);
-    return fresh;
-  }
-  if (useKv) {
-    const { kv } = await import("@vercel/kv");
-    const s = await kv.get<Store>(KV_KEY);
-    if (s) return finalize(s, false);
-    return finalize(seed(), false);
-  }
-  try {
-    const raw = await fs.readFile(STORE_FILE, "utf8");
-    return finalize(JSON.parse(raw) as Store, false);
-  } catch {
-    return finalize(seed(), false);
-  }
-}
-
-async function writeStore(s: Store): Promise<void> {
-  if (useSupabase) {
-    const client = await sb();
-    const { error } = await client
-      .from(SB_TABLE)
-      .upsert({ key: KV_KEY, value: s }, { onConflict: "key" });
-    // A swallowed write error is exactly what made prod look like it "forgot"
-    // every payment (table missing / RLS / bad key). Throw so the API returns
-    // 500 and the client can retry instead of silently losing the update.
-    if (error) {
-      throw new Error(`store: Supabase write failed — ${error.message}`);
-    }
-    return;
-  }
+async function writeStoreBlob(s: Store): Promise<void> {
   if (useKv) {
     const { kv } = await import("@vercel/kv");
     await kv.set(KV_KEY, s);
@@ -274,27 +213,20 @@ async function writeStore(s: Store): Promise<void> {
   await fs.writeFile(STORE_FILE, JSON.stringify(s, null, 2), "utf8");
 }
 
-// ---------------------------------------------------------------------------
-// Concurrency control
-//
-// The store is a single blob with read-modify-write semantics, so two
-// concurrent mutations (e.g. a phone heartbeating while another pays) can read
-// the same snapshot and clobber each other → lost update. We defend in two
-// layers:
-//   1. An in-process async lock serializes mutations within one Node instance
-//      (covers disk/KV and same-instance Supabase requests).
-//   2. Optimistic concurrency (a `version` stamped in the blob) makes Supabase
-//      writes a compare-and-swap, so cross-instance serverless requests can't
-//      clobber either — a stale write is rejected and the mutation retried.
-// ---------------------------------------------------------------------------
-
-const MAX_RETRIES = 6;
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-// Promise-chain mutex: each mutation waits for the previous to settle.
+// In-process mutex (dev backend is single-instance, so this is sufficient).
 let lock: Promise<unknown> = Promise.resolve();
-function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  const run = lock.then(fn, fn);
+async function mutateBlob<T>(
+  apply: (s: Store) => { result: T; write: boolean },
+): Promise<T> {
+  const run = lock.then(async () => {
+    const s = await readStoreBlob();
+    const { result, write } = apply(s);
+    if (write) {
+      s.version = (s.version ?? 0) + 1;
+      await writeStoreBlob(s);
+    }
+    return result;
+  });
   lock = run.then(
     () => {},
     () => {},
@@ -302,101 +234,20 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/** Read the currently-stored Supabase version (0 if missing/unset). */
-async function sbCurrentVersion(): Promise<number> {
-  const client = await sb();
-  const { data } = await client
-    .from(SB_TABLE)
-    .select("value")
-    .eq("key", KV_KEY)
-    .maybeSingle();
-  const v = (data?.value as Store | undefined)?.version;
-  return typeof v === "number" ? v : 0;
-}
+// ===========================================================================
+// TABLES
+// ===========================================================================
 
-/**
- * Commit a mutated store, guarding against lost updates.
- *
- * On Supabase this attempts a conditional UPDATE matching the version we read.
- * Returns false ONLY when we can prove another writer won the race (caller
- * re-reads and retries). Crucially it is fail-SAFE: if the conditional write
- * errors or matches no row for any reason OTHER than a confirmed version
- * advance (e.g. a PostgREST jsonb-filter quirk), it degrades to an
- * unconditional write so a payment can never be permanently blocked — worst
- * case we fall back to last-write-wins, never a hard failure.
- *
- * Disk/KV writes are unconditional — the in-process lock already serializes
- * them within the single process.
- */
-async function commit(s: Store, expected: number): Promise<boolean> {
-  s.version = expected + 1;
-  if (useSupabase) {
-    const client = await sb();
-    try {
-      const { data, error } = await client
-        .from(SB_TABLE)
-        .update({ value: s })
-        .eq("key", KV_KEY)
-        .eq("value->>version", String(expected))
-        .select("key");
-      if (!error && (data?.length ?? 0) > 0) return true; // CAS won
-
-      // No row updated (or the filter errored). Disambiguate: did the stored
-      // version actually move past ours (real conflict) or did the conditional
-      // simply not apply? Only a confirmed advance means "retry".
-      const current = await sbCurrentVersion();
-      if (current !== expected) return false; // real concurrent write → retry
-    } catch {
-      // Conditional path unusable on this backend — fall through to a plain
-      // write rather than failing the request.
-    }
-    await writeStore(s); // unconditional upsert (value already carries version)
-    return true;
-  }
-  await writeStore(s);
-  return true;
-}
-
-/**
- * Read-modify-write with serialization + optimistic-concurrency retry. `apply`
- * mutates the fresh store in place and returns the caller's result plus whether
- * a write is needed (skip writes for not-found / no-op so we don't bump the
- * version pointlessly). `apply` may run more than once, so it must be a pure
- * function of the store it's handed.
- */
-async function mutate<T>(
-  apply: (s: Store) => { result: T; write: boolean },
-): Promise<T> {
-  return withLock(async () => {
-    for (let attempt = 0; ; attempt++) {
-      const s = await readStore();
-      const expected = s.version ?? 0;
-      const { result, write } = apply(s);
-      if (!write) return result;
-      if (await commit(s, expected)) return result;
-      if (attempt >= MAX_RETRIES) {
-        throw new Error("store: write conflict (max retries exceeded)");
-      }
-      await sleep(15 * (attempt + 1));
-    }
-  });
-}
-
-/** Tables owned by one admin (dashboards are strictly per-owner). */
 export async function listTables(owner: string): Promise<LiveTable[]> {
-  return (await readStore()).tables.filter((t) => t.owner === owner);
+  if (useSupabase) return rel.listTables(owner);
+  return (await readStoreBlob()).tables.filter((t) => t.owner === owner);
 }
 
 export async function createTable(owner: string): Promise<LiveTable> {
-  return mutate((s) => {
-    // Allocate from a monotonic counter so a freed (deleted) number is never
-    // reused — a stale customer QR can't resolve to a different table later.
-    // Numbers stay globally unique; each admin only ever sees its own tables.
-    s.seq = Math.max(
-      s.seq ?? 0,
-      ...s.tables.map((t) => Number(t.num) || 0),
-      0,
-    ) + 1;
+  if (useSupabase) return rel.createTable(owner);
+  return mutateBlob((s) => {
+    s.seq =
+      Math.max(s.seq ?? 0, ...s.tables.map((t) => Number(t.num) || 0), 0) + 1;
     const table: LiveTable = {
       num: String(s.seq),
       owner,
@@ -414,8 +265,8 @@ export async function createTable(owner: string): Promise<LiveTable> {
 }
 
 export async function getTable(num: string): Promise<LiveTable | null> {
-  const s = await readStore();
-  return s.tables.find((x) => x.num === num) ?? null;
+  if (useSupabase) return rel.getTable(num);
+  return (await readStoreBlob()).tables.find((x) => x.num === num) ?? null;
 }
 
 export async function setTableItems(
@@ -423,50 +274,34 @@ export async function setTableItems(
   items: OrderItem[],
   owner: string,
 ): Promise<LiveTable | null> {
-  return mutate((s) => {
+  if (useSupabase) return rel.setTableItems(num, items, owner);
+  return mutateBlob((s) => {
     const t = s.tables.find((x) => x.num === num && x.owner === owner);
     if (!t) return { result: null, write: false };
     t.items = items;
     t.amount = orderAmount(items, settingsFor(s, owner).taxRate);
-    // Editing the order resets per-item payment locks and any live holds — and
-    // the carried `paid` principal, which referred to the OLD order. Leaving it
-    // would credit stale dollars against the new bill (wrong remaining, no unit
-    // locked).
     t.paidQty = zeros(items.length);
     t.reservations = [];
     t.paid = 0;
-    if (items.length === 0) {
-      t.status = "open";
-    } else {
-      t.status = "unpaid";
-    }
+    t.status = nextStatusForItems(items);
     return { result: t, write: true };
   });
 }
 
-/** Upsert a phone's live item hold (heartbeat) and prune abandoned holds. */
 export async function syncReservation(
   num: string,
   id: string,
   qty: number[],
   token: string,
 ): Promise<LiveTable | null> {
-  return mutate((s) => {
+  if (useSupabase) return rel.syncReservation(num, id, qty, token);
+  return mutateBlob((s) => {
     const t = s.tables.find((x) => x.num === num);
-    // Require the table's capability token — a guessable num alone can't touch it.
     if (!t || !constantTimeEqual(t.token, token)) {
       return { result: null, write: false };
     }
     const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
-    // Clamp each hold to the units actually orderable (0..ordered-qty). Without
-    // this, one phone could POST qty:[9999,…] and drive every item's
-    // availability to 0, blocking per-item payment for everyone else.
-    const mine = t.items.map((it, i) => {
-      const n = qty?.[i];
-      return typeof n === "number" && n > 0
-        ? Math.min(Math.floor(n), it.qty)
-        : 0;
-    });
+    const mine = clampHold(t.items, qty);
     t.reservations = mine.some((n) => n > 0)
       ? [...others, { id, qty: mine, ts: Date.now() }]
       : others;
@@ -474,93 +309,25 @@ export async function syncReservation(
   });
 }
 
-/**
- * Record a mock payment. Clamps to the remaining balance (no overpay), locks
- * paid item units, and clears the caller's live hold. Auto-sets status.
- */
 export async function payTable(
   num: string,
   amount: number,
   opts: { id?: string; items?: number[]; method?: string; token: string },
 ): Promise<LiveTable | null> {
-  return mutate((s) => {
+  if (useSupabase) return rel.payTable(num, amount, opts);
+  return mutateBlob((s) => {
     const t = s.tables.find((x) => x.num === num);
-    // Require the table's capability token (a guessable num can't pay any table).
     if (!t || !constantTimeEqual(t.token, opts.token)) {
       return { result: null, write: false };
     }
     if (t.items.length === 0) return { result: t, write: false };
-
-    // Use the owner's configured tax rate so the server's bill + per-unit locks
-    // agree with what the customer was shown.
-    const taxMul = 1 + settingsFor(s, t.owner).taxRate / 100;
-    const due = billDue(t.items, settingsFor(s, t.owner).taxRate);
-    const remaining = Math.max(0, +(due - (t.paid ?? 0)).toFixed(2));
-    const applied = Math.min(Math.max(0, amount), remaining);
-    t.paid = +(((t.paid ?? 0) + applied).toFixed(2));
-
-    // Lock paid item units — but only as many as the APPLIED money actually
-    // covers. If the payment was clamped (another phone paid first, so
-    // remaining < the selected items' value), we must not mark items Paid that
-    // this payment didn't fully cover. Spend `applied` across the requested
-    // units at their tax-inclusive unit price; lock a unit only once paid.
-    if (opts?.items) {
-      if (!Array.isArray(t.paidQty) || t.paidQty.length !== t.items.length) {
-        t.paidQty = zeros(t.items.length);
-      }
-      let budget = applied;
-      t.items.forEach((it, i) => {
-        const want = Math.min(
-          Math.max(0, Math.floor(opts.items![i] ?? 0)),
-          it.qty - t.paidQty[i],
-        );
-        if (want <= 0 || it.qty <= 0) return;
-        const unit = it.price / it.qty;
-        // Lock the largest k (≤want) whose CUMULATIVE tax-inclusive cost fits the
-        // budget. Rounding the cumulative cost once (not per unit) mirrors
-        // billDue's round-once math, so per-unit drift can't leave an
-        // exactly-paid line's last unit unlocked. 1¢ tolerance absorbs the final
-        // rounding.
-        let lock = 0;
-        for (let k = 1; k <= want; k++) {
-          if (+(unit * k * taxMul).toFixed(2) <= budget + 0.01) lock = k;
-          else break;
-        }
-        if (lock > 0) {
-          budget = +(budget - +(unit * lock * taxMul).toFixed(2)).toFixed(2);
-          t.paidQty[i] += lock;
-        }
-      });
-    }
-
-    // Drop the caller's hold + any stale holds.
-    t.reservations = pruneReservations(t.reservations).filter(
-      (r) => r.id !== opts?.id,
-    );
-
-    // Record the payment in the live ledger (powers the dashboard + CSV export).
-    if (applied > 0) {
-      s.transactions.unshift({
-        time: new Date().toLocaleTimeString("en-US", {
-          hour: "numeric",
-          minute: "2-digit",
-        }),
-        table: num,
-        amount: fmt(applied),
-        method: opts?.method || "Card",
-        // Receipts are scoped to the table's owner so each admin's ledger is
-        // independent — a customer paying never crosses accounts.
-        owner: t.owner,
-      });
-      // Bound the ledger kept in the hot blob so it can't grow without limit
-      // (every read deserializes the whole store). Drop the oldest beyond cap.
+    const { txn } = applyPayment(t, amount, opts, settingsFor(s, t.owner).taxRate);
+    if (txn) {
+      s.transactions.unshift(txn);
       if (s.transactions.length > MAX_TXN_HISTORY) {
         s.transactions.length = MAX_TXN_HISTORY;
       }
     }
-
-    if (t.paid + 0.01 >= due) t.status = "cleared";
-    else if (t.paid > 0) t.status = "partial";
     return { result: t, write: true };
   });
 }
@@ -570,7 +337,8 @@ export async function setTableStatus(
   status: TableStatus,
   owner: string,
 ): Promise<LiveTable | null> {
-  return mutate((s) => {
+  if (useSupabase) return rel.setTableStatus(num, status, owner);
+  return mutateBlob((s) => {
     const t = s.tables.find((x) => x.num === num && x.owner === owner);
     if (!t) return { result: null, write: false };
     t.status = status;
@@ -584,7 +352,8 @@ export async function deleteTable(
   num: string,
   owner: string,
 ): Promise<boolean> {
-  return mutate((s) => {
+  if (useSupabase) return rel.deleteTable(num, owner);
+  return mutateBlob((s) => {
     const before = s.tables.length;
     s.tables = s.tables.filter((x) => !(x.num === num && x.owner === owner));
     if (s.tables.length === before) return { result: false, write: false };
@@ -592,75 +361,63 @@ export async function deleteTable(
   });
 }
 
-/** Receipts for one admin (ledger is strictly per-owner). */
 export async function listTransactions(owner: string): Promise<Transaction[]> {
-  return (await readStore()).transactions.filter((t) => t.owner === owner);
+  if (useSupabase) return rel.listTransactions(owner);
+  return (await readStoreBlob()).transactions.filter((t) => t.owner === owner);
 }
 
-// ---------------------------------------------------------------------------
-// User accounts (login)
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// ACCOUNTS (login)
+// ===========================================================================
 
-/** Public (non-secret) view of an account — never exposes the password hash. */
-export interface PublicUser {
-  id: string;
-  email: string;
-  role: Role;
-  createdAt: string;
-}
-
-const publicUser = (u: AdminUser): PublicUser => ({
-  id: u.id,
-  email: u.email,
-  role: u.role,
-  createdAt: u.createdAt,
-});
-
-/** Full account record (incl. hash) for an email — for login verification. */
 export async function findUserByEmail(
   email: string,
 ): Promise<AdminUser | null> {
+  if (useSupabase) {
+    await rel.ensureSuperadmin();
+    return rel.findUserByEmail(email);
+  }
   const norm = email.trim().toLowerCase();
-  const s = await readStore();
-  return s.users.find((u) => u.email === norm) ?? null;
+  return (await readStoreBlob()).users.find((u) => u.email === norm) ?? null;
 }
 
 export async function getUserById(id: string): Promise<AdminUser | null> {
-  const s = await readStore();
-  return s.users.find((u) => u.id === id) ?? null;
+  if (useSupabase) return rel.getUserById(id);
+  return (await readStoreBlob()).users.find((u) => u.id === id) ?? null;
 }
 
 /**
- * Resolve the live account behind a request's session, or null. Re-validates
- * against the store on every call, so a deleted/role-changed account loses
- * access immediately (stateless tokens otherwise stay valid until expiry).
+ * Resolve the live account behind a request's session, or null. Re-validates the
+ * account every call, so a deleted, role-changed, OR EXPIRED account loses access
+ * immediately (a stateless token otherwise stays valid until its own expiry).
  */
 export async function authedUser(req: Request): Promise<AdminUser | null> {
   const session = await getSession(req);
   if (!session) return null;
   const u = await getUserById(session.sub);
-  return u && u.role === session.role ? u : null;
+  if (!u || u.role !== session.role) return null;
+  if (isExpired(u)) return null; // trial lapsed → no access
+  return u;
 }
 
 // ---------------------------------------------------------------------------
-// Login throttling (brute-force / credential-stuffing defense)
+// Login throttling
 // ---------------------------------------------------------------------------
 
-const LOGIN_MAX_FAILS = 8; // consecutive fails within the window before lockout
+const LOGIN_MAX_FAILS = 8;
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const LOGIN_LOCK_MS = 15 * 60 * 1000;
 
-/** True if this `email|ip` key is currently locked out. */
 export async function isLoginLocked(key: string): Promise<boolean> {
-  const a = (await readStore()).loginAttempts[key];
+  if (useSupabase) return rel.isLoginLocked(key);
+  const a = (await readStoreBlob()).loginAttempts[key];
   return !!a && a.lockedUntil > Date.now();
 }
 
-/** Record a failed login; locks the key once it exceeds the threshold. */
 export async function recordLoginFailure(key: string): Promise<void> {
-  await mutate((s) => {
+  if (useSupabase) return rel.recordLoginFailure(key);
+  await mutateBlob((s) => {
     const now = Date.now();
-    // Opportunistically prune stale entries so the map can't grow unbounded.
     for (const k of Object.keys(s.loginAttempts)) {
       const e = s.loginAttempts[k];
       if (e.lockedUntil <= now && e.windowEnd <= now) delete s.loginAttempts[k];
@@ -675,31 +432,39 @@ export async function recordLoginFailure(key: string): Promise<void> {
   });
 }
 
-/** Clear the failure counter for a key after a successful login. */
 export async function clearLoginFailures(key: string): Promise<void> {
-  await mutate((s) => {
+  if (useSupabase) return rel.clearLoginFailures(key);
+  await mutateBlob((s) => {
     if (!s.loginAttempts[key]) return { result: undefined, write: false };
     delete s.loginAttempts[key];
     return { result: undefined, write: true };
   });
 }
 
-/** Admin accounts (super excluded) — for the super console. */
+// ===========================================================================
+// ADMIN MANAGEMENT (super console)
+// ===========================================================================
+
 export async function listAdmins(): Promise<PublicUser[]> {
-  const s = await readStore();
+  if (useSupabase) {
+    await rel.ensureSuperadmin();
+    return (await rel.listAdmins()).map(publicUser);
+  }
+  const s = await readStoreBlob();
   return s.users.filter((u) => u.role === "admin").map(publicUser);
 }
 
-/**
- * Create an admin account. Email must be unique (case-insensitive). Returns the
- * new public user, or null if the email is already taken.
- */
 export async function createAdmin(
   email: string,
   passwordHash: string,
+  opts?: { source?: AccountSource; expiresAt?: string | null },
 ): Promise<PublicUser | null> {
+  if (useSupabase) {
+    const u = await rel.createAdmin(email, passwordHash, opts);
+    return u ? publicUser(u) : null;
+  }
   const norm = email.trim().toLowerCase();
-  return mutate((s) => {
+  return mutateBlob((s) => {
     if (s.users.some((u) => u.email === norm)) {
       return { result: null, write: false };
     }
@@ -709,43 +474,128 @@ export async function createAdmin(
       passwordHash,
       role: "admin",
       createdAt: new Date().toISOString(),
+      source: opts?.source ?? "manual",
+      expiresAt: opts?.expiresAt ?? null,
     };
     s.users.push(user);
     return { result: publicUser(user), write: true };
   });
 }
 
-/**
- * Delete an admin account and cascade-remove its tables + receipts so no
- * orphaned, inaccessible data is left behind. The super account can't be
- * deleted. Returns false if no such admin existed.
- */
 export async function deleteAdmin(id: string): Promise<boolean> {
-  return mutate((s) => {
+  if (useSupabase) return rel.deleteAdmin(id);
+  return mutateBlob((s) => {
     const u = s.users.find((x) => x.id === id);
     if (!u || u.role !== "admin") return { result: false, write: false };
     s.users = s.users.filter((x) => x.id !== id);
     s.tables = s.tables.filter((t) => t.owner !== id);
     s.transactions = s.transactions.filter((t) => t.owner !== id);
+    delete s.menus[id];
+    delete s.settings[id];
     return { result: true, write: true };
   });
 }
 
-/** One admin's own menu (for the admin menu page). */
-export async function getMenu(owner: string): Promise<MenuMeta | null> {
-  return (await readStore()).menus[owner] ?? null;
+/** Extend an admin's expiry by `days` from max(now, current expiry). */
+export async function renewAdmin(
+  id: string,
+  days: number = RENEW_DAYS,
+): Promise<PublicUser | null> {
+  if (useSupabase) {
+    const u = await rel.renewAdmin(id, days);
+    return u ? publicUser(u) : null;
+  }
+  return mutateBlob((s) => {
+    const u = s.users.find((x) => x.id === id && x.role === "admin");
+    if (!u) return { result: null, write: false };
+    const base = Math.max(
+      Date.now(),
+      u.expiresAt ? new Date(u.expiresAt).getTime() : Date.now(),
+    );
+    u.expiresAt = new Date(base + days * 86_400_000).toISOString();
+    return { result: publicUser(u), write: true };
+  });
 }
 
 /**
- * The menu a customer should see for a scanned table = its owner's menu.
- * Token-gated like the other public table endpoints so a menu URL can't be
- * enumerated by guessing sequential table numbers.
+ * Edit an admin's email and/or password. Returns the updated account, null if no
+ * such admin, or "duplicate" if the new email collides with another account.
  */
+export async function updateAdmin(
+  id: string,
+  patch: { email?: string; passwordHash?: string },
+): Promise<PublicUser | null | "duplicate"> {
+  if (useSupabase) {
+    const r = await rel.updateAdmin(id, patch);
+    if (r === "duplicate") return "duplicate";
+    return r ? publicUser(r) : null;
+  }
+  const newEmail =
+    typeof patch.email === "string" ? patch.email.trim().toLowerCase() : undefined;
+  return mutateBlob<PublicUser | null | "duplicate">((s) => {
+    const u = s.users.find((x) => x.id === id && x.role === "admin");
+    if (!u) return { result: null, write: false };
+    if (newEmail && s.users.some((x) => x.id !== id && x.email === newEmail)) {
+      return { result: "duplicate", write: false };
+    }
+    if (newEmail) u.email = newEmail;
+    if (typeof patch.passwordHash === "string") u.passwordHash = patch.passwordHash;
+    return { result: publicUser(u), write: true };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Trial-admin provisioning (marketing demo form)
+// ---------------------------------------------------------------------------
+
+export interface TrialProvision {
+  /** created = brand-new trial issued; exists = email already has an account. */
+  status: "created" | "exists";
+  account?: PublicUser;
+  /** Plaintext password — only present on `created`; email it, never store. */
+  password?: string;
+  expiresAt?: string;
+}
+
+/**
+ * Provision a 7-day trial admin for a demo request. Strictly one trial per email:
+ * if ANY account already exists for the email (trial, manual, or super), nothing
+ * is created or renewed — the caller emails a "contact sales" note instead.
+ * Self-service renewal is intentionally impossible; only the superadmin renews.
+ */
+export async function provisionTrialAdmin(
+  email: string,
+  _restaurant: string,
+): Promise<TrialProvision> {
+  const norm = email.trim().toLowerCase();
+  if (await findUserByEmail(norm)) return { status: "exists" };
+
+  const expiresAt = new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString();
+  const password = genPassword();
+  const created = await createAdmin(norm, await hashPassword(password), {
+    source: "demo",
+    expiresAt,
+  });
+  // A null here means a concurrent insert won the unique race — already exists.
+  if (!created) return { status: "exists" };
+  return { status: "created", account: created, password, expiresAt };
+}
+
+// ===========================================================================
+// MENUS
+// ===========================================================================
+
+export async function getMenu(owner: string): Promise<MenuMeta | null> {
+  if (useSupabase) return rel.getMenu(owner);
+  return (await readStoreBlob()).menus[owner] ?? null;
+}
+
 export async function getMenuForTable(
   num: string,
   token: string,
 ): Promise<MenuMeta | null> {
-  const s = await readStore();
+  if (useSupabase) return rel.getMenuForTable(num, token);
+  const s = await readStoreBlob();
   const t = s.tables.find((x) => x.num === num);
   return t && constantTimeEqual(t.token, token)
     ? s.menus[t.owner] ?? null
@@ -753,66 +603,47 @@ export async function getMenuForTable(
 }
 
 export async function setMenu(owner: string, meta: MenuMeta): Promise<void> {
-  await mutate((s) => {
+  if (useSupabase) return rel.setMenu(owner, meta);
+  await mutateBlob((s) => {
     s.menus[owner] = meta;
     return { result: undefined, write: true };
   });
 }
 
 export async function clearMenu(owner: string): Promise<void> {
-  await mutate((s) => {
+  if (useSupabase) return rel.clearMenu(owner);
+  await mutateBlob((s) => {
     delete s.menus[owner];
     return { result: undefined, write: true };
   });
 }
 
-// ---------------------------------------------------------------------------
-// Restaurant settings (per owner)
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// SETTINGS
+// ===========================================================================
 
-/** One admin's own settings (defaults filled in). */
 export async function getSettings(owner: string): Promise<RestaurantSettings> {
-  return settingsFor(await readStore(), owner);
+  if (useSupabase) return rel.getSettings(owner);
+  return settingsFor(await readStoreBlob(), owner);
 }
 
-/** Patch an admin's settings (validated/clamped). Returns the merged result. */
 export async function setSettings(
   owner: string,
   patch: Partial<RestaurantSettings>,
 ): Promise<RestaurantSettings> {
-  return mutate((s) => {
-    const cur = settingsFor(s, owner);
-    const next: RestaurantSettings = {
-      name:
-        typeof patch.name === "string" ? patch.name.trim().slice(0, 80) : cur.name,
-      taxRate:
-        typeof patch.taxRate === "number" &&
-        isFinite(patch.taxRate) &&
-        patch.taxRate >= 0 &&
-        patch.taxRate <= 30
-          ? patch.taxRate
-          : cur.taxRate,
-      autoReceipts:
-        typeof patch.autoReceipts === "boolean"
-          ? patch.autoReceipts
-          : cur.autoReceipts,
-      tipPrompts:
-        typeof patch.tipPrompts === "boolean" ? patch.tipPrompts : cur.tipPrompts,
-    };
+  if (useSupabase) return rel.setSettings(owner, patch);
+  return mutateBlob((s) => {
+    const next = mergeSettings(settingsFor(s, owner), patch);
     s.settings[owner] = next;
     return { result: next, write: true };
   });
 }
 
-/**
- * Non-secret restaurant info a diner may see for a scanned table: display name
- * (configured, else derived from the owner's email) + tax rate. Never exposes
- * the owner id or any account data.
- */
 export async function getPublicRestaurant(
   num: string,
 ): Promise<{ name: string; taxRate: number } | null> {
-  const s = await readStore();
+  if (useSupabase) return rel.getPublicRestaurant(num);
+  const s = await readStoreBlob();
   const t = s.tables.find((x) => x.num === num);
   if (!t) return null;
   const set = settingsFor(s, t.owner);
@@ -821,17 +652,17 @@ export async function getPublicRestaurant(
   return { name: set.name || fallback, taxRate: set.taxRate };
 }
 
-// ---------------------------------------------------------------------------
-// Marketing leads (demo requests)
-// ---------------------------------------------------------------------------
+// ===========================================================================
+// LEADS
+// ===========================================================================
 
-/** Record a demo-request lead (newest first, capped). Returns the saved lead. */
 export async function addLead(input: {
   name: string;
   email: string;
   restaurant: string;
 }): Promise<Lead> {
-  return mutate((s) => {
+  if (useSupabase) return rel.addLead(input);
+  return mutateBlob((s) => {
     const lead: Lead = {
       id: globalThis.crypto.randomUUID(),
       name: input.name.trim().slice(0, 120),
@@ -845,7 +676,7 @@ export async function addLead(input: {
   });
 }
 
-/** All captured leads (super console). */
 export async function listLeads(): Promise<Lead[]> {
-  return (await readStore()).leads;
+  if (useSupabase) return rel.listLeads();
+  return (await readStoreBlob()).leads;
 }

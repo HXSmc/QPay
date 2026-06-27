@@ -41,6 +41,17 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "invalid credentials" }, { status: 401 });
   }
 
+  // Trial lapsed: correct password, but the account has expired. Don't mint a
+  // session (authedUser would reject it anyway). Clear the fail counter first so
+  // a valid-but-expired login isn't also counted toward lockout.
+  if (user.expiresAt && new Date(user.expiresAt).getTime() <= Date.now()) {
+    await clearLoginFailures(key);
+    return NextResponse.json(
+      { error: "your trial has expired — contact sales to renew" },
+      { status: 403 },
+    );
+  }
+
   await clearLoginFailures(key);
   const res = NextResponse.json({ ok: true, role: user.role });
   res.cookies.set(AUTH_COOKIE, await createSessionToken(user.id, user.role), {
