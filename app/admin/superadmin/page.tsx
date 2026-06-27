@@ -19,7 +19,7 @@ const BADGE_COLORS: Record<string, { bg: string; fg: string }> = {
   blue: { bg: "#DBEAFE", fg: "#1D4ED8" },
   slate: { bg: "#F1F5F9", fg: "#475569" },
   green: { bg: "#DCFCE7", fg: "#15803D" },
-  red: { bg: "#FEE2E2", fg: "#DC2626" },
+  red: { bg: "#FEE2E2", fg: "#991B1B" },
 };
 
 function badge(tone: keyof typeof BADGE_COLORS | string): React.CSSProperties {
@@ -236,7 +236,7 @@ export default function SuperadminPage() {
               justifyContent: "center",
             }}
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
           </div>
@@ -332,12 +332,12 @@ export default function SuperadminPage() {
             </button>
           </form>
           {error && (
-            <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#DC2626" }}>
+            <div role="alert" style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#B91C1C" }}>
               {error}
             </div>
           )}
           {notice && (
-            <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#15803D" }}>
+            <div role="status" style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#15803D" }}>
               {notice}
             </div>
           )}

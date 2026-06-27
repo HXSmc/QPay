@@ -473,7 +473,7 @@ export function CustomerView({
                     margin: "0 auto 14px",
                   }}
                 >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 2v7c0 1.1.9 2 2 2h2a2 2 0 0 0 2-2V2" />
                     <path d="M7 2v20" />
                     <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
@@ -597,7 +597,7 @@ export function CustomerView({
                           justifyContent: "space-between",
                           fontSize: 13.5,
                           fontWeight: 700,
-                          color: "#16A34A",
+                          color: "#047857",
                           marginTop: 8,
                         }}
                       >
@@ -614,7 +614,7 @@ export function CustomerView({
                         }}
                       >
                         <span>{fullyPaid ? "Settled" : "Remaining"}</span>
-                        <span style={{ color: fullyPaid ? "#16A34A" : "#0B1221" }}>
+                        <span style={{ color: fullyPaid ? "#047857" : "#0B1221" }}>
                           {fmt(remaining)}
                         </span>
                       </div>
@@ -626,6 +626,8 @@ export function CustomerView({
                     so the payer who clears the bill still sees their receipt. */}
                 {result && (
                   <div
+                    aria-live="polite"
+                    aria-atomic="true"
                     style={{
                       marginTop: 24,
                       padding: "16px 18px",
@@ -642,7 +644,7 @@ export function CustomerView({
                         gap: 9,
                         fontSize: 15,
                         fontWeight: 800,
-                        color: result.cleared ? "#16A34A" : "#B45309",
+                        color: result.cleared ? "#047857" : "#B45309",
                       }}
                     >
                       <svg
@@ -683,7 +685,7 @@ export function CustomerView({
                       background: "#F0FDF4",
                       border: "1px solid #86EFAC",
                       borderRadius: 16,
-                      color: "#16A34A",
+                      color: "#047857",
                       fontWeight: 800,
                       fontSize: 16,
                     }}
@@ -888,7 +890,7 @@ export function CustomerView({
                           const sel = q > 0;
                           const clickable = !isMulti && !noneLeft;
                           const badge = itemPaid
-                            ? { t: "Paid", c: "#16A34A", b: "#F0FDF4" }
+                            ? { t: "Paid", c: "#047857", b: "#F0FDF4" }
                             : noneLeft && heldOther > 0
                               ? { t: "Held", c: "#B45309", b: "#FFFBEB" }
                               : null;
@@ -944,11 +946,11 @@ export function CustomerView({
                                     justifyContent: "center",
                                     border:
                                       "1.5px solid " +
-                                      (sel ? BRAND : itemPaid ? "#16A34A" : "#CBD5E1"),
+                                      (sel ? BRAND : itemPaid ? "#047857" : "#CBD5E1"),
                                     background: sel
                                       ? BRAND
                                       : itemPaid
-                                        ? "#16A34A"
+                                        ? "#047857"
                                         : "#fff",
                                   }}
                                 >
@@ -1274,6 +1276,7 @@ export function CustomerView({
                       }}
                     >
                       <svg
+                        aria-hidden="true"
                         width="13"
                         height="13"
                         viewBox="0 0 24 24"

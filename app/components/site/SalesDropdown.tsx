@@ -128,6 +128,7 @@ export function SalesDropdown({
 
       <button
         onClick={copy}
+        aria-live="polite"
         style={{
           width: "100%",
           marginTop: 10,

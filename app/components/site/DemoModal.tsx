@@ -112,7 +112,11 @@ export function DemoModal({
         }}
       >
         {sent ? (
-          <div style={{ textAlign: "center", padding: "12px 0" }}>
+          <div
+            style={{ textAlign: "center", padding: "12px 0" }}
+            aria-live="polite"
+            aria-atomic="true"
+          >
             <div
               style={{
                 width: 54,

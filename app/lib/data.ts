@@ -26,10 +26,10 @@ export const STATUS_PALETTE: Record<
   TableStatus,
   { c: string; bg: string; label: string }
 > = {
-  unpaid: { c: "#DC2626", bg: "#FEF2F2", label: "Unpaid" },
+  unpaid: { c: "#991B1B", bg: "#FEF2F2", label: "Unpaid" },
   partial: { c: "#B45309", bg: "#FFFBEB", label: "Partial" },
   cleared: { c: "#15803D", bg: "#F0FDF4", label: "Cleared" },
-  open: { c: "#94A3B8", bg: "#F8FAFC", label: "Open" },
+  open: { c: "#475569", bg: "#F8FAFC", label: "Open" },
 };
 
 export const METHOD_COLOR: Record<string, { c: string; bg: string }> = {
