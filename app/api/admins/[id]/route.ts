@@ -20,7 +20,7 @@ async function requireSuper(req: Request) {
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!isSameOrigin(req)) {
     return NextResponse.json({ error: "bad origin" }, { status: 403 });
@@ -28,9 +28,10 @@ export async function DELETE(
   if (!(await requireSuper(req))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const { id } = await params;
   // deleteAdmin refuses to remove the super account and cascades the admin's
   // tables + receipts (+ menu/settings).
-  const ok = await deleteAdmin(params.id);
+  const ok = await deleteAdmin(id);
   if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
@@ -38,7 +39,7 @@ export async function DELETE(
 // Renew an admin's trial (+30d) or edit its email/password. Super only.
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   if (!isSameOrigin(req)) {
     return NextResponse.json({ error: "bad origin" }, { status: 403 });
@@ -49,6 +50,7 @@ export async function PATCH(
   if (!allow(`admin-edit|${clientIp(req)}`, 30, 60_000)) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
+  const { id } = await params;
 
   const body = (await req.json().catch(() => ({}))) as {
     action?: unknown;
@@ -63,7 +65,7 @@ export async function PATCH(
       typeof body.days === "number" && body.days > 0 && body.days <= 365
         ? Math.floor(body.days)
         : RENEW_DAYS;
-    const acct = await renewAdmin(params.id, days);
+    const acct = await renewAdmin(id, days);
     if (!acct) return NextResponse.json({ error: "not found" }, { status: 404 });
     return NextResponse.json({ ok: true, account: acct });
   }
@@ -91,7 +93,7 @@ export async function PATCH(
     return NextResponse.json({ error: "nothing to update" }, { status: 400 });
   }
 
-  const result = await updateAdmin(params.id, patch);
+  const result = await updateAdmin(id, patch);
   if (result === "duplicate") {
     return NextResponse.json(
       { error: "an account with that email already exists" },

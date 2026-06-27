@@ -95,8 +95,6 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
 export const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 
-const KV_KEY = "qpay:store";
-const useKv = !useSupabase && !!process.env.KV_REST_API_URL;
 
 const SUPER_EMAIL = (process.env.SUPERADMIN_EMAIL || "AliTheAdmin@gmail.com")
   .trim()
@@ -187,16 +185,12 @@ async function ensureSuperadminBlob(s: Store): Promise<boolean> {
 }
 
 async function readStoreBlob(): Promise<Store> {
+  // Local-dev fallback only (production uses the relational Supabase backend).
   let raw: Store;
-  if (useKv) {
-    const { kv } = await import("@vercel/kv");
-    raw = (await kv.get<Store>(KV_KEY)) ?? seed();
-  } else {
-    try {
-      raw = JSON.parse(await fs.readFile(STORE_FILE, "utf8")) as Store;
-    } catch {
-      raw = seed();
-    }
+  try {
+    raw = JSON.parse(await fs.readFile(STORE_FILE, "utf8")) as Store;
+  } catch {
+    raw = seed();
   }
   const s = normalize(raw);
   if (await ensureSuperadminBlob(s)) await writeStoreBlob(s);
@@ -204,11 +198,6 @@ async function readStoreBlob(): Promise<Store> {
 }
 
 async function writeStoreBlob(s: Store): Promise<void> {
-  if (useKv) {
-    const { kv } = await import("@vercel/kv");
-    await kv.set(KV_KEY, s);
-    return;
-  }
   await fs.mkdir(DATA_DIR, { recursive: true });
   await fs.writeFile(STORE_FILE, JSON.stringify(s, null, 2), "utf8");
 }

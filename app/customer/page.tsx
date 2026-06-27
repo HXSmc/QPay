@@ -8,9 +8,10 @@ export const dynamic = "force-dynamic";
 export default async function CustomerPage({
   searchParams,
 }: {
-  searchParams: { table?: string; t?: string };
+  searchParams: Promise<{ table?: string; t?: string }>;
 }) {
-  const token = searchParams.t?.trim() || "";
+  const sp = await searchParams;
+  const token = sp.t?.trim() || "";
   // Resolve by the unique token — the `table` number in the URL is now per-owner
   // and can't identify a table on its own. The token IS the capability.
   const raw = token ? await getTableByToken(token) : null;
@@ -24,7 +25,7 @@ export default async function CustomerPage({
       })()
     : null;
   // Display the table's own (per-owner) number, falling back to the URL value.
-  const tableNumber = table?.num || searchParams.table?.trim() || "";
+  const tableNumber = table?.num || sp.table?.trim() || "";
   // Non-secret display name + tax rate for the scanned table's restaurant.
   const info = ok ? await getPublicRestaurant(token) : null;
 

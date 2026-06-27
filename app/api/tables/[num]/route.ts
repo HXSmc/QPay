@@ -70,8 +70,9 @@ export async function GET(req: Request) {
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { num: string } },
+  { params }: { params: Promise<{ num: string }> },
 ) {
+  const { num } = await params;
   const body = (await req.json().catch(() => ({}))) as {
     status?: TableStatus;
     items?: unknown;
@@ -90,10 +91,10 @@ export async function PATCH(
     if (typeof id !== "string" || !id || !qty || typeof token !== "string") {
       return NextResponse.json({ error: "invalid sync" }, { status: 400 });
     }
-    if (!allow(`sync|${clientIp(req)}|${params.num}`, 40, 60_000)) {
+    if (!allow(`sync|${clientIp(req)}|${num}`, 40, 60_000)) {
       return NextResponse.json({ error: "rate limited" }, { status: 429 });
     }
-    const updated = await syncReservation(params.num, id, qty, token);
+    const updated = await syncReservation(num, id, qty, token);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -107,7 +108,7 @@ export async function PATCH(
     if (typeof body.token !== "string" || !body.token) {
       return NextResponse.json({ error: "invalid token" }, { status: 400 });
     }
-    if (!allow(`pay|${clientIp(req)}|${params.num}`, 15, 60_000)) {
+    if (!allow(`pay|${clientIp(req)}|${num}`, 15, 60_000)) {
       return NextResponse.json({ error: "rate limited" }, { status: 429 });
     }
     const id = typeof body.id === "string" ? body.id : undefined;
@@ -122,7 +123,7 @@ export async function PATCH(
       typeof body.method === "string"
         ? body.method.replace(/[^A-Za-z0-9 .•#*-]/g, "").slice(0, 24)
         : undefined;
-    const updated = await payTable(params.num, body.pay, {
+    const updated = await payTable(num, body.pay, {
       id,
       items: items ?? undefined,
       method,
@@ -148,7 +149,7 @@ export async function PATCH(
     }
     // Scoped to the caller's own tables — a 404 covers both "no such table" and
     // "not yours" so ownership isn't leaked.
-    const updated = await setTableItems(params.num, items, user.id);
+    const updated = await setTableItems(num, items, user.id);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -166,7 +167,7 @@ export async function PATCH(
     if (!VALID.includes(body.status)) {
       return NextResponse.json({ error: "invalid status" }, { status: 400 });
     }
-    const updated = await setTableStatus(params.num, body.status, user.id);
+    const updated = await setTableStatus(num, body.status, user.id);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -178,7 +179,7 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { num: string } },
+  { params }: { params: Promise<{ num: string }> },
 ) {
   if (!isSameOrigin(req)) {
     return NextResponse.json({ error: "bad origin" }, { status: 403 });
@@ -187,7 +188,8 @@ export async function DELETE(
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const ok = await deleteTable(params.num, user.id);
+  const { num } = await params;
+  const ok = await deleteTable(num, user.id);
   if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
