@@ -2,6 +2,7 @@ import type {
   LiveTable,
   MenuMeta,
   OrderItem,
+  RestaurantSettings,
   Role,
   TableStatus,
   Transaction,
@@ -21,7 +22,18 @@ export interface AdminAccount {
 }
 
 async function json<T>(res: Response): Promise<T> {
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    // Surface the server's {error} message (most handlers return one) so the UI
+    // can show something specific instead of a bare status code.
+    let msg = `${res.status} ${res.statusText}`;
+    try {
+      const body = (await res.json()) as { error?: string };
+      if (body?.error) msg = body.error;
+    } catch {
+      /* non-JSON body — keep the status line */
+    }
+    throw new Error(msg);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -115,9 +127,14 @@ export async function listTransactions(): Promise<Transaction[]> {
   return json(await fetch("/api/transactions", { cache: "no-store" }));
 }
 
-/** num set → public menu for that table's owner (customer); omit → admin's own. */
-export async function getMenu(num?: string): Promise<MenuMeta | null> {
-  const qs = num ? `?num=${encodeURIComponent(num)}` : "";
+/** num+token → public menu for that table's owner (customer); omit → admin's own. */
+export async function getMenu(
+  num?: string,
+  token?: string,
+): Promise<MenuMeta | null> {
+  const qs = num
+    ? `?num=${encodeURIComponent(num)}&t=${encodeURIComponent(token ?? "")}`
+    : "";
   return json(await fetch(`/api/menu${qs}`, { cache: "no-store" }));
 }
 
@@ -183,4 +200,22 @@ export async function createAdmin(
 export async function deleteAdmin(id: string): Promise<void> {
   const res = await fetch(`/api/admins/${id}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`${res.status}`);
+}
+
+// --- Restaurant settings (admin's own) ---
+
+export async function getSettings(): Promise<RestaurantSettings> {
+  return json(await fetch("/api/settings", { cache: "no-store" }));
+}
+
+export async function saveSettings(
+  patch: Partial<RestaurantSettings>,
+): Promise<RestaurantSettings> {
+  return json(
+    await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    }),
+  );
 }

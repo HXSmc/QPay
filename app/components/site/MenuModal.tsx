@@ -7,10 +7,12 @@ import type { MenuMeta } from "../../lib/types";
 export function MenuModal({
   open,
   tableNum,
+  token,
   onClose,
 }: {
   open: boolean;
   tableNum?: string;
+  token?: string;
   onClose: () => void;
 }) {
   const [meta, setMeta] = useState<MenuMeta | null>(null);
@@ -20,7 +22,7 @@ export function MenuModal({
   useEffect(() => {
     if (!open) return;
     setLoading(true);
-    getMenu(tableNum)
+    getMenu(tableNum, token)
       .then(setMeta)
       .catch(() => setMeta(null))
       .finally(() => setLoading(false));

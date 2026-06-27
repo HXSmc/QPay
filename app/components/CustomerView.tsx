@@ -26,10 +26,14 @@ export function CustomerView({
   tableNumber = "12",
   initialTable = null,
   token,
+  restaurant = "Restaurant",
+  taxRate = 8,
 }: {
   tableNumber?: string;
   initialTable?: CustTable | null;
   token: string;
+  restaurant?: string;
+  taxRate?: number;
 }) {
   // Stable per-phone id so reservations from other phones are distinguishable.
   const [clientId] = useState(() => {
@@ -104,8 +108,10 @@ export function CustomerView({
   );
 
   // --- bill totals ---
+  // Restaurant-configured tax rate (percent → multiplier).
+  const taxMul = 1 + taxRate / 100;
   const subtotal = +items.reduce((a, it) => a + it.price, 0).toFixed(2);
-  const tax = +(subtotal * 0.08).toFixed(2);
+  const tax = +(subtotal * (taxRate / 100)).toFixed(2);
   const due = +(subtotal + tax).toFixed(2);
   const remaining = Math.max(0, +(due - paid).toFixed(2));
   const fullyPaid = hasOrder && remaining <= 0.001;
@@ -131,7 +137,7 @@ export function CustomerView({
     (a, _it, i) => a + unitPrice(i) * (selectedQty[i] ?? 0),
     0,
   );
-  const itemPrincipal = +(itemSubtotal * 1.08).toFixed(2);
+  const itemPrincipal = +(itemSubtotal * taxMul).toFixed(2);
   const selectedUnits = selectedQty.reduce((a, n) => a + n, 0);
   const selectedCount = selectedQty.filter((n) => n > 0).length;
   const setQty = (i: number, q: number) =>
@@ -303,6 +309,7 @@ export function CustomerView({
       <MenuModal
         open={menuOpen}
         tableNum={tableNumber}
+        token={token}
         onClose={() => setMenuOpen(false)}
       />
       <div style={{ width: "100%", maxWidth: 404 }}>
@@ -349,7 +356,7 @@ export function CustomerView({
                     letterSpacing: "-0.01em",
                   }}
                 >
-                  The Copper Kitchen
+                  {restaurant}
                 </div>
               </div>
               <div
@@ -548,7 +555,7 @@ export function CustomerView({
                 >
                   {[
                     ["Subtotal", fmt(subtotal)],
-                    ["Tax (8%)", fmt(tax)],
+                    [`Tax (${taxRate}%)`, fmt(tax)],
                   ].map(([label, val]) => (
                     <div
                       key={label}

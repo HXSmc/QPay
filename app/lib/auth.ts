@@ -190,6 +190,28 @@ export async function verifySession(
   return { sub, role, exp };
 }
 
+/** Constant-time equality for opaque tokens (e.g. the per-table capability). */
+export function constantTimeEqual(a: string, b: string): boolean {
+  return safeEqual(a, b);
+}
+
+/**
+ * Lightweight CSRF defense for cookie-authenticated mutations: if an Origin
+ * header is present it must match the request host. (Same-origin requests that
+ * omit Origin are allowed; cross-site form posts that forge a cookie carry a
+ * foreign Origin and are rejected.)
+ */
+export function isSameOrigin(req: Request): boolean {
+  const origin = req.headers.get("origin");
+  if (!origin) return true;
+  try {
+    const host = req.headers.get("host");
+    return !!host && new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
+
 function readCookie(header: string | null, name: string): string | null {
   if (!header) return null;
   for (const part of header.split(/;\s*/)) {

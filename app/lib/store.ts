@@ -1,24 +1,39 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { billDue, fmt } from "./data";
-import { getSession, hashPassword } from "./auth";
+import { billDue, DEFAULT_TAX_RATE, fmt } from "./data";
+import { constantTimeEqual, getSession, hashPassword } from "./auth";
 import type {
   AdminUser,
   LiveTable,
   MenuMeta,
   OrderItem,
   Reservation,
+  RestaurantSettings,
   Role,
   Store,
   TableStatus,
   Transaction,
 } from "./types";
 
-function orderAmount(items: OrderItem[]): string {
+/** Newest-N transactions kept in the hot store blob (older ones are dropped). */
+const MAX_TXN_HISTORY = 1000;
+
+/** Settings for an owner, falling back to defaults for any unset field. */
+function settingsFor(s: Store, owner: string): RestaurantSettings {
+  const v = s.settings[owner];
+  return {
+    name: typeof v?.name === "string" ? v.name : "",
+    taxRate: typeof v?.taxRate === "number" ? v.taxRate : DEFAULT_TAX_RATE,
+    autoReceipts: v?.autoReceipts ?? true,
+    tipPrompts: v?.tipPrompts ?? true,
+  };
+}
+
+function orderAmount(items: OrderItem[], taxRate: number): string {
   if (!items.length) return "—";
   // Show the actual bill (subtotal + tax) so the admin "amount" matches what
   // `paid` and the customer's total are measured against.
-  return fmt(billDue(items));
+  return fmt(billDue(items, taxRate));
 }
 
 const zeros = (n: number): number[] => Array.from({ length: n }, () => 0);
@@ -88,6 +103,7 @@ function seed(): Store {
     tables: [],
     transactions: [],
     menus: {},
+    settings: {},
     users: [],
     loginAttempts: {},
     seq: 0,
@@ -129,6 +145,10 @@ function normalize(s: Store): Store {
     menus:
       s.menus && typeof s.menus === "object" && !Array.isArray(s.menus)
         ? s.menus
+        : {},
+    settings:
+      s.settings && typeof s.settings === "object" && !Array.isArray(s.settings)
+        ? s.settings
         : {},
     users: Array.isArray(s.users) ? s.users : [],
     loginAttempts:
@@ -402,7 +422,7 @@ export async function setTableItems(
     const t = s.tables.find((x) => x.num === num && x.owner === owner);
     if (!t) return { result: null, write: false };
     t.items = items;
-    t.amount = orderAmount(items);
+    t.amount = orderAmount(items, settingsFor(s, owner).taxRate);
     // Editing the order resets per-item payment locks and any live holds — and
     // the carried `paid` principal, which referred to the OLD order. Leaving it
     // would credit stale dollars against the new bill (wrong remaining, no unit
@@ -429,7 +449,9 @@ export async function syncReservation(
   return mutate((s) => {
     const t = s.tables.find((x) => x.num === num);
     // Require the table's capability token — a guessable num alone can't touch it.
-    if (!t || t.token !== token) return { result: null, write: false };
+    if (!t || !constantTimeEqual(t.token, token)) {
+      return { result: null, write: false };
+    }
     const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
     // Clamp each hold to the units actually orderable (0..ordered-qty). Without
     // this, one phone could POST qty:[9999,…] and drive every item's
@@ -459,10 +481,15 @@ export async function payTable(
   return mutate((s) => {
     const t = s.tables.find((x) => x.num === num);
     // Require the table's capability token (a guessable num can't pay any table).
-    if (!t || t.token !== opts.token) return { result: null, write: false };
+    if (!t || !constantTimeEqual(t.token, opts.token)) {
+      return { result: null, write: false };
+    }
     if (t.items.length === 0) return { result: t, write: false };
 
-    const due = billDue(t.items);
+    // Use the owner's configured tax rate so the server's bill + per-unit locks
+    // agree with what the customer was shown.
+    const taxMul = 1 + settingsFor(s, t.owner).taxRate / 100;
+    const due = billDue(t.items, settingsFor(s, t.owner).taxRate);
     const remaining = Math.max(0, +(due - (t.paid ?? 0)).toFixed(2));
     const applied = Math.min(Math.max(0, amount), remaining);
     t.paid = +(((t.paid ?? 0) + applied).toFixed(2));
@@ -491,11 +518,11 @@ export async function payTable(
         // rounding.
         let lock = 0;
         for (let k = 1; k <= want; k++) {
-          if (+(unit * k * 1.08).toFixed(2) <= budget + 0.01) lock = k;
+          if (+(unit * k * taxMul).toFixed(2) <= budget + 0.01) lock = k;
           else break;
         }
         if (lock > 0) {
-          budget = +(budget - +(unit * lock * 1.08).toFixed(2)).toFixed(2);
+          budget = +(budget - +(unit * lock * taxMul).toFixed(2)).toFixed(2);
           t.paidQty[i] += lock;
         }
       });
@@ -520,6 +547,11 @@ export async function payTable(
         // independent — a customer paying never crosses accounts.
         owner: t.owner,
       });
+      // Bound the ledger kept in the hot blob so it can't grow without limit
+      // (every read deserializes the whole store). Drop the oldest beyond cap.
+      if (s.transactions.length > MAX_TXN_HISTORY) {
+        s.transactions.length = MAX_TXN_HISTORY;
+      }
     }
 
     if (t.paid + 0.01 >= due) t.status = "cleared";
@@ -699,11 +731,20 @@ export async function getMenu(owner: string): Promise<MenuMeta | null> {
   return (await readStore()).menus[owner] ?? null;
 }
 
-/** The menu a customer should see for a scanned table = its owner's menu. */
-export async function getMenuForTable(num: string): Promise<MenuMeta | null> {
+/**
+ * The menu a customer should see for a scanned table = its owner's menu.
+ * Token-gated like the other public table endpoints so a menu URL can't be
+ * enumerated by guessing sequential table numbers.
+ */
+export async function getMenuForTable(
+  num: string,
+  token: string,
+): Promise<MenuMeta | null> {
   const s = await readStore();
   const t = s.tables.find((x) => x.num === num);
-  return t ? s.menus[t.owner] ?? null : null;
+  return t && constantTimeEqual(t.token, token)
+    ? s.menus[t.owner] ?? null
+    : null;
 }
 
 export async function setMenu(owner: string, meta: MenuMeta): Promise<void> {
@@ -718,4 +759,59 @@ export async function clearMenu(owner: string): Promise<void> {
     delete s.menus[owner];
     return { result: undefined, write: true };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Restaurant settings (per owner)
+// ---------------------------------------------------------------------------
+
+/** One admin's own settings (defaults filled in). */
+export async function getSettings(owner: string): Promise<RestaurantSettings> {
+  return settingsFor(await readStore(), owner);
+}
+
+/** Patch an admin's settings (validated/clamped). Returns the merged result. */
+export async function setSettings(
+  owner: string,
+  patch: Partial<RestaurantSettings>,
+): Promise<RestaurantSettings> {
+  return mutate((s) => {
+    const cur = settingsFor(s, owner);
+    const next: RestaurantSettings = {
+      name:
+        typeof patch.name === "string" ? patch.name.trim().slice(0, 80) : cur.name,
+      taxRate:
+        typeof patch.taxRate === "number" &&
+        isFinite(patch.taxRate) &&
+        patch.taxRate >= 0 &&
+        patch.taxRate <= 30
+          ? patch.taxRate
+          : cur.taxRate,
+      autoReceipts:
+        typeof patch.autoReceipts === "boolean"
+          ? patch.autoReceipts
+          : cur.autoReceipts,
+      tipPrompts:
+        typeof patch.tipPrompts === "boolean" ? patch.tipPrompts : cur.tipPrompts,
+    };
+    s.settings[owner] = next;
+    return { result: next, write: true };
+  });
+}
+
+/**
+ * Non-secret restaurant info a diner may see for a scanned table: display name
+ * (configured, else derived from the owner's email) + tax rate. Never exposes
+ * the owner id or any account data.
+ */
+export async function getPublicRestaurant(
+  num: string,
+): Promise<{ name: string; taxRate: number } | null> {
+  const s = await readStore();
+  const t = s.tables.find((x) => x.num === num);
+  if (!t) return null;
+  const set = settingsFor(s, t.owner);
+  const user = s.users.find((u) => u.id === t.owner);
+  const fallback = user ? user.email.split("@")[0] : "Restaurant";
+  return { name: set.name || fallback, taxRate: set.taxRate };
 }

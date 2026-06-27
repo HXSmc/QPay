@@ -1,6 +1,7 @@
 import { BrandHeader } from "../components/site/BrandHeader";
 import { CustomerView } from "../components/CustomerView";
-import { getTable } from "../lib/store";
+import { getPublicRestaurant, getTable } from "../lib/store";
+import { DEFAULT_TAX_RATE } from "../lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,8 @@ export default async function CustomerPage({
         return rest;
       })()
     : null;
+  // Non-secret display name + tax rate for the scanned table's restaurant.
+  const info = ok ? await getPublicRestaurant(tableNumber) : null;
 
   return (
     <div
@@ -38,6 +41,8 @@ export default async function CustomerPage({
         tableNumber={tableNumber || "—"}
         token={token}
         initialTable={table}
+        restaurant={info?.name || "Restaurant"}
+        taxRate={info?.taxRate ?? DEFAULT_TAX_RATE}
       />
     </div>
   );

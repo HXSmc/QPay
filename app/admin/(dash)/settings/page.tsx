@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BRAND } from "../../../lib/data";
+import { getMe, getSettings, saveSettings } from "../../../lib/api";
 
 function Toggle({
   on,
@@ -47,11 +48,54 @@ function Toggle({
 }
 
 export default function SettingsPage() {
-  const [restaurant, setRestaurant] = useState("The Copper Kitchen");
+  const [restaurant, setRestaurant] = useState("");
   const [taxRate, setTaxRate] = useState("8");
   const [autoReceipts, setAutoReceipts] = useState(true);
   const [tipPrompts, setTipPrompts] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getSettings()
+      .then(async (s) => {
+        let name = s.name;
+        if (!name) {
+          try {
+            const me = await getMe();
+            name = me.email.split("@")[0];
+          } catch {
+            /* leave name empty */
+          }
+        }
+        setRestaurant(name);
+        setTaxRate(String(s.taxRate));
+        setAutoReceipts(s.autoReceipts);
+        setTipPrompts(s.tipPrompts);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await saveSettings({
+        name: restaurant.trim(),
+        taxRate: Number(taxRate),
+        autoReceipts,
+        tipPrompts,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't save. Please retry.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const field = {
     width: "100%",
@@ -105,10 +149,8 @@ export default function SettingsPage() {
         </div>
 
         <button
-          onClick={() => {
-            setSaved(true);
-            setTimeout(() => setSaved(false), 2000);
-          }}
+          onClick={save}
+          disabled={saving || loading}
           style={{
             marginTop: 22,
             padding: "12px 22px",
@@ -119,11 +161,17 @@ export default function SettingsPage() {
             fontFamily: "inherit",
             fontSize: 14.5,
             fontWeight: 700,
-            cursor: "pointer",
+            cursor: saving || loading ? "default" : "pointer",
+            opacity: saving || loading ? 0.7 : 1,
           }}
         >
-          {saved ? "Saved ✓" : "Save changes"}
+          {saving ? "Saving…" : saved ? "Saved ✓" : "Save changes"}
         </button>
+        {error && (
+          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#DC2626" }}>
+            {error}
+          </div>
+        )}
       </div>
     </div>
   );

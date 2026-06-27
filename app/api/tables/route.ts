@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authedUser, createTable, listTables } from "@/app/lib/store";
+import { isSameOrigin } from "@/app/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "bad origin" }, { status: 403 });
+  }
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

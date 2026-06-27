@@ -226,7 +226,9 @@ export function Sidebar() {
           >
             {me?.email ?? "…"}
           </div>
-          <div style={{ fontSize: 12, color: "#94A3B8" }}>Administrator</div>
+          <div style={{ fontSize: 12, color: "#94A3B8" }}>
+            {me?.role === "super" ? "Super Admin" : "Administrator"}
+          </div>
         </div>
         <button
           onClick={signOut}

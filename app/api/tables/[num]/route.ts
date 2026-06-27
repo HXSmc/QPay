@@ -8,6 +8,8 @@ import {
   setTableStatus,
   syncReservation,
 } from "@/app/lib/store";
+import { constantTimeEqual, isSameOrigin } from "@/app/lib/auth";
+import { allow, clientIp } from "@/app/lib/ratelimit";
 import type { OrderItem, TableStatus } from "@/app/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +64,7 @@ export async function GET(
   // Require the capability token from the QR URL (?t=…). A 404 for both
   // "missing" and "wrong token" so a sequential num can't be enumerated.
   const token = new URL(req.url).searchParams.get("t");
-  if (!table || !token || token !== table.token) {
+  if (!table || !token || !constantTimeEqual(token, table.token)) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
   return NextResponse.json(publicTable(table));
@@ -90,6 +92,9 @@ export async function PATCH(
     if (typeof id !== "string" || !id || !qty || typeof token !== "string") {
       return NextResponse.json({ error: "invalid sync" }, { status: 400 });
     }
+    if (!allow(`sync|${clientIp(req)}|${params.num}`, 40, 60_000)) {
+      return NextResponse.json({ error: "rate limited" }, { status: 429 });
+    }
     const updated = await syncReservation(params.num, id, qty, token);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -103,6 +108,9 @@ export async function PATCH(
     }
     if (typeof body.token !== "string" || !body.token) {
       return NextResponse.json({ error: "invalid token" }, { status: 400 });
+    }
+    if (!allow(`pay|${clientIp(req)}|${params.num}`, 15, 60_000)) {
+      return NextResponse.json({ error: "rate limited" }, { status: 429 });
     }
     const id = typeof body.id === "string" ? body.id : undefined;
     const items =
@@ -129,6 +137,9 @@ export async function PATCH(
   }
 
   if (body.items !== undefined) {
+    if (!isSameOrigin(req)) {
+      return NextResponse.json({ error: "bad origin" }, { status: 403 });
+    }
     const user = await authedUser(req);
     if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -147,6 +158,9 @@ export async function PATCH(
   }
 
   if (body.status) {
+    if (!isSameOrigin(req)) {
+      return NextResponse.json({ error: "bad origin" }, { status: 403 });
+    }
     const user = await authedUser(req);
     if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -168,6 +182,9 @@ export async function DELETE(
   req: Request,
   { params }: { params: { num: string } },
 ) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "bad origin" }, { status: 403 });
+  }
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { authedUser, deleteAdmin } from "@/app/lib/store";
+import { isSameOrigin } from "@/app/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,9 @@ export async function DELETE(
   req: Request,
   { params }: { params: { id: string } },
 ) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "bad origin" }, { status: 403 });
+  }
   const user = await authedUser(req);
   if (user?.role !== "super") {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

@@ -9,6 +9,7 @@ import {
   setMenu,
   UPLOAD_DIR,
 } from "@/app/lib/store";
+import { isSameOrigin } from "@/app/lib/auth";
 import type { MenuMeta } from "@/app/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +41,12 @@ async function removeFile(meta: MenuMeta | null) {
 // GET ?num=<table> → public: the menu for that table's owner (customer view).
 // GET (no num) → admin: the caller's own menu.
 export async function GET(req: Request) {
-  const num = new URL(req.url).searchParams.get("num");
+  const url = new URL(req.url);
+  const num = url.searchParams.get("num");
   if (num) {
-    return NextResponse.json(await getMenuForTable(num));
+    // Customer path: token-gated like the table read (no enumeration by num).
+    const token = url.searchParams.get("t") ?? "";
+    return NextResponse.json(await getMenuForTable(num, token));
   }
   const user = await authedUser(req);
   if (!user) {
@@ -52,6 +56,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "bad origin" }, { status: 403 });
+  }
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -105,6 +112,9 @@ export async function POST(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "bad origin" }, { status: 403 });
+  }
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });

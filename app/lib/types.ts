@@ -82,11 +82,23 @@ export interface MenuMeta {
   uploadedAt: string;
 }
 
+/** Per-restaurant (per-admin) profile + payment preferences. */
+export interface RestaurantSettings {
+  /** Display name shown to diners and on QR sheets ("" → derive from email). */
+  name: string;
+  /** Tax rate as a percent (e.g. 8 = 8%). Flows into the bill total. */
+  taxRate: number;
+  autoReceipts: boolean;
+  tipPrompts: boolean;
+}
+
 export interface Store {
   tables: LiveTable[];
   transactions: Transaction[];
   /** Menu per owning admin (keyed by user id) — each restaurant is independent. */
   menus: Record<string, MenuMeta>;
+  /** Per-owner restaurant settings (keyed by user id). */
+  settings: Record<string, RestaurantSettings>;
   /** Login accounts (one `super`, plus admins it creates). */
   users: AdminUser[];
   /** Failed-login throttling, keyed by `email|ip`. */

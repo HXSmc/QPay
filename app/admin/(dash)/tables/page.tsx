@@ -5,6 +5,8 @@ import { billDue, BRAND, fmt, STATUS_PALETTE } from "../../../lib/data";
 import {
   createTable,
   deleteTable,
+  getMe,
+  getSettings,
   listTables,
   setTableItems,
 } from "../../../lib/api";
@@ -17,12 +19,20 @@ export default function TablesPage() {
   const [qrFor, setQrFor] = useState<LiveTable | null>(null);
   const [orderFor, setOrderFor] = useState<LiveTable | null>(null);
   const [busy, setBusy] = useState(false);
+  const [restaurantName, setRestaurantName] = useState("");
 
   const applyTable = (t: LiveTable) =>
     setTables((prev) => prev.map((x) => (x.num === t.num ? t : x)));
 
   useEffect(() => {
     listTables().then(setTables).catch(() => {});
+    getSettings()
+      .then(async (s) => {
+        if (s.name) return setRestaurantName(s.name);
+        const me = await getMe();
+        setRestaurantName(me.email.split("@")[0]);
+      })
+      .catch(() => {});
   }, []);
 
   const addTable = async () => {
@@ -217,6 +227,7 @@ export default function TablesPage() {
         <QrModal
           tableNum={qrFor.num}
           token={qrFor.token}
+          restaurantName={restaurantName}
           onClose={() => setQrFor(null)}
         />
       )}

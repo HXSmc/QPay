@@ -35,7 +35,9 @@ export default function DashboardPage() {
     );
   }, []);
 
-  const active = tables.filter((t) => t.status !== "open").length;
+  const active = tables.filter(
+    (t) => t.status === "unpaid" || t.status === "partial",
+  ).length;
   const revenue = txns.reduce(
     (a, t) => a + (parseFloat(t.amount.replace(/[^0-9.]/g, "")) || 0),
     0,

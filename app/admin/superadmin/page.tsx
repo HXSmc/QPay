@@ -190,7 +190,7 @@ export default function SuperadminPage() {
               style={field}
             />
             <input
-              type="text"
+              type="password"
               required
               minLength={8}
               aria-label="New admin password"
