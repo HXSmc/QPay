@@ -26,7 +26,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={jakarta.className}>{children}</body>
+      <body className={jakarta.className}>
+        {/* Single top-level landmark so every route exposes a <main> region
+            (WCAG 1.3.1 / landmark-one-main) for assistive-tech navigation. */}
+        <main>{children}</main>
+      </body>
     </html>
   );
 }
