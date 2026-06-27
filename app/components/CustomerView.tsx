@@ -20,12 +20,16 @@ const TIP_DEFS: { key: TipKey; label: string }[] = [
   { key: "custom", label: "Custom" },
 ];
 
+type CustTable = Omit<LiveTable, "owner" | "token">;
+
 export function CustomerView({
   tableNumber = "12",
   initialTable = null,
+  token,
 }: {
   tableNumber?: string;
-  initialTable?: LiveTable | null;
+  initialTable?: CustTable | null;
+  token: string;
 }) {
   // Stable per-phone id so reservations from other phones are distinguishable.
   const [clientId] = useState(() => {
@@ -40,10 +44,9 @@ export function CustomerView({
   });
 
   // Live, server-shared table state (items / paid / paidQty / reservations).
-  const [table, setTable] = useState<LiveTable>(
+  const [table, setTable] = useState<CustTable>(
     initialTable ?? {
       num: tableNumber,
-      owner: "",
       status: "open",
       amount: "—",
       items: [],
@@ -116,12 +119,9 @@ export function CustomerView({
     remaining,
   );
   const atTableInc = () => setPeopleAtTable((p) => Math.min(p + 1, 20));
-  const atTableDec = () =>
-    setPeopleAtTable((p) => {
-      const np = Math.max(1, p - 1);
-      setPayingFor((pf) => Math.min(pf, np));
-      return np;
-    });
+  // Keep the updater pure (no nested setState — it double-fires under
+  // StrictMode). `clampedPaying` already caps payingFor to the headcount.
+  const atTableDec = () => setPeopleAtTable((p) => Math.max(1, p - 1));
   const payingInc = () => setPayingFor((pf) => Math.min(pf + 1, peopleAtTable));
   const payingDec = () => setPayingFor((pf) => Math.max(1, pf - 1));
 
@@ -175,7 +175,7 @@ export function CustomerView({
       const seq = ++reqSeq.current;
       try {
         const qty = split === "item" ? selectedQty : items.map(() => 0);
-        const next = await syncTable(tableNumber, clientId, qty);
+        const next = await syncTable(tableNumber, clientId, qty, token);
         // Drop stale responses: a later request (or a payment) already applied.
         if (alive && seq > appliedSeq.current) {
           appliedSeq.current = seq;
@@ -221,9 +221,13 @@ export function CustomerView({
         id: clientId,
         items: split === "item" ? selectedQty : undefined,
         method,
+        token,
       });
-      // The payment is authoritative — it must win over any in-flight poll.
-      appliedSeq.current = seq;
+      // The payment is authoritative — it must supersede EVERY in-flight poll,
+      // not just requests issued before it. Advance past the latest seq so a
+      // slow earlier poll resolving afterward can't revert us to "unpaid".
+      void seq;
+      appliedSeq.current = reqSeq.current;
       setTable(next);
       setSelectedQty(next.items.map(() => 0));
       // Report what the store ACTUALLY applied (it clamps to remaining), not the
@@ -296,7 +300,11 @@ export function CustomerView({
         padding: "36px 16px",
       }}
     >
-      <MenuModal open={menuOpen} onClose={() => setMenuOpen(false)} />
+      <MenuModal
+        open={menuOpen}
+        tableNum={tableNumber}
+        onClose={() => setMenuOpen(false)}
+      />
       <div style={{ width: "100%", maxWidth: 404 }}>
         <div
           style={{
@@ -649,9 +657,9 @@ export function CustomerView({
                         marginTop: 6,
                       }}
                     >
-                      {result.cleared
+                      {result.cleared || remaining <= 0.001
                         ? "Bill fully paid — thanks!"
-                        : `Payment received · ${fmt(result.remaining)} remaining`}
+                        : `Payment received · ${fmt(remaining)} remaining`}
                     </div>
                   </div>
                 )}

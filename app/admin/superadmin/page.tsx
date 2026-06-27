@@ -38,15 +38,20 @@ export default function SuperadminPage() {
     setError("");
     setNotice("");
     setBusy(true);
-    const res = await createAdmin(email.trim(), password);
-    setBusy(false);
-    if (res.ok) {
-      setNotice(`Created admin ${res.account.email}.`);
-      setEmail("");
-      setPassword("");
-      refresh();
-    } else {
-      setError(res.error);
+    try {
+      const res = await createAdmin(email.trim(), password);
+      if (res.ok) {
+        setNotice(`Created admin ${res.account.email}.`);
+        setEmail("");
+        setPassword("");
+        refresh();
+      } else {
+        setError(res.error);
+      }
+    } catch {
+      setError("Network error. Please retry.");
+    } finally {
+      setBusy(false);
     }
   };
 

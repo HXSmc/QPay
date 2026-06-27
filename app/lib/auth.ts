@@ -166,8 +166,16 @@ export async function verifySession(
   if (dot <= 0) return null;
   const payload = token.slice(0, dot);
   const sig = token.slice(dot + 1);
-  // Verify the signature BEFORE trusting any payload bytes.
-  if (!safeEqual(sig, await sign(payload))) return null;
+  // Verify the signature BEFORE trusting any payload bytes. sign() can throw in
+  // a misconfigured prod (no SESSION_SECRET); treat that as an invalid session
+  // (clean 401) rather than letting it crash middleware / API routes.
+  let expected: string;
+  try {
+    expected = await sign(payload);
+  } catch {
+    return null;
+  }
+  if (!safeEqual(sig, expected)) return null;
   let data: unknown;
   try {
     data = JSON.parse(new TextDecoder().decode(fromB64url(payload)));

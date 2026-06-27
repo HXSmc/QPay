@@ -49,7 +49,7 @@ export async function setTableStatus(
 export async function payTable(
   num: string,
   amount: number,
-  opts?: { id?: string; items?: number[]; method?: string },
+  opts: { id?: string; items?: number[]; method?: string; token: string },
 ): Promise<LiveTable> {
   return json(
     await fetch(`/api/tables/${num}`, {
@@ -57,9 +57,10 @@ export async function payTable(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         pay: amount,
-        id: opts?.id,
-        payItems: opts?.items,
-        method: opts?.method,
+        id: opts.id,
+        payItems: opts.items,
+        method: opts.method,
+        token: opts.token,
       }),
     }),
   );
@@ -70,12 +71,13 @@ export async function syncTable(
   num: string,
   id: string,
   qty: number[],
+  token: string,
 ): Promise<LiveTable> {
   return json(
     await fetch(`/api/tables/${num}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ sync: { id, qty } }),
+      body: JSON.stringify({ sync: { id, qty, token } }),
     }),
   );
 }
@@ -85,8 +87,15 @@ export async function deleteTable(num: string): Promise<void> {
   if (!res.ok) throw new Error(`${res.status}`);
 }
 
-export async function getTable(num: string): Promise<LiveTable> {
-  return json(await fetch(`/api/tables/${num}`, { cache: "no-store" }));
+export async function getTable(
+  num: string,
+  token: string,
+): Promise<LiveTable> {
+  return json(
+    await fetch(`/api/tables/${num}?t=${encodeURIComponent(token)}`, {
+      cache: "no-store",
+    }),
+  );
 }
 
 export async function setTableItems(
@@ -106,8 +115,10 @@ export async function listTransactions(): Promise<Transaction[]> {
   return json(await fetch("/api/transactions", { cache: "no-store" }));
 }
 
-export async function getMenu(): Promise<MenuMeta | null> {
-  return json(await fetch("/api/menu", { cache: "no-store" }));
+/** num set → public menu for that table's owner (customer); omit → admin's own. */
+export async function getMenu(num?: string): Promise<MenuMeta | null> {
+  const qs = num ? `?num=${encodeURIComponent(num)}` : "";
+  return json(await fetch(`/api/menu${qs}`, { cache: "no-store" }));
 }
 
 export async function uploadMenu(file: File): Promise<MenuMeta> {

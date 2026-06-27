@@ -1,16 +1,11 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/app/lib/auth";
-import { getUserById } from "@/app/lib/store";
+import { authedUser } from "@/app/lib/store";
 
 export const dynamic = "force-dynamic";
 
 // Identity of the signed-in user — drives role-aware UI (sidebar, routing).
 export async function GET(req: Request) {
-  const session = await getSession(req);
-  if (!session) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-  const user = await getUserById(session.sub);
+  const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

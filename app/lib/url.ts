@@ -6,7 +6,7 @@
  */
 export function getAppBaseUrl(): string {
   const env = process.env.NEXT_PUBLIC_APP_URL;
-  if (env) return env.replace(/\/$/, "");
+  if (env) return env.replace(/\/+$/, ""); // strip ALL trailing slashes
   if (typeof window !== "undefined") return window.location.origin;
   return "";
 }

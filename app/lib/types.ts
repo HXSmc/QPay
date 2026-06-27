@@ -23,6 +23,12 @@ export interface LiveTable {
   num: string;
   /** Admin user id that owns this table. Tables are private to their owner. */
   owner: string;
+  /**
+   * Unguessable per-table capability. The customer QR URL carries it, and the
+   * public (unauthenticated) read/pay/sync endpoints require a match — so a
+   * sequential `num` can't be enumerated to read or tamper with another table.
+   */
+  token: string;
   status: TableStatus;
   amount: string;
   items: OrderItem[];
@@ -45,6 +51,15 @@ export interface Transaction {
 
 /** A login role. The single `super` account manages `admin` accounts. */
 export type Role = "super" | "admin";
+
+/** Failed-login counter for one `email|ip` key, used for lockout. */
+export interface LoginAttempt {
+  fails: number;
+  /** Counting window end (ms epoch); a later attempt resets the count. */
+  windowEnd: number;
+  /** Lockout expiry (ms epoch); 0 = not locked. */
+  lockedUntil: number;
+}
 
 /**
  * A login account. Passwords are never stored in plaintext — `passwordHash` is
@@ -70,9 +85,14 @@ export interface MenuMeta {
 export interface Store {
   tables: LiveTable[];
   transactions: Transaction[];
-  menu: MenuMeta | null;
+  /** Menu per owning admin (keyed by user id) — each restaurant is independent. */
+  menus: Record<string, MenuMeta>;
   /** Login accounts (one `super`, plus admins it creates). */
   users: AdminUser[];
+  /** Failed-login throttling, keyed by `email|ip`. */
+  loginAttempts: Record<string, LoginAttempt>;
+  /** Monotonic table-number allocator — never reuses a freed number. */
+  seq: number;
   /** Optimistic-concurrency counter; bumped on every committed write. */
   version?: number;
 }

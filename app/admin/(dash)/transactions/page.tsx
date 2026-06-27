@@ -28,7 +28,7 @@ export default function TransactionsPage() {
             Transactions
           </h1>
           <p style={{ fontSize: 14, color: "#64748B", margin: "5px 0 0", fontWeight: 600 }}>
-            {txns.length} payments today.
+            {txns.length} payment{txns.length === 1 ? "" : "s"} recorded.
           </p>
         </div>
         <button

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  authedUser,
   deleteTable,
   getTable,
   payTable,
@@ -8,22 +9,24 @@ import {
   syncReservation,
 } from "@/app/lib/store";
 import type { OrderItem, TableStatus } from "@/app/lib/types";
-import { getSession } from "@/app/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 const VALID: TableStatus[] = ["unpaid", "partial", "cleared", "open"];
+const MAX_ITEMS = 100;
 
 // Public (customer) responses must not disclose the owning admin's internal
-// user id — strip it. (Admin responses legitimately echo the caller's own id.)
-function publicTable<T extends { owner: string }>(t: T): Omit<T, "owner"> {
-  const { owner: _owner, ...rest } = t;
-  void _owner;
+// user id or the secret capability token — strip both.
+function publicTable<T extends { owner: string; token: string }>(
+  t: T,
+): Omit<T, "owner" | "token"> {
+  const { owner: _o, token: _t, ...rest } = t;
+  void _o;
+  void _t;
   return rest;
 }
 
 // Unit counts (item holds / paid quantities) must be non-negative integers.
-const MAX_ITEMS = 100;
 function numArray(raw: unknown): number[] | null {
   if (!Array.isArray(raw) || raw.length > MAX_ITEMS) return null;
   const out: number[] = [];
@@ -35,7 +38,10 @@ function numArray(raw: unknown): number[] | null {
 }
 
 function sanitizeItems(raw: unknown): OrderItem[] | null {
-  if (!Array.isArray(raw)) return null;
+  // Cap the order size to match numArray's MAX_ITEMS, so live sync / item-split
+  // payment (which send per-item qty arrays) can never be rejected on a table
+  // that was allowed to grow past the cap.
+  if (!Array.isArray(raw) || raw.length > MAX_ITEMS) return null;
   const items: OrderItem[] = [];
   for (const r of raw) {
     if (!r || typeof r !== "object") return null;
@@ -49,11 +55,16 @@ function sanitizeItems(raw: unknown): OrderItem[] | null {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: { num: string } },
 ) {
   const table = await getTable(params.num);
-  if (!table) return NextResponse.json({ error: "not found" }, { status: 404 });
+  // Require the capability token from the QR URL (?t=…). A 404 for both
+  // "missing" and "wrong token" so a sequential num can't be enumerated.
+  const token = new URL(req.url).searchParams.get("t");
+  if (!table || !token || token !== table.token) {
+    return NextResponse.json({ error: "not found" }, { status: 404 });
+  }
   return NextResponse.json(publicTable(table));
 }
 
@@ -68,16 +79,18 @@ export async function PATCH(
     id?: unknown;
     payItems?: unknown;
     method?: unknown;
-    sync?: { id?: unknown; qty?: unknown };
+    token?: unknown;
+    sync?: { id?: unknown; qty?: unknown; token?: unknown };
   };
 
   if (body.sync !== undefined) {
     const id = body.sync?.id;
     const qty = numArray(body.sync?.qty);
-    if (typeof id !== "string" || !id || !qty) {
+    const token = body.sync?.token;
+    if (typeof id !== "string" || !id || !qty || typeof token !== "string") {
       return NextResponse.json({ error: "invalid sync" }, { status: 400 });
     }
-    const updated = await syncReservation(params.num, id, qty);
+    const updated = await syncReservation(params.num, id, qty, token);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -88,18 +101,26 @@ export async function PATCH(
     if (typeof body.pay !== "number" || !(body.pay > 0)) {
       return NextResponse.json({ error: "invalid pay" }, { status: 400 });
     }
+    if (typeof body.token !== "string" || !body.token) {
+      return NextResponse.json({ error: "invalid token" }, { status: 400 });
+    }
     const id = typeof body.id === "string" ? body.id : undefined;
     const items =
       body.payItems === undefined ? undefined : numArray(body.payItems);
     if (body.payItems !== undefined && !items) {
       return NextResponse.json({ error: "invalid payItems" }, { status: 400 });
     }
+    // Constrain method to a safe charset (defends the CSV export against
+    // formula/control-char injection from this unauthenticated endpoint).
     const method =
-      typeof body.method === "string" ? body.method.slice(0, 24) : undefined;
+      typeof body.method === "string"
+        ? body.method.replace(/[^A-Za-z0-9 .•#*-]/g, "").slice(0, 24)
+        : undefined;
     const updated = await payTable(params.num, body.pay, {
       id,
       items: items ?? undefined,
       method,
+      token: body.token,
     });
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -108,8 +129,8 @@ export async function PATCH(
   }
 
   if (body.items !== undefined) {
-    const session = await getSession(req);
-    if (!session) {
+    const user = await authedUser(req);
+    if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     const items = sanitizeItems(body.items);
@@ -118,7 +139,7 @@ export async function PATCH(
     }
     // Scoped to the caller's own tables — a 404 covers both "no such table" and
     // "not yours" so ownership isn't leaked.
-    const updated = await setTableItems(params.num, items, session.sub);
+    const updated = await setTableItems(params.num, items, user.id);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -126,14 +147,14 @@ export async function PATCH(
   }
 
   if (body.status) {
-    const session = await getSession(req);
-    if (!session) {
+    const user = await authedUser(req);
+    if (!user) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     if (!VALID.includes(body.status)) {
       return NextResponse.json({ error: "invalid status" }, { status: 400 });
     }
-    const updated = await setTableStatus(params.num, body.status, session.sub);
+    const updated = await setTableStatus(params.num, body.status, user.id);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -147,11 +168,11 @@ export async function DELETE(
   req: Request,
   { params }: { params: { num: string } },
 ) {
-  const session = await getSession(req);
-  if (!session) {
+  const user = await authedUser(req);
+  if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const ok = await deleteTable(params.num, session.sub);
+  const ok = await deleteTable(params.num, user.id);
   if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

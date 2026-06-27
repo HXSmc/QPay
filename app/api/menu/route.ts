@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
-import { clearMenu, getMenu, setMenu, UPLOAD_DIR } from "@/app/lib/store";
-import { isAdminRequest } from "@/app/lib/auth";
+import {
+  authedUser,
+  clearMenu,
+  getMenu,
+  getMenuForTable,
+  setMenu,
+  UPLOAD_DIR,
+} from "@/app/lib/store";
 import type { MenuMeta } from "@/app/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +37,23 @@ async function removeFile(meta: MenuMeta | null) {
   }
 }
 
-export async function GET() {
-  return NextResponse.json(await getMenu());
+// GET ?num=<table> → public: the menu for that table's owner (customer view).
+// GET (no num) → admin: the caller's own menu.
+export async function GET(req: Request) {
+  const num = new URL(req.url).searchParams.get("num");
+  if (num) {
+    return NextResponse.json(await getMenuForTable(num));
+  }
+  const user = await authedUser(req);
+  if (!user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  return NextResponse.json(await getMenu(user.id));
 }
 
 export async function POST(req: Request) {
-  if (!(await isAdminRequest(req))) {
+  const user = await authedUser(req);
+  if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const form = await req.formData().catch(() => null);
@@ -55,8 +72,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "file too large (max 8MB)" }, { status: 413 });
   }
 
-  await removeFile(await getMenu());
-  const filename = `menu-${Date.now()}.${ext}`;
+  const previous = await getMenu(user.id);
+  const filename = `menu-${user.id}-${Date.now()}.${ext}`;
   const bytes = Buffer.from(await file.arrayBuffer());
 
   let url: string;
@@ -80,15 +97,20 @@ export async function POST(req: Request) {
     originalName: file.name,
     uploadedAt: new Date().toISOString(),
   };
-  await setMenu(meta);
+  // Persist the new menu BEFORE deleting the old file, so a failure can never
+  // leave the admin with no menu at all.
+  await setMenu(user.id, meta);
+  await removeFile(previous);
   return NextResponse.json(meta);
 }
 
 export async function DELETE(req: Request) {
-  if (!(await isAdminRequest(req))) {
+  const user = await authedUser(req);
+  if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  await removeFile(await getMenu());
-  await clearMenu();
+  const previous = await getMenu(user.id);
+  await clearMenu(user.id);
+  await removeFile(previous);
   return NextResponse.json({ ok: true });
 }

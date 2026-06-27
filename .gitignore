@@ -23,13 +23,15 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# local env files
-.env*.local
+# env files — ignore ALL (they hold service-role keys / SESSION_SECRET)
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# local bug-hunt report (not tracked)
-bugs.md
+# never commit markdown (docs/reports/handoffs stay local)
+*.md
 .vercel

@@ -14,7 +14,7 @@ import { OrderModal } from "../../../components/admin/OrderModal";
 
 export default function TablesPage() {
   const [tables, setTables] = useState<LiveTable[]>([]);
-  const [qrFor, setQrFor] = useState<string | null>(null);
+  const [qrFor, setQrFor] = useState<LiveTable | null>(null);
   const [orderFor, setOrderFor] = useState<LiveTable | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -30,6 +30,8 @@ export default function TablesPage() {
     try {
       const t = await createTable();
       setTables((prev) => [...prev, t]);
+    } catch {
+      alert("Couldn't add a table. Please retry.");
     } finally {
       setBusy(false);
     }
@@ -174,7 +176,7 @@ export default function TablesPage() {
               </button>
               <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
                 <button
-                  onClick={() => setQrFor(t.num)}
+                  onClick={() => setQrFor(t)}
                   style={{ ...smallBtn, background: BRAND, color: "#fff", border: "none" }}
                 >
                   QR
@@ -211,7 +213,13 @@ export default function TablesPage() {
         })}
       </div>
 
-      {qrFor && <QrModal tableNum={qrFor} onClose={() => setQrFor(null)} />}
+      {qrFor && (
+        <QrModal
+          tableNum={qrFor.num}
+          token={qrFor.token}
+          onClose={() => setQrFor(null)}
+        />
+      )}
       {orderFor && (
         <OrderModal
           table={orderFor}

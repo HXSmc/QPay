@@ -8,18 +8,20 @@ import {
   METHOD_COLOR,
   STATUS_PALETTE,
 } from "../../lib/data";
-import { listTables, listTransactions } from "../../lib/api";
+import { getMe, listTables, listTransactions, type Me } from "../../lib/api";
 import { downloadCsv, transactionsToCsv } from "../../lib/csv";
 import type { LiveTable, Transaction } from "../../lib/types";
 
 export default function DashboardPage() {
   const [tables, setTables] = useState<LiveTable[]>([]);
   const [txns, setTxns] = useState<Transaction[]>([]);
+  const [me, setMe] = useState<Me | null>(null);
   // Rendered after mount only, so the server HTML and first client render match
   // (a server-side `new Date()` would differ from the client's clock).
   const [now, setNow] = useState("");
 
   useEffect(() => {
+    getMe().then(setMe).catch(() => {});
     listTables().then(setTables).catch(() => {});
     listTransactions().then(setTxns).catch(() => {});
     setNow(
@@ -60,7 +62,9 @@ export default function DashboardPage() {
       >
         <div>
           <h1 style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
-            The Copper Kitchen
+            {me?.email
+              ? me.email.split("@")[0].replace(/^./, (c) => c.toUpperCase())
+              : "Your restaurant"}
           </h1>
           <div
             style={{

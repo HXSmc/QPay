@@ -40,7 +40,7 @@ export const STATUS_PALETTE: Record<
 
 export const TABLES: Omit<
   LiveTable,
-  "owner" | "items" | "paid" | "paidQty" | "reservations"
+  "owner" | "token" | "items" | "paid" | "paidQty" | "reservations"
 >[] = [
   { num: "1", status: "open", amount: "—" },
   { num: "2", status: "open", amount: "—" },

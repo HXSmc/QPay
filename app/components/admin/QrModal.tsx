@@ -7,17 +7,24 @@ import { getAppBaseUrl } from "../../lib/url";
 
 export function QrModal({
   tableNum,
+  token,
+  restaurantName = "QPay",
   onClose,
 }: {
   tableNum: string;
+  token: string;
+  restaurantName?: string;
   onClose: () => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [url, setUrl] = useState("");
 
   useEffect(() => {
-    setUrl(`${getAppBaseUrl()}/customer?table=${tableNum}`);
-  }, [tableNum]);
+    // The capability token gates the customer endpoints, so the QR must carry it.
+    setUrl(
+      `${getAppBaseUrl()}/customer?table=${tableNum}&t=${encodeURIComponent(token)}`,
+    );
+  }, [tableNum, token]);
 
   const svgString = () => {
     const svg = wrapRef.current?.querySelector("svg");
@@ -45,7 +52,7 @@ export function QrModal({
     w.document.write(`<!doctype html><html><head><title>QPay Table ${tableNum}</title>
       <style>body{font-family:system-ui,sans-serif;text-align:center;padding:40px}
       h1{font-size:20px;margin:0 0 4px}p{color:#475569;margin:0 0 24px}</style></head>
-      <body><h1>The Copper Kitchen</h1><p>Scan to pay · Table ${tableNum}</p>${s}
+      <body><h1>${restaurantName}</h1><p>Scan to pay · Table ${tableNum}</p>${s}
       <script>window.onload=function(){window.print();}<\/script></body></html>`);
     w.document.close();
   };

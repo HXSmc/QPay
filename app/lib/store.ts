@@ -1,7 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { billDue, fmt } from "./data";
-import { hashPassword } from "./auth";
+import { getSession, hashPassword } from "./auth";
 import type {
   AdminUser,
   LiveTable,
@@ -87,11 +87,15 @@ function seed(): Store {
   return {
     tables: [],
     transactions: [],
-    menu: null,
+    menus: {},
     users: [],
+    loginAttempts: {},
+    seq: 0,
     version: 0,
   };
 }
+
+const newToken = (): string => globalThis.crypto.randomUUID();
 
 // Backfill fields added after a store was first written (e.g. table.items),
 // so stores created by older versions don't crash newer code.
@@ -108,6 +112,8 @@ function normalize(s: Store): Store {
         return {
           ...t,
           owner: t.owner as string,
+          // Backfill a capability token for tables created before tokens existed.
+          token: typeof t.token === "string" && t.token ? t.token : newToken(),
           items,
           paid: typeof t.paid === "number" ? t.paid : 0,
           // Coerce paidQty to match items length (0 for new indices).
@@ -118,8 +124,24 @@ function normalize(s: Store): Store {
     transactions: (s.transactions ?? []).filter(
       (tx) => typeof tx.owner === "string" && tx.owner !== "",
     ),
-    menu: s.menu ?? null,
+    // Legacy single global menu (s.menu) can't be attributed to one owner, so it
+    // is not migrated — admins re-upload into their own per-owner slot.
+    menus:
+      s.menus && typeof s.menus === "object" && !Array.isArray(s.menus)
+        ? s.menus
+        : {},
     users: Array.isArray(s.users) ? s.users : [],
+    loginAttempts:
+      s.loginAttempts && typeof s.loginAttempts === "object"
+        ? s.loginAttempts
+        : {},
+    // seq must never go below the highest existing table number, or createTable
+    // could mint a colliding num after a legacy/seed reset.
+    seq: Math.max(
+      typeof s.seq === "number" ? s.seq : 0,
+      ...(s.tables ?? []).map((t) => Number(t.num) || 0),
+      0,
+    ),
     version: typeof s.version === "number" ? s.version : 0,
   };
 }
@@ -130,6 +152,16 @@ function normalize(s: Store): Store {
 // same pattern as the legacy version backfill).
 async function ensureSuperadmin(s: Store): Promise<boolean> {
   if (s.users.some((u) => u.role === "super")) return false;
+  // Fail closed: never seed the master account from the source-committed
+  // defaults in production — require the credentials to come from the env.
+  if (
+    process.env.NODE_ENV === "production" &&
+    (!process.env.SUPERADMIN_EMAIL || !process.env.SUPERADMIN_PASSWORD)
+  ) {
+    throw new Error(
+      "SUPERADMIN_EMAIL and SUPERADMIN_PASSWORD must be set in production to seed the super account",
+    );
+  }
   s.users.push({
     id: globalThis.crypto.randomUUID(),
     email: SUPER_EMAIL,
@@ -146,7 +178,14 @@ async function ensureSuperadmin(s: Store): Promise<boolean> {
 async function finalize(raw: Store, legacy: boolean): Promise<Store> {
   const s = normalize(raw);
   const addedSuper = await ensureSuperadmin(s);
-  if (legacy || addedSuper) await writeStore(s);
+  if (legacy || addedSuper) {
+    // Persist the backfill through the version CAS (not an unconditional write)
+    // so a read-path migration can never clobber a payment another instance
+    // committed concurrently — a lost CAS just means someone else already
+    // persisted a newer store, and our in-memory copy is still fine to return.
+    const expected = s.version ?? 0;
+    await commit(s, expected).catch(() => {});
+  }
   return s;
 }
 
@@ -325,15 +364,18 @@ export async function listTables(owner: string): Promise<LiveTable[]> {
 
 export async function createTable(owner: string): Promise<LiveTable> {
   return mutate((s) => {
-    // Numbers are globally unique across all owners so a customer's
-    // /api/tables/[num] URL is unambiguous; each admin only ever sees its own.
-    const maxNum = s.tables.reduce(
-      (m, t) => Math.max(m, Number(t.num) || 0),
+    // Allocate from a monotonic counter so a freed (deleted) number is never
+    // reused — a stale customer QR can't resolve to a different table later.
+    // Numbers stay globally unique; each admin only ever sees its own tables.
+    s.seq = Math.max(
+      s.seq ?? 0,
+      ...s.tables.map((t) => Number(t.num) || 0),
       0,
-    );
+    ) + 1;
     const table: LiveTable = {
-      num: String(maxNum + 1),
+      num: String(s.seq),
       owner,
+      token: newToken(),
       status: "open",
       amount: "—",
       items: [],
@@ -382,10 +424,12 @@ export async function syncReservation(
   num: string,
   id: string,
   qty: number[],
+  token: string,
 ): Promise<LiveTable | null> {
   return mutate((s) => {
     const t = s.tables.find((x) => x.num === num);
-    if (!t) return { result: null, write: false };
+    // Require the table's capability token — a guessable num alone can't touch it.
+    if (!t || t.token !== token) return { result: null, write: false };
     const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
     // Clamp each hold to the units actually orderable (0..ordered-qty). Without
     // this, one phone could POST qty:[9999,…] and drive every item's
@@ -410,11 +454,13 @@ export async function syncReservation(
 export async function payTable(
   num: string,
   amount: number,
-  opts?: { id?: string; items?: number[]; method?: string },
+  opts: { id?: string; items?: number[]; method?: string; token: string },
 ): Promise<LiveTable | null> {
   return mutate((s) => {
     const t = s.tables.find((x) => x.num === num);
-    if (!t || t.items.length === 0) return { result: t ?? null, write: false };
+    // Require the table's capability token (a guessable num can't pay any table).
+    if (!t || t.token !== opts.token) return { result: null, write: false };
+    if (t.items.length === 0) return { result: t, write: false };
 
     const due = billDue(t.items);
     const remaining = Math.max(0, +(due - (t.paid ?? 0)).toFixed(2));
@@ -437,15 +483,21 @@ export async function payTable(
           it.qty - t.paidQty[i],
         );
         if (want <= 0 || it.qty <= 0) return;
-        const unitInc = +((it.price / it.qty) * 1.08).toFixed(2);
+        const unit = it.price / it.qty;
+        // Lock the largest k (≤want) whose CUMULATIVE tax-inclusive cost fits the
+        // budget. Rounding the cumulative cost once (not per unit) mirrors
+        // billDue's round-once math, so per-unit drift can't leave an
+        // exactly-paid line's last unit unlocked. 1¢ tolerance absorbs the final
+        // rounding.
         let lock = 0;
-        // 1¢ tolerance absorbs per-unit rounding so an exactly-paid line still
-        // locks its final unit.
-        while (lock < want && budget + 0.01 >= unitInc) {
-          budget = +(budget - unitInc).toFixed(2);
-          lock++;
+        for (let k = 1; k <= want; k++) {
+          if (+(unit * k * 1.08).toFixed(2) <= budget + 0.01) lock = k;
+          else break;
         }
-        t.paidQty[i] += lock;
+        if (lock > 0) {
+          budget = +(budget - +(unit * lock * 1.08).toFixed(2)).toFixed(2);
+          t.paidQty[i] += lock;
+        }
       });
     }
 
@@ -541,6 +593,60 @@ export async function getUserById(id: string): Promise<AdminUser | null> {
   return s.users.find((u) => u.id === id) ?? null;
 }
 
+/**
+ * Resolve the live account behind a request's session, or null. Re-validates
+ * against the store on every call, so a deleted/role-changed account loses
+ * access immediately (stateless tokens otherwise stay valid until expiry).
+ */
+export async function authedUser(req: Request): Promise<AdminUser | null> {
+  const session = await getSession(req);
+  if (!session) return null;
+  const u = await getUserById(session.sub);
+  return u && u.role === session.role ? u : null;
+}
+
+// ---------------------------------------------------------------------------
+// Login throttling (brute-force / credential-stuffing defense)
+// ---------------------------------------------------------------------------
+
+const LOGIN_MAX_FAILS = 8; // consecutive fails within the window before lockout
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_LOCK_MS = 15 * 60 * 1000;
+
+/** True if this `email|ip` key is currently locked out. */
+export async function isLoginLocked(key: string): Promise<boolean> {
+  const a = (await readStore()).loginAttempts[key];
+  return !!a && a.lockedUntil > Date.now();
+}
+
+/** Record a failed login; locks the key once it exceeds the threshold. */
+export async function recordLoginFailure(key: string): Promise<void> {
+  await mutate((s) => {
+    const now = Date.now();
+    // Opportunistically prune stale entries so the map can't grow unbounded.
+    for (const k of Object.keys(s.loginAttempts)) {
+      const e = s.loginAttempts[k];
+      if (e.lockedUntil <= now && e.windowEnd <= now) delete s.loginAttempts[k];
+    }
+    const a = s.loginAttempts[key];
+    const inWindow = a && now < a.windowEnd;
+    const fails = inWindow ? a.fails + 1 : 1;
+    const windowEnd = inWindow ? a.windowEnd : now + LOGIN_WINDOW_MS;
+    const lockedUntil = fails >= LOGIN_MAX_FAILS ? now + LOGIN_LOCK_MS : 0;
+    s.loginAttempts[key] = { fails, windowEnd, lockedUntil };
+    return { result: undefined, write: true };
+  });
+}
+
+/** Clear the failure counter for a key after a successful login. */
+export async function clearLoginFailures(key: string): Promise<void> {
+  await mutate((s) => {
+    if (!s.loginAttempts[key]) return { result: undefined, write: false };
+    delete s.loginAttempts[key];
+    return { result: undefined, write: true };
+  });
+}
+
 /** Admin accounts (super excluded) — for the super console. */
 export async function listAdmins(): Promise<PublicUser[]> {
   const s = await readStore();
@@ -588,20 +694,28 @@ export async function deleteAdmin(id: string): Promise<boolean> {
   });
 }
 
-export async function getMenu(): Promise<MenuMeta | null> {
-  return (await readStore()).menu;
+/** One admin's own menu (for the admin menu page). */
+export async function getMenu(owner: string): Promise<MenuMeta | null> {
+  return (await readStore()).menus[owner] ?? null;
 }
 
-export async function setMenu(meta: MenuMeta): Promise<void> {
+/** The menu a customer should see for a scanned table = its owner's menu. */
+export async function getMenuForTable(num: string): Promise<MenuMeta | null> {
+  const s = await readStore();
+  const t = s.tables.find((x) => x.num === num);
+  return t ? s.menus[t.owner] ?? null : null;
+}
+
+export async function setMenu(owner: string, meta: MenuMeta): Promise<void> {
   await mutate((s) => {
-    s.menu = meta;
+    s.menus[owner] = meta;
     return { result: undefined, write: true };
   });
 }
 
-export async function clearMenu(): Promise<void> {
+export async function clearMenu(owner: string): Promise<void> {
   await mutate((s) => {
-    s.menu = null;
+    delete s.menus[owner];
     return { result: undefined, write: true };
   });
 }

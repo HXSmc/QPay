@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { getSession, hashPassword } from "@/app/lib/auth";
-import { createAdmin, listAdmins } from "@/app/lib/store";
+import { hashPassword } from "@/app/lib/auth";
+import { authedUser, createAdmin, listAdmins } from "@/app/lib/store";
 
 export const dynamic = "force-dynamic";
 
-// Managing admin accounts is reserved for the single super account.
+// Managing admin accounts is reserved for the single (live) super account.
 async function requireSuper(req: Request) {
-  const session = await getSession(req);
-  return session?.role === "super" ? session : null;
+  const user = await authedUser(req);
+  return user?.role === "super" ? user : null;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
