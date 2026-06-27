@@ -246,12 +246,13 @@ export async function listTables(owner: string): Promise<LiveTable[]> {
 export async function createTable(owner: string): Promise<LiveTable> {
   if (useSupabase) return rel.createTable(owner);
   return mutateBlob((s) => {
-    // Per-owner numbering (admin A: 1,2 · admin B: 1).
-    const num =
-      Math.max(
-        0,
-        ...s.tables.filter((t) => t.owner === owner).map((t) => Number(t.num) || 0),
-      ) + 1;
+    // Per-owner numbering that fills gaps: smallest free positive integer for
+    // this owner, so a deleted number is reused (delete table 2 → next is 2).
+    const used = new Set(
+      s.tables.filter((t) => t.owner === owner).map((t) => Number(t.num)),
+    );
+    let num = 1;
+    while (used.has(num)) num++;
     const table: LiveTable = {
       num: String(num),
       owner,

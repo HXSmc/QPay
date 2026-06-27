@@ -297,38 +297,49 @@ async function casTable(
 
 export async function createTable(owner: string): Promise<LiveTable> {
   const client = await sb();
-  // Per-owner monotonic allocation (admin A: 1,2 · admin B: 1). Never reused
-  // within an owner.
-  const { data: numData, error: numErr } = await client.rpc("next_table_num", {
-    p_owner: owner,
-  });
-  if (numErr) throw new Error(`store: num alloc failed — ${numErr.message}`);
-  const num = Number(numData);
-  const table: LiveTable = {
-    num: String(num),
-    owner,
-    token: newToken(),
-    status: "open",
-    amount: "—",
-    items: [],
-    paid: 0,
-    paidQty: [],
-    reservations: [],
-  };
-  const { error } = await client.from("tables").insert({
-    num,
-    owner,
-    token: table.token,
-    status: table.status,
-    amount: table.amount,
-    items: [],
-    paid: 0,
-    paid_qty: [],
-    reservations: [],
-    version: 0,
-  });
-  if (error) throw new Error(`store: table create failed — ${error.message}`);
-  return table;
+  // Per-owner allocation that fills gaps: the smallest free number for this
+  // owner (admin A: 1,2 · admin B: 1). A deleted number is reused (next_table_num
+  // derives from live rows). Reuse is safe — public lookups key on the unique
+  // token, so a stale QR for a deleted table 404s rather than hitting a reused
+  // number. The allocate-then-insert isn't atomic, so retry on a uniqueness race.
+  for (let attempt = 0; ; attempt++) {
+    const { data: numData, error: numErr } = await client.rpc("next_table_num", {
+      p_owner: owner,
+    });
+    if (numErr) throw new Error(`store: num alloc failed — ${numErr.message}`);
+    const num = Number(numData);
+    const token = newToken();
+    const table: LiveTable = {
+      num: String(num),
+      owner,
+      token,
+      status: "open",
+      amount: "—",
+      items: [],
+      paid: 0,
+      paidQty: [],
+      reservations: [],
+    };
+    const { error } = await client.from("tables").insert({
+      num,
+      owner,
+      token,
+      status: "open",
+      amount: "—",
+      items: [],
+      paid: 0,
+      paid_qty: [],
+      reservations: [],
+      version: 0,
+    });
+    if (!error) return table;
+    // Another concurrent create grabbed the same free num → recompute + retry.
+    if (error.code === "23505" && attempt < MAX_CAS_RETRIES) {
+      await sleep(15 * (attempt + 1));
+      continue;
+    }
+    throw new Error(`store: table create failed — ${error.message}`);
+  }
 }
 
 export async function setTableItems(
