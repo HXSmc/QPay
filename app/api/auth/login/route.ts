@@ -31,9 +31,12 @@ export async function POST(req: Request) {
 
   const user = email ? await findUserByEmail(email) : null;
   // Always run a verify (against the stored hash, or a dummy) so the response
-  // time doesn't reveal whether the email exists.
+  // time doesn't reveal whether the email exists. The dummy must decode to the
+  // SAME shape as a real hash — 16-byte salt (22 b64url chars) + 32-byte digest
+  // (43 b64url chars) — or the byte-length mismatch makes timingSafeEqualBytes
+  // return early, leaking (via timing) that no account matched.
   const DUMMY =
-    "AAAAAAAAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    "AAAAAAAAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
   const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY);
 
   if (!user || !ok) {

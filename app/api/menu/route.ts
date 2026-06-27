@@ -150,7 +150,10 @@ export async function POST(req: Request) {
     );
   }
   if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: "file too large (max 8MB)" }, { status: 413 });
+    return NextResponse.json(
+      { error: `file too large (max ${MAX_BYTES / (1024 * 1024)}MB)` },
+      { status: 413 },
+    );
   }
 
   const previous = await getMenu(user.id);

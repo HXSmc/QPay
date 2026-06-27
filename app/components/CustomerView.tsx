@@ -237,12 +237,15 @@ export function CustomerView({
       setTable(next);
       setSelectedQty(next.items.map(() => 0));
       // Report what the store ACTUALLY applied (it clamps to remaining), not the
-      // intended amount — otherwise a clamped pay shows an inflated receipt.
+      // intended amount — otherwise a clamped pay shows an inflated receipt. The
+      // tip is cosmetic, so scale it to the fraction of principal that actually
+      // landed (if another phone paid first and applied=0, no tip is shown).
       const appliedPrincipal = Math.max(0, +(next.paid - paidBefore).toFixed(2));
-      const shownPaid = Math.min(
-        payAmount,
-        +(appliedPrincipal + tipAmt).toFixed(2),
-      );
+      const tipApplied =
+        principal > 0
+          ? +(tipAmt * (appliedPrincipal / principal)).toFixed(2)
+          : 0;
+      const shownPaid = +(appliedPrincipal + tipApplied).toFixed(2);
       setResult({
         paid: shownPaid,
         cleared: next.status === "cleared",

@@ -268,25 +268,30 @@ async function casTable(
     const res = await apply(t, { taxRate });
     if (!res.write) return t;
 
-    const { data, error } = await client
-      .from("tables")
-      .update({
-        status: t.status,
-        amount: t.amount,
-        items: t.items,
-        paid: t.paid,
-        paid_qty: t.paidQty,
-        reservations: t.reservations,
-        version: version + 1,
-      })
-      .eq("id", id)
-      .eq("version", version)
-      .select("id");
+    // Atomic CAS update + (optional) ledger insert in ONE DB transaction, so a
+    // committed payment can never be missing its transaction record.
+    const txnPayload = res.txn
+      ? {
+          owner: res.txn.owner,
+          table_num: Number(res.txn.table),
+          time: res.txn.time,
+          amount: res.txn.amount,
+          method: res.txn.method,
+        }
+      : null;
+    const { data, error } = await client.rpc("commit_table_update", {
+      p_id: id,
+      p_expected_version: version,
+      p_status: t.status,
+      p_amount: t.amount,
+      p_items: t.items,
+      p_paid: t.paid,
+      p_paid_qty: t.paidQty,
+      p_reservations: t.reservations,
+      p_txn: txnPayload,
+    });
     if (error) throw new Error(`store: table CAS failed — ${error.message}`);
-    if ((data?.length ?? 0) > 0) {
-      if (res.txn) await insertTxn(res.txn);
-      return t;
-    }
+    if (data === true) return t; // committed (txn, if any, persisted atomically)
     // Lost the CAS — another writer advanced the row. Retry.
     if (attempt >= MAX_CAS_RETRIES) {
       throw new Error("store: table write conflict (max retries exceeded)");
@@ -419,20 +424,8 @@ export async function deleteTable(
 }
 
 // ---------------------------------------------------------------------------
-// Transactions (ledger)
+// Transactions (ledger) — writes happen atomically inside commit_table_update.
 // ---------------------------------------------------------------------------
-
-async function insertTxn(txn: Transaction): Promise<void> {
-  const client = await sb();
-  const { error } = await client.from("transactions").insert({
-    owner: txn.owner,
-    table_num: Number(txn.table),
-    time: txn.time,
-    amount: txn.amount,
-    method: txn.method,
-  });
-  if (error) throw new Error(`store: txn write failed — ${error.message}`);
-}
 
 export async function listTransactions(owner: string): Promise<Transaction[]> {
   const client = await sb();
@@ -532,34 +525,23 @@ export async function deleteAdmin(id: string): Promise<boolean> {
   return (data?.length ?? 0) > 0;
 }
 
-/** Extend an admin's expiry by `days` from max(now, current expiry). */
+/**
+ * Extend an admin's expiry by `days` from max(now, current expiry) — done in a
+ * single atomic UPDATE (renew_admin RPC) so two concurrent renewals can't lose
+ * each other's extension.
+ */
 export async function renewAdmin(
   id: string,
   days: number,
 ): Promise<AdminUser | null> {
   const client = await sb();
-  const { data: cur, error: readErr } = await client
-    .from("accounts")
-    .select("*")
-    .eq("id", id)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (readErr) throw new Error(`store: account read failed — ${readErr.message}`);
-  if (!cur) return null;
-  const base = Math.max(
-    Date.now(),
-    cur.expires_at ? new Date(cur.expires_at).getTime() : Date.now(),
-  );
-  const expiresAt = new Date(base + days * 86_400_000).toISOString();
-  const { data, error } = await client
-    .from("accounts")
-    .update({ expires_at: expiresAt })
-    .eq("id", id)
-    .eq("role", "admin")
-    .select("*")
-    .maybeSingle();
+  const { data, error } = await client.rpc("renew_admin", {
+    p_id: id,
+    p_days: days,
+  });
   if (error) throw new Error(`store: renew failed — ${error.message}`);
-  return data ? rowToUser(data as AccountRow) : null;
+  const row = Array.isArray(data) ? data[0] : data;
+  return row ? rowToUser(row as AccountRow) : null;
 }
 
 /** Set an admin's absolute expiry (used by trial provisioning). */
@@ -620,28 +602,17 @@ export async function isLoginLocked(key: string): Promise<boolean> {
 }
 
 export async function recordLoginFailure(key: string): Promise<void> {
+  // Atomic increment under the ON CONFLICT row lock (record_login_failure RPC),
+  // so concurrent failed logins can't undercount and slip past the lockout.
   const client = await sb();
-  const now = Date.now();
-  const { data } = await client
-    .from("login_attempts")
-    .select("fails, window_end, locked_until")
-    .eq("key", key)
-    .maybeSingle();
-  const inWindow = data && now < Number(data.window_end);
-  const fails = inWindow ? Number(data!.fails) + 1 : 1;
-  const windowEnd = inWindow ? Number(data!.window_end) : now + LOGIN_WINDOW_MS;
-  const lockedUntil = fails >= LOGIN_MAX_FAILS ? now + LOGIN_LOCK_MS : 0;
-  const { error } = await client.from("login_attempts").upsert(
-    { key, fails, window_end: windowEnd, locked_until: lockedUntil },
-    { onConflict: "key" },
-  );
+  const { error } = await client.rpc("record_login_failure", {
+    p_key: key,
+    p_now: Date.now(),
+    p_window_ms: LOGIN_WINDOW_MS,
+    p_lock_ms: LOGIN_LOCK_MS,
+    p_max: LOGIN_MAX_FAILS,
+  });
   if (error) throw new Error(`store: lock write failed — ${error.message}`);
-  // Opportunistic prune of fully-expired rows.
-  await client
-    .from("login_attempts")
-    .delete()
-    .lt("locked_until", now)
-    .lt("window_end", now);
 }
 
 export async function clearLoginFailures(key: string): Promise<void> {
