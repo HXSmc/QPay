@@ -30,8 +30,15 @@ export function allow(key: string, max: number, windowMs: number): boolean {
   return true;
 }
 
-/** First client IP from proxy headers (best effort). */
+/**
+ * Client IP for rate-limit keys. Prefers `x-real-ip` — on Vercel the edge sets
+ * it to the genuine client IP, whereas the LEFTMOST `x-forwarded-for` entry is
+ * client-spoofable (rotating it would mint a fresh bucket every request and
+ * defeat the limit). Falls back to XFF only for local/non-Vercel dev.
+ */
 export function clientIp(req: Request): string {
+  const real = req.headers.get("x-real-ip");
+  if (real) return real.trim();
   const xff = req.headers.get("x-forwarded-for");
-  return (xff?.split(",")[0] || req.headers.get("x-real-ip") || "unknown").trim();
+  return (xff?.split(",")[0] || "unknown").trim();
 }

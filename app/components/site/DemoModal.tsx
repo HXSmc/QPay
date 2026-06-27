@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { BRAND } from "../../lib/data";
+import { submitLead } from "../../lib/api";
 
 export function DemoModal({
   open,
@@ -14,14 +15,39 @@ export function DemoModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [restaurant, setRestaurant] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const firstInputRef = useRef<HTMLInputElement>(null);
+  // The modal never unmounts (it early-returns null when closed), so guard the
+  // async submit: if it was closed mid-request, don't paint stale success/error.
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   const close = () => {
     setSent(false);
     setName("");
     setEmail("");
     setRestaurant("");
+    setError("");
+    setBusy(false);
     onClose();
+  };
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      await submitLead({ name, email, restaurant });
+      if (openRef.current) setSent(true);
+    } catch {
+      if (openRef.current)
+        setError("Couldn't send your request. Please try again.");
+    } finally {
+      if (openRef.current) setBusy(false);
+    }
   };
 
   useEffect(() => {
@@ -140,12 +166,7 @@ export function DemoModal({
             </button>
           </div>
         ) : (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setSent(true);
-            }}
-          >
+          <form onSubmit={submit}>
             <div
               style={{
                 display: "flex",
@@ -216,8 +237,22 @@ export function DemoModal({
                 style={field}
               />
             </div>
+            {error && (
+              <div
+                role="alert"
+                style={{
+                  marginTop: 12,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#DC2626",
+                }}
+              >
+                {error}
+              </div>
+            )}
             <button
               type="submit"
+              disabled={busy}
               style={{
                 width: "100%",
                 marginTop: 18,
@@ -229,11 +264,12 @@ export function DemoModal({
                 fontFamily: "inherit",
                 fontSize: 15.5,
                 fontWeight: 700,
-                cursor: "pointer",
+                cursor: busy ? "default" : "pointer",
+                opacity: busy ? 0.7 : 1,
                 boxShadow: "0 10px 24px rgba(46,91,255,0.3)",
               }}
             >
-              Request demo
+              {busy ? "Sending…" : "Request demo"}
             </button>
           </form>
         )}

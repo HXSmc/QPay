@@ -6,13 +6,9 @@ import {
   isLoginLocked,
   recordLoginFailure,
 } from "@/app/lib/store";
+import { clientIp } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
-
-function clientIp(req: Request): string {
-  const xff = req.headers.get("x-forwarded-for");
-  return (xff?.split(",")[0] || req.headers.get("x-real-ip") || "unknown").trim();
-}
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {

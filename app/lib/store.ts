@@ -4,6 +4,7 @@ import { billDue, DEFAULT_TAX_RATE, fmt } from "./data";
 import { constantTimeEqual, getSession, hashPassword } from "./auth";
 import type {
   AdminUser,
+  Lead,
   LiveTable,
   MenuMeta,
   OrderItem,
@@ -17,6 +18,8 @@ import type {
 
 /** Newest-N transactions kept in the hot store blob (older ones are dropped). */
 const MAX_TXN_HISTORY = 1000;
+/** Newest-N marketing leads kept in the store. */
+const MAX_LEADS = 1000;
 
 /** Settings for an owner, falling back to defaults for any unset field. */
 function settingsFor(s: Store, owner: string): RestaurantSettings {
@@ -102,6 +105,7 @@ function seed(): Store {
   return {
     tables: [],
     transactions: [],
+    leads: [],
     menus: {},
     settings: {},
     users: [],
@@ -140,6 +144,7 @@ function normalize(s: Store): Store {
     transactions: (s.transactions ?? []).filter(
       (tx) => typeof tx.owner === "string" && tx.owner !== "",
     ),
+    leads: Array.isArray(s.leads) ? s.leads : [],
     // Legacy single global menu (s.menu) can't be attributed to one owner, so it
     // is not migrated — admins re-upload into their own per-owner slot.
     menus:
@@ -814,4 +819,33 @@ export async function getPublicRestaurant(
   const user = s.users.find((u) => u.id === t.owner);
   const fallback = user ? user.email.split("@")[0] : "Restaurant";
   return { name: set.name || fallback, taxRate: set.taxRate };
+}
+
+// ---------------------------------------------------------------------------
+// Marketing leads (demo requests)
+// ---------------------------------------------------------------------------
+
+/** Record a demo-request lead (newest first, capped). Returns the saved lead. */
+export async function addLead(input: {
+  name: string;
+  email: string;
+  restaurant: string;
+}): Promise<Lead> {
+  return mutate((s) => {
+    const lead: Lead = {
+      id: globalThis.crypto.randomUUID(),
+      name: input.name.trim().slice(0, 120),
+      email: input.email.trim().slice(0, 200),
+      restaurant: input.restaurant.trim().slice(0, 120),
+      ts: new Date().toISOString(),
+    };
+    s.leads.unshift(lead);
+    if (s.leads.length > MAX_LEADS) s.leads.length = MAX_LEADS;
+    return { result: lead, write: true };
+  });
+}
+
+/** All captured leads (super console). */
+export async function listLeads(): Promise<Lead[]> {
+  return (await readStore()).leads;
 }

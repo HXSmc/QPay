@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { BRAND } from "../../lib/data";
+import { SITE } from "../../lib/site";
 
-const PHONE = "+966566201233";
+const PHONE = SITE.salesPhone;
 
 export function SalesDropdown({
   onClose,
@@ -14,10 +15,17 @@ export function SalesDropdown({
   // Outside-click boundary that INCLUDES the trigger button, so clicking the
   // trigger to close doesn't fire onClose (which would race with the trigger's
   // own toggle and leave the dropdown stuck open).
-  anchorRef?: RefObject<HTMLElement>;
+  anchorRef?: RefObject<HTMLElement | null>;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "ok" | "fail">("idle");
+
+  useEffect(() => {
+    return () => {
+      if (copyTimer.current) clearTimeout(copyTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -37,12 +45,16 @@ export function SalesDropdown({
 
   const copy = async () => {
     try {
+      if (!navigator.clipboard) throw new Error("no clipboard");
       await navigator.clipboard.writeText(PHONE);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
+      setCopyState("ok");
     } catch {
-      /* clipboard unavailable */
+      // Surface the failure instead of swallowing it (insecure context / denied
+      // permission) — the number is shown above for manual copy.
+      setCopyState("fail");
     }
+    if (copyTimer.current) clearTimeout(copyTimer.current);
+    copyTimer.current = setTimeout(() => setCopyState("idle"), 2000);
   };
 
   return (
@@ -91,7 +103,7 @@ export function SalesDropdown({
         <div>
           <div style={{ fontSize: 14, fontWeight: 700 }}>Call our sales team</div>
           <div style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>
-            Sun–Thu · 9am–6pm
+            {SITE.salesHours}
           </div>
         </div>
       </div>
@@ -121,8 +133,9 @@ export function SalesDropdown({
           marginTop: 10,
           padding: "9px 0",
           background: "#fff",
-          color: "#0B1221",
-          border: "1.5px solid #E2E8F0",
+          color: copyState === "fail" ? "#DC2626" : "#0B1221",
+          border:
+            "1.5px solid " + (copyState === "fail" ? "#FECACA" : "#E2E8F0"),
           borderRadius: 10,
           fontFamily: "inherit",
           fontSize: 13,
@@ -130,7 +143,11 @@ export function SalesDropdown({
           cursor: "pointer",
         }}
       >
-        {copied ? "Copied ✓" : "Copy number"}
+        {copyState === "ok"
+          ? "Copied ✓"
+          : copyState === "fail"
+            ? "Copy failed — select above"
+            : "Copy number"}
       </button>
     </div>
   );

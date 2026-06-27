@@ -219,3 +219,19 @@ export async function saveSettings(
     }),
   );
 }
+
+// --- Marketing demo-request lead ---
+
+export async function submitLead(input: {
+  name: string;
+  email: string;
+  restaurant: string;
+}): Promise<void> {
+  await json(
+    await fetch("/api/leads", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  );
+}

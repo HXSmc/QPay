@@ -92,9 +92,21 @@ export interface RestaurantSettings {
   tipPrompts: boolean;
 }
 
+/** A demo-request lead captured from the public marketing form. */
+export interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  restaurant: string;
+  /** ISO timestamp. */
+  ts: string;
+}
+
 export interface Store {
   tables: LiveTable[];
   transactions: Transaction[];
+  /** Demo-request leads from the marketing site (newest first). */
+  leads: Lead[];
   /** Menu per owning admin (keyed by user id) — each restaurant is independent. */
   menus: Record<string, MenuMeta>;
   /** Per-owner restaurant settings (keyed by user id). */

@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BRAND } from "../lib/data";
+import { SITE } from "../lib/site";
 import { DemoModal } from "./site/DemoModal";
 import { SalesDropdown } from "./site/SalesDropdown";
 
@@ -98,12 +100,7 @@ const SOLUTIONS = [
   },
 ];
 
-const METRICS = [
-  { value: "15", unit: "min", label: "saved per table" },
-  { value: "+30", unit: "%", label: "average tip increase" },
-  { value: "+22", unit: "%", label: "table turnover" },
-  { value: "4.9", unit: "★", label: "guest satisfaction" },
-];
+const METRICS = SITE.metrics;
 
 export function MarketingView() {
   const router = useRouter();
@@ -164,7 +161,7 @@ export function MarketingView() {
                   boxShadow: "0 0 0 3px rgba(22,163,74,0.18)",
                 }}
               />
-              Trusted by 3,200+ restaurants
+              {SITE.heroBadge}
             </div>
             <h1
               className="qp-hero-title"
@@ -278,7 +275,7 @@ export function MarketingView() {
                 <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
                 <path d="m9 12 2 2 4-4" />
               </svg>
-              PCI-DSS Level 1 · 256-bit encryption · SOC 2 Type II
+              {SITE.trustLine}
             </div>
           </div>
 
@@ -681,7 +678,15 @@ export function MarketingView() {
             fontSize: 13.5,
           }}
         >
-          © 2026 QPay Inc. · Privacy · Terms · PCI-DSS Level 1 Certified
+          © {SITE.copyrightYear} {SITE.company} ·{" "}
+          <Link href="/privacy" style={{ color: "#475569", textDecoration: "underline" }}>
+            Privacy
+          </Link>{" "}
+          ·{" "}
+          <Link href="/terms" style={{ color: "#475569", textDecoration: "underline" }}>
+            Terms
+          </Link>{" "}
+          · {SITE.footerClaim}
         </div>
       </div>
     </div>
