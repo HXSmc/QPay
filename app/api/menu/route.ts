@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { promises as fs } from "fs";
 import path from "path";
 import { clearMenu, getMenu, setMenu, UPLOAD_DIR } from "@/app/lib/store";
+import { isAdminRequest } from "@/app/lib/auth";
 import type { MenuMeta } from "@/app/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,8 @@ const EXT: Record<string, string> = {
   "image/gif": "gif",
   "application/pdf": "pdf",
 };
+
+const MAX_BYTES = 8 * 1024 * 1024; // 8 MB upload cap
 
 const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
 
@@ -33,6 +36,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  if (!(await isAdminRequest(req))) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
   if (!(file instanceof File)) {
@@ -44,6 +50,9 @@ export async function POST(req: Request) {
       { error: "unsupported type (image or pdf only)" },
       { status: 415 },
     );
+  }
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json({ error: "file too large (max 8MB)" }, { status: 413 });
   }
 
   await removeFile(await getMenu());
@@ -75,7 +84,10 @@ export async function POST(req: Request) {
   return NextResponse.json(meta);
 }
 
-export async function DELETE() {
+export async function DELETE(req: Request) {
+  if (!(await isAdminRequest(req))) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   await removeFile(await getMenu());
   await clearMenu();
   return NextResponse.json({ ok: true });

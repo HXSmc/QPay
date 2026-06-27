@@ -36,8 +36,12 @@ export default function TablesPage() {
   };
 
   const clearTable = async (t: LiveTable) => {
-    const updated = await setTableItems(t.num, []);
-    applyTable(updated);
+    try {
+      const updated = await setTableItems(t.num, []);
+      applyTable(updated);
+    } catch {
+      alert(`Couldn't clear Table ${t.num}. Please retry.`);
+    }
   };
 
   const removeTable = async (t: LiveTable) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BRAND } from "../lib/data";
 import { DemoModal } from "./site/DemoModal";
@@ -109,6 +109,7 @@ export function MarketingView() {
   const router = useRouter();
   const [demoOpen, setDemoOpen] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
+  const salesWrapRef = useRef<HTMLDivElement>(null);
   const scrollToSolutions = () =>
     document
       .getElementById("solutions")
@@ -645,7 +646,7 @@ export function MarketingView() {
             >
               Start free trial
             </button>
-            <div style={{ position: "relative" }}>
+            <div ref={salesWrapRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setSalesOpen((v) => !v)}
                 style={{
@@ -662,7 +663,12 @@ export function MarketingView() {
               >
                 Talk to sales
               </button>
-              {salesOpen && <SalesDropdown onClose={() => setSalesOpen(false)} />}
+              {salesOpen && (
+                <SalesDropdown
+                  onClose={() => setSalesOpen(false)}
+                  anchorRef={salesWrapRef}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   BRAND,
+  fmt,
   METHOD_COLOR,
   STATUS_PALETTE,
 } from "../../lib/data";
@@ -14,19 +15,37 @@ import type { LiveTable, Transaction } from "../../lib/types";
 export default function DashboardPage() {
   const [tables, setTables] = useState<LiveTable[]>([]);
   const [txns, setTxns] = useState<Transaction[]>([]);
+  // Rendered after mount only, so the server HTML and first client render match
+  // (a server-side `new Date()` would differ from the client's clock).
+  const [now, setNow] = useState("");
 
   useEffect(() => {
     listTables().then(setTables).catch(() => {});
     listTransactions().then(setTxns).catch(() => {});
+    setNow(
+      new Date().toLocaleString("en-US", {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+    );
   }, []);
 
   const active = tables.filter((t) => t.status !== "open").length;
+  const revenue = txns.reduce(
+    (a, t) => a + (parseFloat(t.amount.replace(/[^0-9.]/g, "")) || 0),
+    0,
+  );
 
+  // Real figures derived from the live ledger; tips and turn-time aren't tracked
+  // by this prototype, so they're shown as unavailable rather than faked.
   const metrics = [
-    { value: "$4,820", label: "Today's revenue", delta: "+12.4%", dc: "#16A34A", db: "#DCFCE7" },
+    { value: fmt(revenue), label: "Revenue (recent)", delta: `${txns.length} txns`, dc: BRAND, db: "#EEF2FF" },
     { value: `${active} / ${tables.length}`, label: "Active tables", delta: "Live", dc: BRAND, db: "#EEF2FF" },
-    { value: "$612", label: "Tips collected", delta: "+8.1%", dc: "#16A34A", db: "#DCFCE7" },
-    { value: "42 min", label: "Avg. turn time", delta: "-15%", dc: "#16A34A", db: "#DCFCE7" },
+    { value: "—", label: "Tips collected", delta: "Not tracked", dc: "#94A3B8", db: "#F1F5F9" },
+    { value: "—", label: "Avg. turn time", delta: "Not tracked", dc: "#94A3B8", db: "#F1F5F9" },
   ];
 
   return (
@@ -63,7 +82,7 @@ export default function DashboardPage() {
                 boxShadow: "0 0 0 3px rgba(22,163,74,0.18)",
               }}
             />
-            Live · Friday, June 24 · 8:42 PM
+            Live · {now || "…"}
           </div>
         </div>
         <div style={{ display: "flex", gap: 10 }}>

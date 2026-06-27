@@ -1,17 +1,28 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { BRAND } from "../../lib/data";
 
 const PHONE = "+966566201233";
 
-export function SalesDropdown({ onClose }: { onClose: () => void }) {
+export function SalesDropdown({
+  onClose,
+  anchorRef,
+}: {
+  onClose: () => void;
+  // Outside-click boundary that INCLUDES the trigger button, so clicking the
+  // trigger to close doesn't fire onClose (which would race with the trigger's
+  // own toggle and leave the dropdown stuck open).
+  anchorRef?: RefObject<HTMLElement>;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      const boundary = anchorRef?.current ?? ref.current;
+      if (boundary && !boundary.contains(e.target as Node)) onClose();
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -22,7 +33,7 @@ export function SalesDropdown({ onClose }: { onClose: () => void }) {
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose]);
+  }, [onClose, anchorRef]);
 
   const copy = async () => {
     try {

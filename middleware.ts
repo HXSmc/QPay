@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { AUTH_COOKIE } from "@/app/lib/auth";
+import { AUTH_COOKIE, verifySessionToken } from "@/app/lib/auth";
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isLogin = pathname === "/admin/login";
-  const authed = req.cookies.get(AUTH_COOKIE)?.value === "1";
+  const authed = await verifySessionToken(req.cookies.get(AUTH_COOKIE)?.value);
 
   if (!authed && !isLogin) {
     const url = req.nextUrl.clone();

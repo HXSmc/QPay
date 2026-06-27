@@ -13,7 +13,9 @@ import type {
 
 function orderAmount(items: OrderItem[]): string {
   if (!items.length) return "—";
-  return fmt(items.reduce((a, it) => a + it.price, 0));
+  // Show the actual bill (subtotal + tax) so the admin "amount" matches what
+  // `paid` and the customer's total are measured against.
+  return fmt(billDue(items));
 }
 
 const zeros = (n: number): number[] => Array.from({ length: n }, () => 0);
@@ -324,13 +326,16 @@ export async function setTableItems(
     if (!t) return { result: null, write: false };
     t.items = items;
     t.amount = orderAmount(items);
-    // Editing the order resets per-item payment locks and any live holds.
+    // Editing the order resets per-item payment locks and any live holds — and
+    // the carried `paid` principal, which referred to the OLD order. Leaving it
+    // would credit stale dollars against the new bill (wrong remaining, no unit
+    // locked).
     t.paidQty = zeros(items.length);
     t.reservations = [];
+    t.paid = 0;
     if (items.length === 0) {
       t.status = "open";
-      t.paid = 0;
-    } else if (t.status === "open") {
+    } else {
       t.status = "unpaid";
     }
     return { result: t, write: true };
@@ -370,7 +375,7 @@ export async function syncReservation(
 export async function payTable(
   num: string,
   amount: number,
-  opts?: { id?: string; items?: number[] },
+  opts?: { id?: string; items?: number[]; method?: string },
 ): Promise<LiveTable | null> {
   return mutate((s) => {
     const t = s.tables.find((x) => x.num === num);
@@ -413,6 +418,19 @@ export async function payTable(
     t.reservations = pruneReservations(t.reservations).filter(
       (r) => r.id !== opts?.id,
     );
+
+    // Record the payment in the live ledger (powers the dashboard + CSV export).
+    if (applied > 0) {
+      s.transactions.unshift({
+        time: new Date().toLocaleTimeString("en-US", {
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+        table: num,
+        amount: fmt(applied),
+        method: opts?.method || "Card",
+      });
+    }
 
     if (t.paid + 0.01 >= due) t.status = "cleared";
     else if (t.paid > 0) t.status = "partial";

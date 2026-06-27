@@ -8,17 +8,11 @@ import {
   syncReservation,
 } from "@/app/lib/store";
 import type { OrderItem, TableStatus } from "@/app/lib/types";
-import { AUTH_COOKIE } from "@/app/lib/auth";
+import { isAdminRequest } from "@/app/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 const VALID: TableStatus[] = ["unpaid", "partial", "cleared", "open"];
-
-/** Admin actions (edit order, set status, delete) require the admin cookie. */
-function isAdmin(req: Request): boolean {
-  const cookie = req.headers.get("cookie") ?? "";
-  return cookie.split(/;\s*/).includes(`${AUTH_COOKIE}=1`);
-}
 
 // Unit counts (item holds / paid quantities) must be non-negative integers.
 const MAX_ITEMS = 100;
@@ -65,6 +59,7 @@ export async function PATCH(
     pay?: unknown;
     id?: unknown;
     payItems?: unknown;
+    method?: unknown;
     sync?: { id?: unknown; qty?: unknown };
   };
 
@@ -91,9 +86,12 @@ export async function PATCH(
     if (body.payItems !== undefined && !items) {
       return NextResponse.json({ error: "invalid payItems" }, { status: 400 });
     }
+    const method =
+      typeof body.method === "string" ? body.method.slice(0, 24) : undefined;
     const updated = await payTable(params.num, body.pay, {
       id,
       items: items ?? undefined,
+      method,
     });
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
@@ -102,7 +100,7 @@ export async function PATCH(
   }
 
   if (body.items !== undefined) {
-    if (!isAdmin(req)) {
+    if (!(await isAdminRequest(req))) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     const items = sanitizeItems(body.items);
@@ -117,7 +115,7 @@ export async function PATCH(
   }
 
   if (body.status) {
-    if (!isAdmin(req)) {
+    if (!(await isAdminRequest(req))) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 });
     }
     if (!VALID.includes(body.status)) {
@@ -137,7 +135,7 @@ export async function DELETE(
   req: Request,
   { params }: { params: { num: string } },
 ) {
-  if (!isAdmin(req)) {
+  if (!(await isAdminRequest(req))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const ok = await deleteTable(params.num);

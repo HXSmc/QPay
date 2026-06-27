@@ -21,6 +21,7 @@ export function OrderModal({
   const [qty, setQty] = useState(1);
   const [unit, setUnit] = useState("");
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
 
   const subtotal = items.reduce((a, it) => a + it.price, 0);
 
@@ -41,10 +42,13 @@ export function OrderModal({
 
   const save = async (next: OrderItem[]) => {
     setBusy(true);
+    setErr("");
     try {
       const updated = await setTableItems(table.num, next);
       onSaved(updated);
       onClose();
+    } catch {
+      setErr("Couldn't save the order. Please retry.");
     } finally {
       setBusy(false);
     }
@@ -286,6 +290,18 @@ export function OrderModal({
         </div>
 
         {/* footer */}
+        {err && (
+          <div
+            style={{
+              padding: "10px 20px 0",
+              color: "#DC2626",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            {err}
+          </div>
+        )}
         <div
           style={{
             display: "flex",

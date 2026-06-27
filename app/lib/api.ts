@@ -35,13 +35,18 @@ export async function setTableStatus(
 export async function payTable(
   num: string,
   amount: number,
-  opts?: { id?: string; items?: number[] },
+  opts?: { id?: string; items?: number[]; method?: string },
 ): Promise<LiveTable> {
   return json(
     await fetch(`/api/tables/${num}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pay: amount, id: opts?.id, payItems: opts?.items }),
+      body: JSON.stringify({
+        pay: amount,
+        id: opts?.id,
+        payItems: opts?.items,
+        method: opts?.method,
+      }),
     }),
   );
 }

@@ -79,12 +79,20 @@ export function CustomerView({
   const reqSeq = useRef(0);
   const appliedSeq = useRef(0);
 
+  // clientId is "ssr" on the server but a real id on the client. Gate the
+  // reservation-derived UI behind a post-mount flag so the first client render
+  // matches the server HTML (no hydration mismatch); after mount we use the
+  // real id so this phone's own hold is excluded.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const ownId = mounted ? clientId : "ssr";
+
   const hasOrder = items.length > 0;
 
   // --- live availability (units held by OTHER phones / already paid) ---
   const reservedByOthers = items.map((_, i) =>
     reservations
-      .filter((r) => r.id !== clientId)
+      .filter((r) => r.id !== ownId)
       .reduce((a, r) => a + (r.qty?.[i] ?? 0), 0),
   );
   const available = items.map((_, i) =>
@@ -198,7 +206,7 @@ export function CustomerView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table]);
 
-  const handlePay = async () => {
+  const handlePay = async (method: string = "Card") => {
     if (payDisabled) return;
     setPaying(true);
     const seq = ++reqSeq.current;
@@ -211,6 +219,7 @@ export function CustomerView({
       const next = await payTable(tableNumber, principal, {
         id: clientId,
         items: split === "item" ? selectedQty : undefined,
+        method,
       });
       // The payment is authoritative — it must win over any in-flight poll.
       appliedSeq.current = seq;
@@ -235,7 +244,7 @@ export function CustomerView({
     }
   };
 
-  const otherGuests = reservations.filter((r) => r.id !== clientId).length;
+  const otherGuests = reservations.filter((r) => r.id !== ownId).length;
   const equalNote = `${fmt(perPerson)} per person × ${clampedPaying}`;
   const itemNote =
     selectedUnits === 0
@@ -593,6 +602,58 @@ export function CustomerView({
                     </>
                   )}
                 </div>
+
+                {/* Payment result — shown in both partial and fully-paid states
+                    so the payer who clears the bill still sees their receipt. */}
+                {result && (
+                  <div
+                    style={{
+                      marginTop: 24,
+                      padding: "16px 18px",
+                      borderRadius: 16,
+                      border:
+                        "1px solid " + (result.cleared ? "#86EFAC" : "#FCD34D"),
+                      background: result.cleared ? "#F0FDF4" : "#FFFBEB",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 9,
+                        fontSize: 15,
+                        fontWeight: 800,
+                        color: result.cleared ? "#16A34A" : "#B45309",
+                      }}
+                    >
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.6"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 6 9 17l-4-4" />
+                      </svg>
+                      Paid {fmt(result.paid)}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 13.5,
+                        fontWeight: 600,
+                        color: "#475569",
+                        marginTop: 6,
+                      }}
+                    >
+                      {result.cleared
+                        ? "Bill fully paid — thanks!"
+                        : `Payment received · ${fmt(result.remaining)} remaining`}
+                    </div>
+                  </div>
+                )}
 
                 {fullyPaid ? (
                   <div
@@ -1052,61 +1113,10 @@ export function CustomerView({
                       </div>
                     )}
 
-                    {/* Payment result */}
-                    {result && (
-                      <div
-                        style={{
-                          marginTop: 24,
-                          padding: "16px 18px",
-                          borderRadius: 16,
-                          border:
-                            "1px solid " + (result.cleared ? "#86EFAC" : "#FCD34D"),
-                          background: result.cleared ? "#F0FDF4" : "#FFFBEB",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 9,
-                            fontSize: 15,
-                            fontWeight: 800,
-                            color: result.cleared ? "#16A34A" : "#B45309",
-                          }}
-                        >
-                          <svg
-                            width="18"
-                            height="18"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <path d="M20 6 9 17l-4-4" />
-                          </svg>
-                          Paid {fmt(result.paid)}
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 13.5,
-                            fontWeight: 600,
-                            color: "#475569",
-                            marginTop: 6,
-                          }}
-                        >
-                          {result.cleared
-                            ? "Bill fully paid — thanks!"
-                            : `Payment received · ${fmt(result.remaining)} remaining`}
-                        </div>
-                      </div>
-                    )}
-
                     {/* Apple / Google pay */}
                     <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
                       <button
-                        onClick={handlePay}
+                        onClick={() => handlePay("Apple Pay")}
                         disabled={payDisabled}
                         style={{
                           flex: 1,
@@ -1132,7 +1142,7 @@ export function CustomerView({
                         Pay
                       </button>
                       <button
-                        onClick={handlePay}
+                        onClick={() => handlePay("Google Pay")}
                         disabled={payDisabled}
                         style={{
                           flex: 1,
@@ -1175,7 +1185,7 @@ export function CustomerView({
                     </div>
 
                     <button
-                      onClick={handlePay}
+                      onClick={() => handlePay("Card")}
                       disabled={payDisabled}
                       className="qp-cta-lift"
                       style={{
