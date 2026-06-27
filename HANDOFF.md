@@ -1,85 +1,80 @@
 # QPay — Context Handoff
 
-> Handoff for a new agent taking over. Captures current architecture, everything built across recent sessions, how the multi‑phone sync works, known weak spots, and the next task.
+> Handoff for the next agent. Captures architecture, everything built/fixed across recent sessions, how multi‑phone sync works, the prod backend, the testing setup, and what's left.
 
 ## What it is
-B2B2C QR restaurant‑payment prototype (qlub‑like). **Next.js 14 App Router + TypeScript**. All styling is **inline** (no Tailwind); responsive behaviour added via `.qp-*` classes + one `@media` block in `app/globals.css` (inline styles can't express `:hover`/`@media`, so those classes override inline with `!important`). Plus Jakarta Sans via `next/font`, icons = inline SVG. Brand blue `#2E5BFF`.
+B2B2C QR restaurant‑payment prototype (qlub‑like). **Next.js 14 App Router + TypeScript**. All styling is **inline** (no Tailwind); responsive behaviour via `.qp-*` classes + one `@media` block in `app/globals.css`. Jakarta Sans via `next/font`; icons = inline SVG. Brand blue `#2E5BFF`.
 
 ## Run / build / deploy
 - Project root: `/Users/alimc/Desktop/web apps/Qlub`
 - `npm install` → `npm run dev` → http://localhost:3000
-- `npm run build` passes (typecheck + lint clean). 14 routes + middleware.
+- `npm run build` passes (typecheck + lint clean). 14 routes + async middleware.
 - Demo admin login: `admin@qpay.com` / `demo1234`
-- Git remote: `github.com/HXSmc/Qlub` (origin). Deployed on **Vercel**. **Latest local changes are NOT yet committed/pushed** — confirm with the user before pushing (branch off `main`).
-- Pre-existing `npm audit` criticals are from Next.js 14.2.5 + postcss (not app code). Don't `audit fix --force` (bumps Next out of range) without asking.
+- **Deploy target: Vercel, project `qpay-cyan` → https://qpay-cyan.vercel.app**, connected to GitHub repo **`github.com/HXSmc/QPay`**.
+- **Git remotes:** `origin` = `github.com/HXSmc/Qlub.git` (older mirror), `qpay` = `github.com/HXSmc/QPay.git` (the deploy repo). **Push to `qpay` to trigger a Vercel redeploy:** `git push qpay HEAD:main`. Both repos were in sync; recent fixes were pushed to `qpay` only.
+- Recent commits on `main`: `d3e9b75` (harden payment sync + first fixes), `18c617c` (13-bug audit fixes). Verified live.
 
-## Data store — three backends, auto-selected
-`app/lib/store.ts` reads/writes the **whole `Store` object as one blob**. Backend precedence (by env): **Supabase → Vercel KV → local disk** (`data/store.json`).
-- **Supabase** (the live cross-device store): set `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`. Requires a table:
-  ```sql
-  create table if not exists store (key text primary key, value jsonb not null);
-  ```
-  Stored under key `qpay:store`. Service-role key bypasses RLS; keep it server-only.
-- **Vercel KV**: `KV_REST_API_URL` + `KV_REST_API_TOKEN` (fallback, dynamic import).
-- **Disk**: default locally; `data/` is gitignored and reseeds when deleted.
-- `NEXT_PUBLIC_APP_URL` must be the prod domain so QR codes encode the public host (baked at build → redeploy after changing). See `.env.example`.
-- `normalize()` backfills new fields on old rows, so existing stores don't crash. **Statuses only change via `seed()`** — to reset to defaults, delete the `store` row (Supabase) or `data/store.json` (disk); it reseeds (all tables Open except **T12** which carries a 5‑item demo order, Unpaid).
+## Production backend — Supabase (LIVE, working)
+The whole `Store` object is one jsonb blob under key `qpay:store` in a Supabase table:
+```sql
+create table if not exists store (key text primary key, value jsonb not null);
+```
+- Backend precedence (`app/lib/store.ts`): **Supabase → Vercel KV → disk**.
+- **Vercel env vars (already set, do NOT echo their values):** `SUPABASE_URL` (must be the BARE project URL `https://<ref>.supabase.co`, NOT the `…/rest/v1/` REST endpoint — that suffix breaks `createClient`; the code now strips it defensively), `SUPABASE_SERVICE_ROLE_KEY` (service‑role, server‑only).
+- Supabase project ref: `rvcjvoqjrzjwdxsuckvh`. The service‑role key the user shared is held outside this repo — ask the user if you need it; never commit it.
+- **Reset prod store to clean demo:** delete the `qpay:store` row (Supabase REST `DELETE /rest/v1/store?key=eq.qpay:store` with the service key, or SQL editor); the app reseeds on next read (all tables Open except **T12** = 5‑item demo order, Unpaid).
+- Disk mode is local‑dev only (Vercel's FS is read‑only); KV is an untested fallback.
+- **Menu file uploads** still need Vercel **Blob** (`BLOB_READ_WRITE_TOKEN`) to persist on serverless; table/order/menu‑metadata are covered by Supabase, uploaded menu *files* are not.
 
 ## Data model — `app/lib/types.ts`
-- `LiveTable { num, status, amount, items: OrderItem[], paid: number, paidQty: number[], reservations: Reservation[] }`
+- `LiveTable { num, status, amount, items: OrderItem[], paid, paidQty: number[], reservations: Reservation[] }`
   - `paid` = cumulative **principal** paid (subtotal+tax; **tip is cosmetic/per‑payer, untracked**).
-  - `paidQty[]` = units **paid** per item (index‑aligned to `items`) — these lock permanently.
-  - `reservations[]` = live holds.
-- `Reservation { id: string; qty: number[]; ts: number }` — `id` = per‑phone client id, `qty` index‑aligned, `ts` = last heartbeat (ms). Pruned after `RESV_TTL_MS` (8000ms).
-- `OrderItem { name, qty, price }` (`price` = line total for the qty).
-- `TableStatus = "unpaid" | "partial" | "cleared" | "open"`.
-- `billDue(items)` in `app/lib/data.ts` = `subtotal * 1.08` (the principal owed).
+  - `paidQty[]` = units **paid** per item (index‑aligned), lock permanently.
+  - `reservations[]` = live holds. `Reservation { id, qty[], ts }`, pruned after `RESV_TTL_MS` (8000ms).
+- `amount` (display string) = `billDue(items)` = subtotal × 1.08 (now **includes tax** — was subtotal-only before).
+- `Store` also carries a `version` (optimistic‑concurrency counter).
 
-## Store functions (`app/lib/store.ts`)
-`listTables / createTable / getTable / setTableItems / setTableStatus / deleteTable / listTransactions / getMenu / setMenu / clearMenu` plus:
-- `syncReservation(num, id, qty[])` — prune stale, upsert this phone's hold (dropped if all‑zero), return table. Advisory only.
-- `payTable(num, amount, { id?, items? })` — clamps `amount` to `remaining = due - paid` (**no overpay**), `paid += applied`; if `items` given, `paidQty[i] += items[i]` capped at `qty` (**locks units**); removes caller's reservation; sets `cleared` (paid ≥ due) / `partial`. 
-- `setTableItems(num, [])` resets `paid=0`, `paidQty=[]`, status `open` (this is the admin "Clear table" path). Any item edit resets `paidQty`/`reservations`.
+## Store + concurrency (`app/lib/store.ts`)
+- Mutations go through `mutate()`: an **in‑process async lock** (serializes within one Node instance) + **optimistic‑concurrency CAS** on Supabase (`commit()` does a conditional UPDATE matching the read `version`; on a real version advance it retries; fail‑safe degrades to an unconditional write so a payment is never hard‑blocked).
+- Supabase read/write errors now **throw** (no more silent re‑seed that wiped live data / hid misconfig).
+- `payTable(num, amount, { id?, items?, method? })` clamps to remaining (no overpay), locks only the item units the **applied** money covers, drops the caller's hold, **and records a `Transaction`** in the ledger.
+- `setTableItems(num, items)` resets `paid=0`, `paidQty=[]`, reservations on every order replacement.
+- `syncReservation` clamps each hold to the item's ordered qty.
 
 ## API — `app/api/tables/[num]/route.ts` (PATCH branches, in order)
-- `{ sync: { id, qty } }` → `syncReservation` (heartbeat).
-- `{ pay, id?, payItems? }` → `payTable` (validates number arrays via `numArray`).
-- `{ items }` → `setTableItems`. `{ status }` → `setTableStatus`. `DELETE` → `deleteTable`. `GET` single table.
-Client wrappers in `app/lib/api.ts`: `syncTable(num,id,qty)`, `payTable(num,amount,{id,items})`, `setTableItems`, `deleteTable`, etc. All `cache: no-store`.
+- `{ sync: { id, qty } }` → heartbeat (public). `{ pay, id?, payItems?, method? }` → pay (public).
+- `{ items }` / `{ status }` → admin‑only (require session). `DELETE` → admin‑only. `GET` single table = public.
+- `app/api/tables/route.ts`: `GET` list + `POST` create are **admin‑only**.
+- `app/api/transactions` GET, `app/api/menu` POST/DELETE = **admin‑only**; menu upload capped at 8MB.
+- Auth is checked via `isAdminRequest(req)` from `app/lib/auth.ts`. Client wrappers in `app/lib/api.ts` (all `cache:no-store`).
 
-## How multi-phone sync works (the key flow)
-`app/components/CustomerView.tsx` is **server-state driven**:
-- Per‑phone `clientId` in `sessionStorage`.
-- **3s poll** calls `syncTable()` (also fires immediately on selection/mode change): heartbeats this phone's item selection as a reservation AND reads back the merged table → `setTable(resp)`. This replaced the old `router.refresh()` poll and also surfaces admin order edits.
-- Derived: `reservedByOthers[i]` (sum of other clients' `qty[i]`), `available[i] = qty − paidQty − reservedByOthers`, `remaining = due − paid`.
-- Pay amounts are **remaining‑based**: full → remaining; equal → `min(due/people × payingFor, remaining)`; item → selected subtotal + proportional tax. Tip added cosmetically on top. All three buttons (Apple/Google/Pay Now) call `handlePay`, which sends `{ id, items }`.
-- UI: per‑item **Paid**/**Held** badges, shared "Paid so far / Remaining" in totals, fully‑paid state. `app/customer/page.tsx` passes the full server snapshot as `initialTable`.
+## Auth (`app/lib/auth.ts`, `middleware.ts`)
+- Mock creds, but the session cookie is now an **HMAC‑signed, expiring token** (`exp.signature`), verified via Web Crypto (`crypto.subtle`, edge‑safe) with a constant‑time compare — not the old forgeable `qpay_admin=1`.
+- Signing key = `process.env.SESSION_SECRET` with a dev fallback constant. **TODO: set `SESSION_SECRET` in Vercel** so the key isn't the in‑source fallback (works without it, but the fallback is public).
+- `middleware.ts` is `async` and guards `/admin/:path*` (page routes); API routes self‑guard with `isAdminRequest`.
 
-## Features done (verified)
-- **Admin** (`app/admin/(dash)/...` under `Sidebar` shell): dashboard metrics + live tables + recent transactions; **Tables** page with per‑table QR (`QrModal`), Add order / `OrderModal`, **Delete** (red, confirm), **Clear table** (green, shows only when fully paid — status is payment‑driven, the old manual status‑cycle button was removed), and "Paid X of Y" on partial cards; Menu upload; Analytics; Settings; Export CSV; cookie auth via `middleware.ts`.
-- **Customer**: per‑table order via `?table=N`, split (full / equal / per‑item), tip (0/10/15/20/custom), empty state, **mock payments** (all three buttons), success card, and the collaborative multi‑phone split above.
-- **Partial pay**: paying part → `partial`; paying the rest / full → `cleared`; admin then "Clear table" → `open`.
-- **Mobile**: viewport meta in `app/layout.tsx`; `@media (max-width:768px)` block in `globals.css` with `.qp-page`, `.qp-grid-4/2`, `.qp-hero-grid`, `.qp-section`, `.qp-hide-mobile`, `.qp-scroll-x`, `.qp-sidebar`/`.qp-admin-shell` (sidebar → horizontal top bar). Applied across MarketingView, all admin pages, modals.
-- **Default tables**: all seed Open except T12 demo order.
+## Multi‑phone sync (`app/components/CustomerView.tsx`)
+- Per‑phone `clientId` in `sessionStorage`. **3s poll** calls `syncTable()` → heartbeats this phone's item selection AND reads back the merged table.
+- Request‑sequence guard (`reqSeq`/`appliedSeq`) so a slow poll can't clobber post‑payment state; a payment is authoritative.
+- Reservation‑derived UI gated behind a post‑mount `mounted` flag (no clientId hydration mismatch).
+- Pay buttons send a `method` (Apple Pay / Google Pay / Card). Receipt shows the **actually‑applied** amount and renders in both partial and fully‑paid states.
 
-Verification used: `npm run build` + curl sequences against the API (reserve from two ids, item pay locks the unit, full pay clamps to remaining → cleared, overpay clamped, admin clear resets). UI not visually regression-tested headless; live cross-device behaviour needs a deploy with Supabase env set.
+## Testing setup (important — environment quirks)
+- **Chrome DevTools MCP** (`chrome-devtools` server) was failing: the system node `/usr/local/bin/node` is v20.2.0 but the package needs ≥20.19. Fixed by installing newer node via micromamba and repointing the MCP config in `~/.claude.json` (`command` → `/Users/alimc/micromamba/envs/nodejs/bin/npx`). `claude mcp list` shows `✔ Connected`, **but a running Claude Code session caches the startup MCP config — the tools only load in a FRESH session.** Restart Claude Code to get `mcp__chrome-devtools__*`.
+- **Puppeteer fallback (what actually worked):** drive a browser directly. The Puppeteer‑downloaded Chrome‑for‑Testing binary is a *malformed Mach‑O* on this macOS, and the conda‑forge nodes fail to spawn it (errno ‑88). Run Puppeteer with **system node** (`/usr/local/bin/node`) and **system Chrome** via `executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`, `headless:true`. Use `waitUntil:"domcontentloaded"` (the 3s poll never lets `networkidle2` settle). Note inline‑style text is uppercased by CSS, so match `innerText` case‑insensitively.
+- Reusable test scripts live in the session scratchpad: `twophone.mjs` (two isolated browser contexts = two phones, full split‑pay flow + screenshots), `ui-smoke.mjs` (sales dropdown, cleared receipt, hydration). Adapt as needed.
+- API/concurrency are easiest to verify with curl (simulate phones via distinct `id`s; fire concurrent pays with `&`).
 
-## Key files
-- `app/lib/{types,data,store,api,url,auth,csv}.ts`
-- `app/api/tables/route.ts`, `app/api/tables/[num]/route.ts`, `app/api/{transactions,menu,auth}/...`
-- `app/components/CustomerView.tsx`, `app/components/MarketingView.tsx`, `app/components/admin/{Sidebar,QrModal,OrderModal}.tsx`, `app/components/site/{BrandHeader,DemoModal,SalesDropdown,MenuModal}.tsx`
-- `app/admin/(dash)/{layout,page,tables,transactions,menu,analytics,settings}`, `app/customer/page.tsx`, `app/layout.tsx`, `app/globals.css`, `middleware.ts`
+## Bug report
+`bugs.md` (repo root, **gitignored — keep it that way**) holds the full audit: 15 confirmed findings (dupes merged → 13 fixed) plus the rejected list. Regenerate/append if you run another hunt.
 
-## Known limitations / likely "irregular behaviour" to investigate
-1. **Concurrency (the main open issue): single jsonb blob with read‑modify‑write = last‑write‑wins.** Two phones heart‑beating/paying at the same instant can clobber each other → reservations flicker, and a simultaneous payment can be *lost* (no double‑charge thanks to clamping, but the payer must retry). This is the "syncing while paying" weakness the user wants hardened. Options: a Supabase Postgres RPC that updates the jsonb atomically (row lock), an optimistic‑concurrency `version` column with retry, or move to **per‑table rows** instead of one blob.
-2. **Heartbeat write amplification**: every open phone writes every 3s. Fine for demo; costly at scale. Consider Supabase Realtime/Postgres changes or websockets/SSE instead of polling.
-3. **Equal split** uses a **local** `peopleAtTable`/`payingFor` per phone (not shared) — only the remaining cap is shared. Two phones can disagree on headcount.
-4. **Mixed split modes**: equal/full payments add to `paid` but don't lock specific `paidQty`, so item‑payers may still see unlocked items even as `remaining` shrinks (guarded by remaining/clamping, but worth UX review).
-5. **Menu file uploads** still need Vercel **Blob** (`BLOB_READ_WRITE_TOKEN`) to persist on serverless; table/order data is covered by Supabase but uploaded menu *files* are not.
-6. **Hydration**: `clientId` initializer returns `"ssr"` server‑side then a real id client‑side — not rendered to DOM so no mismatch, but verify if you touch that code.
-7. **QR host**: if `NEXT_PUBLIC_APP_URL` is unset/wrong at build, QR encodes localhost and phones can't load. Set it and redeploy.
+## What's done (verified live)
+- Split‑pay across phones works end‑to‑end (cross‑phone holds, item locks, concurrent‑pay no lost updates via CAS) — confirmed with two real browsers + curl.
+- All 13 audit bugs fixed and verified on prod (auth forgery → 401, login works, payments logged to ledger, tax in amount, cleared receipt, sales dropdown, etc.).
 
-## Next / open (the task in flight when this was written)
-- **Harden the multi‑phone payment sync** so concurrent pays/selections from 2+ phones never lose updates or flicker (see limitation #1 — recommend per‑table rows or an atomic Supabase RPC, and consider replacing 3s polling with realtime).
-- **Sweep for bugs / irregular behaviour** across the app (admin + customer + mobile), especially around concurrent payment, equal‑split headcount sharing, and item‑lock edge cases.
-- After changes: `npm run build`, then a real two‑device (or two‑browser, two `clientId`) test against Supabase. Then offer to commit + push (branch off `main`) so Vercel redeploys.
+## Next / open
+1. **Set `SESSION_SECRET` in Vercel** (auth signing key; currently a public fallback).
+2. **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`) for persistent menu‑file uploads on serverless.
+3. **Deferred design items (not bugs):** equal‑split headcount (`peopleAtTable`/`payingFor`) is per‑phone, not shared across phones (no overpay; remaining is clamped); equal/full pays bump `paid` but don't lock specific `paidQty` (guarded by the remaining clamp). Decide whether to share headcount via server state and/or forbid mixing split modes on one table.
+4. Optional hardening surfaced but deprioritized: CSV formula‑injection escaping on export; DemoModal a11y (Escape/scroll‑lock/focus‑trap); constant‑time login compare.
+5. After changes: `npm run build`, push to `qpay`, wait for redeploy, re‑run the two‑phone + curl checks. Reset the Supabase store to clean demo when done.
