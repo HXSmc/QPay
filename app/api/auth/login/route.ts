@@ -45,14 +45,14 @@ export async function POST(req: Request) {
   }
 
   // Trial lapsed: correct password, but the account has expired. Don't mint a
-  // session (authedUser would reject it anyway). Clear the fail counter first so
-  // a valid-but-expired login isn't also counted toward lockout.
+  // session (authedUser would reject it anyway). Return the SAME generic 401 as a
+  // bad password so the response can't be used as an oracle to learn an account's
+  // expiry status. (Expiry is communicated out-of-band via the trial email; the
+  // superadmin sees/renews it.) Clear the fail counter so a valid-but-expired
+  // login isn't counted toward lockout.
   if (user.expiresAt && new Date(user.expiresAt).getTime() <= Date.now()) {
     await clearLoginFailures(key);
-    return NextResponse.json(
-      { error: "your trial has expired — contact sales to renew" },
-      { status: 403 },
-    );
+    return NextResponse.json({ error: "invalid credentials" }, { status: 401 });
   }
 
   await clearLoginFailures(key);

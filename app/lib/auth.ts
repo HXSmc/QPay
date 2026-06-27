@@ -13,10 +13,26 @@ import type { Role } from "./types";
 export const AUTH_COOKIE = "qpay_admin";
 
 const TTL_MS = 8 * 60 * 60 * 1000; // 8h, matches the cookie maxAge
-const DEV_FALLBACK_SECRET = "qpay-dev-secret-change-me";
-// The HMAC signing key. In production it MUST come from the environment — a
-// source-committed fallback would let anyone forge a (super-admin) session.
-const SECRET = process.env.SESSION_SECRET || DEV_FALLBACK_SECRET;
+
+// The HMAC signing key. In production it MUST come from the environment (fail
+// closed). In dev/test, instead of a source-committed CONSTANT (which anyone
+// reading the repo could use to forge an admin session), generate a random
+// secret per process: dev sessions stay valid within a run but can't be forged
+// from a known value, and they reset on restart.
+let _devSecret: string | undefined;
+function signingSecret(): string {
+  const env = process.env.SESSION_SECRET;
+  if (env) return env;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "SESSION_SECRET must be set in production (refusing to sign sessions without a configured key)",
+    );
+  }
+  if (!_devSecret) {
+    _devSecret = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  }
+  return _devSecret;
+}
 
 // PBKDF2 work factor. 210k SHA-256 iterations ~ OWASP 2023 guidance; high
 // enough to slow offline cracking, cheap enough for a serverless login.
@@ -97,20 +113,11 @@ export async function verifyPassword(
 // ---------------------------------------------------------------------------
 
 async function sign(data: string): Promise<string> {
-  // Fail closed: never sign or verify with the public dev fallback in prod.
-  // Checked lazily (at request time, not module load) so the build doesn't trip
-  // it before the env is wired up.
-  if (
-    process.env.NODE_ENV === "production" &&
-    SECRET === DEV_FALLBACK_SECRET
-  ) {
-    throw new Error(
-      "SESSION_SECRET must be set in production (refusing to sign sessions with a public fallback key)",
-    );
-  }
+  // signingSecret() resolves the env key (fail-closed in prod) lazily at request
+  // time, so the build doesn't trip before the env is wired up.
   const key = await crypto.subtle.importKey(
     "raw",
-    enc.encode(SECRET),
+    enc.encode(signingSecret()),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
