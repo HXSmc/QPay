@@ -3,11 +3,21 @@
 import { useState } from "react";
 import { BRAND } from "../../../lib/data";
 
-function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
+function Toggle({
+  on,
+  onClick,
+  label,
+}: {
+  on: boolean;
+  onClick: () => void;
+  label: string;
+}) {
   return (
     <button
       onClick={onClick}
-      aria-pressed={on}
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
       style={{
         width: 46,
         height: 26,
@@ -82,16 +92,16 @@ export default function SettingsPage() {
         <div style={row}>
           <div>
             <div style={{ fontSize: 14.5, fontWeight: 700 }}>Automatic receipts</div>
-            <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 500 }}>Email/SMS receipt after each payment</div>
+            <div style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>Email/SMS receipt after each payment</div>
           </div>
-          <Toggle on={autoReceipts} onClick={() => setAutoReceipts((v) => !v)} />
+          <Toggle on={autoReceipts} onClick={() => setAutoReceipts((v) => !v)} label="Automatic receipts" />
         </div>
         <div style={row}>
           <div>
             <div style={{ fontSize: 14.5, fontWeight: 700 }}>Tip prompts</div>
-            <div style={{ fontSize: 13, color: "#94A3B8", fontWeight: 500 }}>Show tip suggestions at checkout</div>
+            <div style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>Show tip suggestions at checkout</div>
           </div>
-          <Toggle on={tipPrompts} onClick={() => setTipPrompts((v) => !v)} />
+          <Toggle on={tipPrompts} onClick={() => setTipPrompts((v) => !v)} label="Tip prompts" />
         </div>
 
         <button

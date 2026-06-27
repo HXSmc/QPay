@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BRAND } from "../../lib/data";
 
 export function DemoModal({
@@ -14,8 +14,7 @@ export function DemoModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [restaurant, setRestaurant] = useState("");
-
-  if (!open) return null;
+  const firstInputRef = useRef<HTMLInputElement>(null);
 
   const close = () => {
     setSent(false);
@@ -24,6 +23,22 @@ export function DemoModal({
     setRestaurant("");
     onClose();
   };
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    if (open && !sent) firstInputRef.current?.focus();
+  }, [open, sent]);
+
+  if (!open) return null;
 
   const field = {
     width: "100%",
@@ -52,6 +67,9 @@ export function DemoModal({
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="demo-title"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "100%",
@@ -137,7 +155,7 @@ export function DemoModal({
               }}
             >
               <div>
-                <h3 style={{ fontSize: 21, fontWeight: 800, margin: 0 }}>
+                <h3 id="demo-title" style={{ fontSize: 21, fontWeight: 800, margin: 0 }}>
                   Get a free demo
                 </h3>
                 <p
@@ -173,6 +191,8 @@ export function DemoModal({
             <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
               <input
                 required
+                ref={firstInputRef}
+                aria-label="Your name"
                 placeholder="Your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -181,6 +201,7 @@ export function DemoModal({
               <input
                 required
                 type="email"
+                aria-label="Work email"
                 placeholder="Work email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -188,6 +209,7 @@ export function DemoModal({
               />
               <input
                 required
+                aria-label="Restaurant name"
                 placeholder="Restaurant name"
                 value={restaurant}
                 onChange={(e) => setRestaurant(e.target.value)}

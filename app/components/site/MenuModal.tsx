@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getMenu } from "../../lib/api";
 import type { MenuMeta } from "../../lib/types";
 
@@ -15,6 +15,7 @@ export function MenuModal({
 }) {
   const [meta, setMeta] = useState<MenuMeta | null>(null);
   const [loading, setLoading] = useState(true);
+  const closeBtnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -24,6 +25,16 @@ export function MenuModal({
       .catch(() => setMeta(null))
       .finally(() => setLoading(false));
   }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    closeBtnRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -46,6 +57,9 @@ export function MenuModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="menu-modal-title"
         style={{
           width: "100%",
           maxWidth: 560,
@@ -67,8 +81,9 @@ export function MenuModal({
             borderBottom: "1px solid #E2E8F0",
           }}
         >
-          <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>Menu</h3>
+          <h3 id="menu-modal-title" style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>Menu</h3>
           <button
+            ref={closeBtnRef}
             onClick={onClose}
             aria-label="Close"
             style={{
@@ -99,11 +114,11 @@ export function MenuModal({
           }}
         >
           {loading ? (
-            <span style={{ color: "#94A3B8", fontSize: 14, fontWeight: 600 }}>
+            <span style={{ color: "#64748B", fontSize: 14, fontWeight: 600 }}>
               Loading…
             </span>
           ) : !src ? (
-            <div style={{ textAlign: "center", padding: 40, color: "#94A3B8" }}>
+            <div style={{ textAlign: "center", padding: 40, color: "#64748B" }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: "#475569" }}>
                 No menu uploaded yet
               </div>

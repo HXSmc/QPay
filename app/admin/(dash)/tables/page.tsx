@@ -200,7 +200,7 @@ export default function TablesPage() {
                     fontSize: 12.5,
                     fontWeight: 700,
                     cursor: "pointer",
-                    background: "#16A34A",
+                    background: "#15803D",
                     color: "#fff",
                     border: "none",
                   }}

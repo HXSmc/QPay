@@ -90,7 +90,7 @@ export function SalesDropdown({
         </div>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700 }}>Call our sales team</div>
-          <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 500 }}>
+          <div style={{ fontSize: 12, color: "#475569", fontWeight: 500 }}>
             Sun–Thu · 9am–6pm
           </div>
         </div>

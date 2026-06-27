@@ -117,3 +117,18 @@ body {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* Accessibility: visible keyboard focus indicator (WCAG 2.4.7).
+   Inline styles set `outline:none` on inputs/buttons; restore a clear focus
+   ring for keyboard users only (focus-visible) with !important to beat them. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #2E5BFF !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}

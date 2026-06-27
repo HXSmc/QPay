@@ -33,8 +33,8 @@ export const STATUS_PALETTE: Record<
   { c: string; bg: string; label: string }
 > = {
   unpaid: { c: "#DC2626", bg: "#FEF2F2", label: "Unpaid" },
-  partial: { c: "#F59E0B", bg: "#FFFBEB", label: "Partial" },
-  cleared: { c: "#16A34A", bg: "#F0FDF4", label: "Cleared" },
+  partial: { c: "#B45309", bg: "#FFFBEB", label: "Partial" },
+  cleared: { c: "#15803D", bg: "#F0FDF4", label: "Cleared" },
   open: { c: "#94A3B8", bg: "#F8FAFC", label: "Open" },
 };
 

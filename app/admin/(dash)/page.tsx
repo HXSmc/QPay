@@ -46,8 +46,8 @@ export default function DashboardPage() {
   const metrics = [
     { value: fmt(revenue), label: "Revenue (recent)", delta: `${txns.length} txns`, dc: BRAND, db: "#EEF2FF" },
     { value: `${active} / ${tables.length}`, label: "Active tables", delta: "Live", dc: BRAND, db: "#EEF2FF" },
-    { value: "—", label: "Tips collected", delta: "Not tracked", dc: "#94A3B8", db: "#F1F5F9" },
-    { value: "—", label: "Avg. turn time", delta: "Not tracked", dc: "#94A3B8", db: "#F1F5F9" },
+    { value: "—", label: "Tips collected", delta: "Not tracked", dc: "#64748B", db: "#F1F5F9" },
+    { value: "—", label: "Avg. turn time", delta: "Not tracked", dc: "#64748B", db: "#F1F5F9" },
   ];
 
   return (
@@ -151,7 +151,7 @@ export default function DashboardPage() {
                   justifyContent: "center",
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="12" x2="12" y1="2" y2="22" />
                   <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                 </svg>
@@ -247,7 +247,7 @@ export default function DashboardPage() {
               padding: "12px 0 9px",
               fontSize: 11.5,
               fontWeight: 700,
-              color: "#94A3B8",
+              color: "#64748B",
               letterSpacing: "0.04em",
               borderBottom: "1px solid #F1F5F9",
             }}

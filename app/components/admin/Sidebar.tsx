@@ -152,7 +152,7 @@ export function Sidebar() {
           fontSize: 11,
           fontWeight: 700,
           letterSpacing: "0.08em",
-          color: "#475569",
+          color: "#94A3B8",
           padding: "14px 12px 8px",
         }}
       >
@@ -226,7 +226,7 @@ export function Sidebar() {
           >
             {me?.email ?? "…"}
           </div>
-          <div style={{ fontSize: 12, color: "#64748B" }}>Administrator</div>
+          <div style={{ fontSize: 12, color: "#94A3B8" }}>Administrator</div>
         </div>
         <button
           onClick={signOut}

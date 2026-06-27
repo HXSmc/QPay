@@ -183,6 +183,7 @@ export default function SuperadminPage() {
             <input
               type="email"
               required
+              aria-label="New admin email"
               placeholder="admin@restaurant.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -192,6 +193,7 @@ export default function SuperadminPage() {
               type="text"
               required
               minLength={8}
+              aria-label="New admin password"
               placeholder="Password (min 8 chars)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -223,7 +225,7 @@ export default function SuperadminPage() {
             </div>
           )}
           {notice && (
-            <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#16A34A" }}>
+            <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#15803D" }}>
               {notice}
             </div>
           )}
@@ -242,7 +244,7 @@ export default function SuperadminPage() {
             {admins.length} admin{admins.length === 1 ? "" : "s"}
           </h3>
           {admins.length === 0 ? (
-            <div style={{ fontSize: 13.5, color: "#94A3B8", fontWeight: 600, padding: "8px 0" }}>
+            <div style={{ fontSize: 13.5, color: "#64748B", fontWeight: 600, padding: "8px 0" }}>
               No admins yet. Create one above.
             </div>
           ) : (
@@ -262,7 +264,7 @@ export default function SuperadminPage() {
                   <div style={{ fontSize: 14.5, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }}>
                     {a.email}
                   </div>
-                  <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 600 }}>
+                  <div style={{ fontSize: 12, color: "#64748B", fontWeight: 600 }}>
                     Created {new Date(a.createdAt).toLocaleDateString()}
                   </div>
                 </div>

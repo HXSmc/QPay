@@ -17,6 +17,7 @@ export function QrModal({
   onClose: () => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const [url, setUrl] = useState("");
 
   useEffect(() => {
@@ -25,6 +26,15 @@ export function QrModal({
       `${getAppBaseUrl()}/customer?table=${tableNum}&t=${encodeURIComponent(token)}`,
     );
   }, [tableNum, token]);
+
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const svgString = () => {
     const svg = wrapRef.current?.querySelector("svg");
@@ -73,6 +83,9 @@ export function QrModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="qr-title"
         style={{
           width: "100%",
           maxWidth: 360,
@@ -84,8 +97,9 @@ export function QrModal({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Table {tableNum} QR</h3>
+          <h3 id="qr-title" style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Table {tableNum} QR</h3>
           <button
+            ref={closeRef}
             onClick={onClose}
             aria-label="Close"
             style={{
@@ -119,14 +133,16 @@ export function QrModal({
           }}
         >
           {url && (
-            <QRCodeSVG value={url} size={196} level="M" fgColor="#0B1221" />
+            <span role="img" aria-label={`Payment QR code for table ${tableNum}`}>
+              <QRCodeSVG value={url} size={196} level="M" fgColor="#0B1221" />
+            </span>
           )}
         </div>
 
         <div
           style={{
             fontSize: 11.5,
-            color: "#94A3B8",
+            color: "#64748B",
             margin: "12px 0 18px",
             wordBreak: "break-all",
           }}

@@ -490,7 +490,7 @@ export function CustomerView({
                   style={{
                     fontSize: 13,
                     fontWeight: 700,
-                    color: "#94A3B8",
+                    color: "#64748B",
                     letterSpacing: "0.06em",
                     textTransform: "uppercase",
                     marginBottom: 6,
@@ -687,7 +687,7 @@ export function CustomerView({
                       style={{
                         fontSize: 13,
                         fontWeight: 700,
-                        color: "#94A3B8",
+                        color: "#64748B",
                         letterSpacing: "0.06em",
                         textTransform: "uppercase",
                         margin: "24px 0 10px",
@@ -710,6 +710,15 @@ export function CustomerView({
                           <div
                             key={o.key}
                             onClick={() => setSplit(o.key)}
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={active}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setSplit(o.key);
+                              }
+                            }}
                             style={{
                               flex: 1,
                               padding: "13px 8px",
@@ -730,7 +739,7 @@ export function CustomerView({
                                 fontSize: 12,
                                 fontWeight: 600,
                                 marginTop: 4,
-                                color: active ? BRAND : "#94A3B8",
+                                color: active ? BRAND : "#64748B",
                               }}
                             >
                               {sub}
@@ -763,7 +772,7 @@ export function CustomerView({
                             <div style={{ fontSize: 14, fontWeight: 700 }}>
                               People at the table
                             </div>
-                            <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 500 }}>
+                            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>
                               Total guests sharing the bill
                             </div>
                           </div>
@@ -798,7 +807,7 @@ export function CustomerView({
                             <div style={{ fontSize: 14, fontWeight: 700 }}>
                               You&apos;re paying for
                             </div>
-                            <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 500 }}>
+                            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>
                               Cover yourself or a few friends
                             </div>
                           </div>
@@ -833,7 +842,7 @@ export function CustomerView({
                         >
                           <div>
                             <div style={{ fontSize: 15, fontWeight: 800 }}>You pay</div>
-                            <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 500 }}>
+                            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>
                               {equalNote} · capped at remaining
                             </div>
                           </div>
@@ -851,7 +860,7 @@ export function CustomerView({
                           style={{
                             fontSize: 12,
                             fontWeight: 600,
-                            color: "#94A3B8",
+                            color: "#64748B",
                             marginBottom: 9,
                           }}
                         >
@@ -879,6 +888,22 @@ export function CustomerView({
                               onClick={
                                 clickable ? () => setQty(i, sel ? 0 : 1) : undefined
                               }
+                              {...(clickable
+                                ? {
+                                    role: "button",
+                                    tabIndex: 0,
+                                    "aria-pressed": sel,
+                                    "aria-label": `${it.name}, ${fmt(it.price)}${
+                                      sel ? ", selected" : ""
+                                    }`,
+                                    onKeyDown: (e: React.KeyboardEvent) => {
+                                      if (e.key === "Enter" || e.key === " ") {
+                                        e.preventDefault();
+                                        setQty(i, sel ? 0 : 1);
+                                      }
+                                    },
+                                  }
+                                : {})}
                               style={{
                                 display: "flex",
                                 alignItems: "center",
@@ -974,7 +999,7 @@ export function CustomerView({
                                 <div
                                   style={{
                                     fontSize: 12,
-                                    color: "#94A3B8",
+                                    color: "#64748B",
                                     fontWeight: 500,
                                   }}
                                 >
@@ -1019,7 +1044,7 @@ export function CustomerView({
                         >
                           <div>
                             <div style={{ fontSize: 15, fontWeight: 800 }}>You pay</div>
-                            <div style={{ fontSize: 12, color: "#94A3B8", fontWeight: 500 }}>
+                            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>
                               {itemNote}
                             </div>
                           </div>
@@ -1035,7 +1060,7 @@ export function CustomerView({
                       style={{
                         fontSize: 13,
                         fontWeight: 700,
-                        color: "#94A3B8",
+                        color: "#64748B",
                         letterSpacing: "0.06em",
                         textTransform: "uppercase",
                         margin: "24px 0 10px",
@@ -1056,6 +1081,15 @@ export function CustomerView({
                           <div
                             key={o.key}
                             onClick={() => setTip(o.key)}
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={active}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setTip(o.key);
+                              }
+                            }}
                             style={{
                               padding: "13px 0",
                               borderRadius: 12,
@@ -1092,6 +1126,7 @@ export function CustomerView({
                         </span>
                         <input
                           type="number"
+                          aria-label="Custom tip amount"
                           value={customTip}
                           onChange={(e) => {
                             setCustomTip(e.target.value);
@@ -1223,7 +1258,7 @@ export function CustomerView({
                         justifyContent: "center",
                         gap: 7,
                         marginTop: 14,
-                        color: "#94A3B8",
+                        color: "#64748B",
                         fontSize: 12,
                         fontWeight: 600,
                       }}

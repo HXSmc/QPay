@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BRAND, fmt } from "../../lib/data";
 import { setTableItems } from "../../lib/api";
 import type { LiveTable, OrderItem } from "../../lib/types";
@@ -22,6 +22,16 @@ export function OrderModal({
   const [unit, setUnit] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const nameRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    nameRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const subtotal = items.reduce((a, it) => a + it.price, 0);
 
@@ -95,6 +105,9 @@ export function OrderModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-title"
         style={{
           width: "100%",
           maxWidth: 440,
@@ -116,7 +129,7 @@ export function OrderModal({
             borderBottom: "1px solid #E2E8F0",
           }}
         >
-          <h3 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>
+          <h3 id="order-title" style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>
             Table {table.num} order
           </h3>
           <button
@@ -145,7 +158,7 @@ export function OrderModal({
               style={{
                 padding: "20px 0",
                 textAlign: "center",
-                color: "#94A3B8",
+                color: "#64748B",
                 fontSize: 13.5,
                 fontWeight: 600,
               }}
@@ -238,6 +251,8 @@ export function OrderModal({
               Add item
             </div>
             <input
+              ref={nameRef}
+              aria-label="Item name"
               placeholder="Item name"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -246,13 +261,13 @@ export function OrderModal({
             />
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <button onClick={() => setQty((q) => Math.max(1, q - 1))} style={stepBtn}>
+                <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity" style={stepBtn}>
                   −
                 </button>
-                <span style={{ fontSize: 15, fontWeight: 800, minWidth: 18, textAlign: "center" }}>
+                <span aria-label="Quantity" style={{ fontSize: 15, fontWeight: 800, minWidth: 18, textAlign: "center" }}>
                   {qty}
                 </span>
-                <button onClick={() => setQty((q) => q + 1)} style={stepBtn}>
+                <button onClick={() => setQty((q) => q + 1)} aria-label="Increase quantity" style={stepBtn}>
                   +
                 </button>
               </div>
@@ -262,6 +277,7 @@ export function OrderModal({
                   type="number"
                   min="0"
                   step="0.01"
+                  aria-label="Unit price"
                   placeholder="unit price"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}

@@ -123,7 +123,7 @@ export default function MenuPage() {
               border: "2px dashed #CBD5E1",
               borderRadius: 14,
               textAlign: "center",
-              color: "#94A3B8",
+              color: "#64748B",
             }}
           >
             <div style={{ fontSize: 15, fontWeight: 700, color: "#475569" }}>

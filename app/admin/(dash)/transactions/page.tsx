@@ -57,7 +57,7 @@ export default function TransactionsPage() {
             padding: "0 0 12px",
             fontSize: 11.5,
             fontWeight: 700,
-            color: "#94A3B8",
+            color: "#64748B",
             letterSpacing: "0.04em",
             borderBottom: "1px solid #F1F5F9",
           }}

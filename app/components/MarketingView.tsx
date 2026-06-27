@@ -677,7 +677,7 @@ export function MarketingView() {
             borderTop: "1px solid #DBE3F4",
             padding: "28px 32px",
             textAlign: "center",
-            color: "#64748B",
+            color: "#475569",
             fontSize: 13.5,
           }}
         >
