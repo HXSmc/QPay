@@ -8,16 +8,25 @@ import {
   syncReservation,
 } from "@/app/lib/store";
 import type { OrderItem, TableStatus } from "@/app/lib/types";
+import { AUTH_COOKIE } from "@/app/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 const VALID: TableStatus[] = ["unpaid", "partial", "cleared", "open"];
 
+/** Admin actions (edit order, set status, delete) require the admin cookie. */
+function isAdmin(req: Request): boolean {
+  const cookie = req.headers.get("cookie") ?? "";
+  return cookie.split(/;\s*/).includes(`${AUTH_COOKIE}=1`);
+}
+
+// Unit counts (item holds / paid quantities) must be non-negative integers.
+const MAX_ITEMS = 100;
 function numArray(raw: unknown): number[] | null {
-  if (!Array.isArray(raw)) return null;
+  if (!Array.isArray(raw) || raw.length > MAX_ITEMS) return null;
   const out: number[] = [];
   for (const n of raw) {
-    if (typeof n !== "number" || !Number.isFinite(n) || n < 0) return null;
+    if (typeof n !== "number" || !Number.isInteger(n) || n < 0) return null;
     out.push(n);
   }
   return out;
@@ -93,6 +102,9 @@ export async function PATCH(
   }
 
   if (body.items !== undefined) {
+    if (!isAdmin(req)) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
     const items = sanitizeItems(body.items);
     if (!items) {
       return NextResponse.json({ error: "invalid items" }, { status: 400 });
@@ -105,6 +117,9 @@ export async function PATCH(
   }
 
   if (body.status) {
+    if (!isAdmin(req)) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
     if (!VALID.includes(body.status)) {
       return NextResponse.json({ error: "invalid status" }, { status: 400 });
     }
@@ -119,9 +134,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: Request,
+  req: Request,
   { params }: { params: { num: string } },
 ) {
+  if (!isAdmin(req)) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
   const ok = await deleteTable(params.num);
   if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ ok: true });

@@ -42,8 +42,14 @@ export default function TablesPage() {
 
   const removeTable = async (t: LiveTable) => {
     if (!confirm(`Delete Table ${t.num}? This can't be undone.`)) return;
-    await deleteTable(t.num);
-    setTables((prev) => prev.filter((x) => x.num !== t.num));
+    try {
+      await deleteTable(t.num);
+      setTables((prev) => prev.filter((x) => x.num !== t.num));
+    } catch {
+      // Keep the row if the delete failed (e.g. session expired) rather than
+      // dropping an unhandled rejection and lying about the table being gone.
+      alert(`Couldn't delete Table ${t.num}. Please retry.`);
+    }
   };
 
   const smallBtn = {

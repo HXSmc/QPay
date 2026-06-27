@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { billDue, BRAND, fmt, TIP_PCT } from "../lib/data";
 import { payTable, syncTable } from "../lib/api";
 import type { LiveTable, SplitMode, TipKey } from "../lib/types";
@@ -73,6 +73,12 @@ export function CustomerView({
     remaining: number;
   } | null>(null);
 
+  // Monotonic request sequencing so an out-of-order sync response can't clobber
+  // newer state (e.g. a slow 3s poll resolving after a payment). Each issued
+  // request takes a seq; we only apply a result whose seq is the latest seen.
+  const reqSeq = useRef(0);
+  const appliedSeq = useRef(0);
+
   const hasOrder = items.length > 0;
 
   // --- live availability (units held by OTHER phones / already paid) ---
@@ -137,7 +143,7 @@ export function CustomerView({
     payNote = " (your items)";
   }
   const tipAmt = isCustomTip
-    ? Number(customTip) || 0
+    ? Math.max(0, Number(customTip) || 0)
     : +(principal * TIP_PCT[tip]).toFixed(2);
   const payAmount = +(principal + tipAmt).toFixed(2);
 
@@ -157,10 +163,15 @@ export function CustomerView({
   useEffect(() => {
     let alive = true;
     const tick = async () => {
+      const seq = ++reqSeq.current;
       try {
         const qty = split === "item" ? selectedQty : items.map(() => 0);
         const next = await syncTable(tableNumber, clientId, qty);
-        if (alive) setTable(next);
+        // Drop stale responses: a later request (or a payment) already applied.
+        if (alive && seq > appliedSeq.current) {
+          appliedSeq.current = seq;
+          setTable(next);
+        }
       } catch {
         /* ignore transient errors */
       }
@@ -190,6 +201,8 @@ export function CustomerView({
   const handlePay = async () => {
     if (payDisabled) return;
     setPaying(true);
+    const seq = ++reqSeq.current;
+    const paidBefore = paid;
     try {
       // Send the PRINCIPAL only — `paid` tracks the bill owed; the tip is
       // cosmetic/per-payer and must not eat into the shared remaining balance
@@ -199,10 +212,19 @@ export function CustomerView({
         id: clientId,
         items: split === "item" ? selectedQty : undefined,
       });
+      // The payment is authoritative — it must win over any in-flight poll.
+      appliedSeq.current = seq;
       setTable(next);
       setSelectedQty(next.items.map(() => 0));
+      // Report what the store ACTUALLY applied (it clamps to remaining), not the
+      // intended amount — otherwise a clamped pay shows an inflated receipt.
+      const appliedPrincipal = Math.max(0, +(next.paid - paidBefore).toFixed(2));
+      const shownPaid = Math.min(
+        payAmount,
+        +(appliedPrincipal + tipAmt).toFixed(2),
+      );
       setResult({
-        paid: payAmount,
+        paid: shownPaid,
         cleared: next.status === "cleared",
         remaining: Math.max(0, +(billDue(next.items) - next.paid).toFixed(2)),
       });

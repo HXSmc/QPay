@@ -36,17 +36,32 @@ const useSupabase = !!process.env.SUPABASE_URL;
 const useKv = !!process.env.KV_REST_API_URL;
 const SB_TABLE = "store";
 
+// createClient() wants the bare project URL (https://xxxx.supabase.co), but the
+// Supabase dashboard also surfaces the REST endpoint (…/rest/v1/) and people
+// paste that into the env by mistake — which silently breaks every query. Strip
+// any /rest/v1 suffix and trailing slash so either form works.
+function supabaseUrl(): string {
+  const raw = (process.env.SUPABASE_URL ?? "").trim();
+  return raw.replace(/\/rest\/v1\/?$/, "").replace(/\/+$/, "");
+}
+
 // Lazily-created, memoized Supabase client (dynamic import so the dep isn't
 // bundled when running in disk/KV mode).
 let _sb: import("@supabase/supabase-js").SupabaseClient | undefined;
 async function sb() {
   if (!_sb) {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!key) {
+      // Misconfiguration: URL set but no service-role key. Fail loudly rather
+      // than letting writes silently no-op (which looks like "state resets").
+      throw new Error(
+        "store: SUPABASE_URL is set but SUPABASE_SERVICE_ROLE_KEY is missing",
+      );
+    }
     const { createClient } = await import("@supabase/supabase-js");
-    _sb = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { persistSession: false } },
-    );
+    _sb = createClient(supabaseUrl(), key, {
+      auth: { persistSession: false },
+    });
   }
   return _sb;
 }
@@ -99,11 +114,17 @@ function normalize(s: Store): Store {
 async function readStore(): Promise<Store> {
   if (useSupabase) {
     const client = await sb();
-    const { data } = await client
+    const { data, error } = await client
       .from(SB_TABLE)
       .select("value")
       .eq("key", KV_KEY)
       .maybeSingle();
+    // A read error (missing `store` table, bad key, network) must NOT fall
+    // through to seeding — that would overwrite live data with demo defaults on
+    // every blip. Surface it so the misconfiguration is visible.
+    if (error) {
+      throw new Error(`store: Supabase read failed — ${error.message}`);
+    }
     if (data?.value) {
       const raw = data.value as Store;
       const norm = normalize(raw);
@@ -137,9 +158,15 @@ async function readStore(): Promise<Store> {
 async function writeStore(s: Store): Promise<void> {
   if (useSupabase) {
     const client = await sb();
-    await client
+    const { error } = await client
       .from(SB_TABLE)
       .upsert({ key: KV_KEY, value: s }, { onConflict: "key" });
+    // A swallowed write error is exactly what made prod look like it "forgot"
+    // every payment (table missing / RLS / bad key). Throw so the API returns
+    // 500 and the client can retry instead of silently losing the update.
+    if (error) {
+      throw new Error(`store: Supabase write failed — ${error.message}`);
+    }
     return;
   }
   if (useKv) {
@@ -320,9 +347,15 @@ export async function syncReservation(
     const t = s.tables.find((x) => x.num === num);
     if (!t) return { result: null, write: false };
     const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
-    const mine = (qty ?? []).map((n) =>
-      typeof n === "number" && n > 0 ? n : 0,
-    );
+    // Clamp each hold to the units actually orderable (0..ordered-qty). Without
+    // this, one phone could POST qty:[9999,…] and drive every item's
+    // availability to 0, blocking per-item payment for everyone else.
+    const mine = t.items.map((it, i) => {
+      const n = qty?.[i];
+      return typeof n === "number" && n > 0
+        ? Math.min(Math.floor(n), it.qty)
+        : 0;
+    });
     t.reservations = mine.some((n) => n > 0)
       ? [...others, { id, qty: mine, ts: Date.now() }]
       : others;
@@ -348,14 +381,31 @@ export async function payTable(
     const applied = Math.min(Math.max(0, amount), remaining);
     t.paid = +(((t.paid ?? 0) + applied).toFixed(2));
 
-    // Lock paid item units (capped at ordered qty).
+    // Lock paid item units — but only as many as the APPLIED money actually
+    // covers. If the payment was clamped (another phone paid first, so
+    // remaining < the selected items' value), we must not mark items Paid that
+    // this payment didn't fully cover. Spend `applied` across the requested
+    // units at their tax-inclusive unit price; lock a unit only once paid.
     if (opts?.items) {
       if (!Array.isArray(t.paidQty) || t.paidQty.length !== t.items.length) {
         t.paidQty = zeros(t.items.length);
       }
+      let budget = applied;
       t.items.forEach((it, i) => {
-        const add = typeof opts.items![i] === "number" ? opts.items![i] : 0;
-        t.paidQty[i] = Math.min(t.paidQty[i] + Math.max(0, add), it.qty);
+        const want = Math.min(
+          Math.max(0, Math.floor(opts.items![i] ?? 0)),
+          it.qty - t.paidQty[i],
+        );
+        if (want <= 0 || it.qty <= 0) return;
+        const unitInc = +((it.price / it.qty) * 1.08).toFixed(2);
+        let lock = 0;
+        // 1¢ tolerance absorbs per-unit rounding so an exactly-paid line still
+        // locks its final unit.
+        while (lock < want && budget + 0.01 >= unitInc) {
+          budget = +(budget - unitInc).toFixed(2);
+          lock++;
+        }
+        t.paidQty[i] += lock;
       });
     }
 
