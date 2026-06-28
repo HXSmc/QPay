@@ -5,6 +5,7 @@ import { getMe, getSettings, saveSettings } from "../../../lib/api";
 import { C, R, S, T, STATUS, SHADOW, btn, card, field } from "../../../lib/theme";
 import { Alert, Spinner, Toast } from "../../../components/ui/Primitives";
 import { CURRENCIES, type Currency } from "../../../lib/data";
+import { useT } from "../../../lib/i18n-client";
 
 const CURRENCY_LABELS: Record<Currency, string> = {
   USD: "USD (US Dollar $)",
@@ -66,6 +67,7 @@ function Toggle({
 }
 
 export default function SettingsPage() {
+  const tr = useT();
   const [restaurant, setRestaurant] = useState("");
   const [taxRate, setTaxRate] = useState("8");
   const [currency, setCurrency] = useState<Currency>("USD");
@@ -128,16 +130,16 @@ export default function SettingsPage() {
 
   return (
     <div className="qp-page" style={{ padding: `${S[6]}px ${S[6]}px`, maxWidth: 640 }}>
-      <h1 style={{ ...T.h1, margin: 0 }}>Settings</h1>
+      <h1 style={{ ...T.h1, margin: 0 }}>{tr("Settings")}</h1>
       <p style={{ ...T.body, color: C.muted, margin: `${S[1]}px 0 ${S[5]}px` }}>
-        Restaurant profile and payment preferences.
+        {tr("Restaurant profile and payment preferences.")}
       </p>
 
       <div style={card({ pad: S[5] })}>
         <div style={{ display: "flex", flexDirection: "column", gap: S[4] }}>
           <div>
             <label htmlFor="set-restaurant" style={labelStyle}>
-              Restaurant name
+              {tr("Restaurant name")}
             </label>
             <input
               id="set-restaurant"
@@ -149,7 +151,7 @@ export default function SettingsPage() {
 
           <div>
             <label htmlFor="set-taxrate" style={labelStyle}>
-              Tax rate (%)
+              {tr("Tax rate (%)")}
             </label>
             <input
               id="set-taxrate"
@@ -167,11 +169,11 @@ export default function SettingsPage() {
             />
           </div>
 
-          {taxError && <Alert kind="danger">{taxError}</Alert>}
+          {taxError && <Alert kind="danger">{tr(taxError)}</Alert>}
 
           <div>
             <label htmlFor="set-currency" style={labelStyle}>
-              Currency
+              {tr("Currency")}
             </label>
             <select
               id="set-currency"
@@ -181,7 +183,7 @@ export default function SettingsPage() {
             >
               {CURRENCIES.map((c) => (
                 <option key={c} value={c}>
-                  {CURRENCY_LABELS[c]}
+                  {tr(CURRENCY_LABELS[c])}
                 </option>
               ))}
             </select>
@@ -190,21 +192,21 @@ export default function SettingsPage() {
 
         <div style={row}>
           <div>
-            <div style={{ fontSize: 14.5, fontWeight: 700 }}>Automatic receipts</div>
+            <div style={{ fontSize: 14.5, fontWeight: 700 }}>{tr("Automatic receipts")}</div>
             <div style={{ ...T.caption, color: C.muted, fontWeight: 500 }}>
-              Email or SMS receipt after each payment
+              {tr("Email or SMS receipt after each payment")}
             </div>
           </div>
-          <Toggle on={autoReceipts} onToggle={() => setAutoReceipts((v) => !v)} label="Automatic receipts" />
+          <Toggle on={autoReceipts} onToggle={() => setAutoReceipts((v) => !v)} label={tr("Automatic receipts")} />
         </div>
         <div style={row}>
           <div>
-            <div style={{ fontSize: 14.5, fontWeight: 700 }}>Tip prompts</div>
+            <div style={{ fontSize: 14.5, fontWeight: 700 }}>{tr("Tip prompts")}</div>
             <div style={{ ...T.caption, color: C.muted, fontWeight: 500 }}>
-              Show tip suggestions at checkout
+              {tr("Show tip suggestions at checkout")}
             </div>
           </div>
-          <Toggle on={tipPrompts} onToggle={() => setTipPrompts((v) => !v)} label="Tip prompts" />
+          <Toggle on={tipPrompts} onToggle={() => setTipPrompts((v) => !v)} label={tr("Tip prompts")} />
         </div>
 
         <button
@@ -214,14 +216,14 @@ export default function SettingsPage() {
           style={{ ...btn("primary", { size: "lg", disabled: saving || loading }), marginTop: S[5] }}
         >
           {saving && <Spinner size={15} color="#fff" />}
-          {saving ? "Saving." : "Save changes"}
+          {saving ? tr("Saving.") : tr("Save changes")}
         </button>
 
-        {error && <div style={{ marginTop: S[3] }}><Alert kind="danger">{error}</Alert></div>}
+        {error && <div style={{ marginTop: S[3] }}><Alert kind="danger">{tr(error)}</Alert></div>}
       </div>
 
       {saved && (
-        <Toast message="Settings saved." kind="success" onDone={() => setSaved(false)} />
+        <Toast message={tr("Settings saved.")} kind="success" onDone={() => setSaved(false)} />
       )}
     </div>
   );

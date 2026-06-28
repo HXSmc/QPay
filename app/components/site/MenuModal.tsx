@@ -294,7 +294,7 @@ export function MenuModal({
             }}
           >
             <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: C.text }}>
-              Menu
+              {tr("Menu")}
             </h3>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {!isPdf && (

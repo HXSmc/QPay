@@ -54,4 +54,25 @@ export const ar: Record<string, string> = {
   "The page you are looking for may have moved or no longer exists. Let us get you back on track.":
     "ربما تم نقل الصفحة التي تبحث عنها أو لم تعد موجودة. دعنا نعيدك إلى المسار الصحيح.",
   "Back to home": "العودة إلى الصفحة الرئيسية",
+
+  // Settings page ("Settings" key is already defined in the sidebar nav above)
+  "Restaurant profile and payment preferences.": "ملف المطعم وتفضيلات الدفع.",
+  "Restaurant name": "اسم المطعم",
+  "Tax rate (%)": "نسبة الضريبة (%)",
+  Currency: "العملة",
+  "Automatic receipts": "الإيصالات التلقائية",
+  "Email or SMS receipt after each payment":
+    "إيصال عبر البريد الإلكتروني أو الرسائل النصية بعد كل دفعة",
+  "Tip prompts": "اقتراحات الإكرامية",
+  "Show tip suggestions at checkout": "إظهار اقتراحات الإكرامية عند الدفع",
+  "Save changes": "حفظ التغييرات",
+  "Saving.": "جارٍ الحفظ.",
+  "Settings saved.": "تم حفظ الإعدادات.",
+  "Tax rate must be a number between 0 and 30.":
+    "يجب أن تكون نسبة الضريبة رقمًا بين 0 و30.",
+  "Couldn't save. Please retry.": "تعذّر الحفظ. يرجى المحاولة مرة أخرى.",
+  "USD (US Dollar $)": "دولار أمريكي (USD $)",
+  "GBP (British Pound £)": "جنيه إسترليني (GBP £)",
+  "EUR (Euro €)": "يورو (EUR €)",
+  "SAR (Saudi Riyal)": "ريال سعودي (SAR)",
 };

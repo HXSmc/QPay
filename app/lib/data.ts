@@ -21,6 +21,10 @@ export function isCurrency(v: unknown): v is Currency {
   return typeof v === "string" && (CURRENCIES as readonly string[]).includes(v);
 }
 
+/** Bare currency symbol/prefix, e.g. currencySymbol("GBP") -> "£". */
+export const currencySymbol = (currency: Currency = DEFAULT_CURRENCY) =>
+  (CURRENCY_SYMBOL[currency] ?? "$").trim();
+
 /** Format a number as a currency string, e.g. fmt(12.5,"GBP") -> "£12.50". */
 export const fmt = (n: number, currency: Currency = DEFAULT_CURRENCY) =>
   (CURRENCY_SYMBOL[currency] ?? "$") + n.toFixed(2);
@@ -43,10 +47,11 @@ export const STATUS_PALETTE: Record<
   TableStatus,
   { c: string; bg: string; label: string }
 > = {
-  unpaid: { c: "#991B1B", bg: "#FEF2F2", label: "Unpaid" },
-  partial: { c: "#B45309", bg: "#FFFBEB", label: "Partial" },
-  cleared: { c: "#15803D", bg: "#F0FDF4", label: "Cleared" },
-  open: { c: "#475569", bg: "#F8FAFC", label: "Open" },
+  // Aligned to the theme STATUS tokens (cool palette, single source of truth).
+  unpaid: { c: "#C02B3A", bg: "#FCEBED", label: "Unpaid" },
+  partial: { c: "#8A5A12", bg: "#FBF3E4", label: "Partial" },
+  cleared: { c: "#15734F", bg: "#E7F4EE", label: "Cleared" },
+  open: { c: "#3D4651", bg: "#EEF0F3", label: "Open" },
 };
 
 export const METHOD_COLOR: Record<string, { c: string; bg: string }> = {

@@ -109,7 +109,7 @@ export default async function TermsPage() {
             href="/"
             style={{ ...T.label, color: C.brand, textDecoration: "none" }}
           >
-            ← {t("Back to home", locale)}
+            {locale === "ar" ? "→" : "←"} {t("Back to home", locale)}
           </Link>
         </p>
       </article>

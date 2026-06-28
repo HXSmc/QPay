@@ -10,5 +10,5 @@ export const ar: Record<string, string> = {
   "Loading.": "جارٍ التحميل.",
   "Menu": "القائمة",
   "Close": "إغلاق",
-  "No thanks": "لا، شكراً",
+  "No thanks": "لا، شكرًا",
 };

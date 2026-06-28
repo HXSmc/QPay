@@ -193,7 +193,7 @@ export function MarketingView() {
         <div
           style={{
             padding: "20px 20px 16px",
-            background: `linear-gradient(135deg, ${C.brandLight}, ${C.brandDark})`,
+            background: `linear-gradient(150deg, ${C.ink}, ${C.inkSoft})`,
             color: C.surface,
           }}
         >

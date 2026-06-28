@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { billDue, fmt, TIP_PCT, type Currency } from "../lib/data";
+import { billDue, currencySymbol, fmt, TIP_PCT, type Currency } from "../lib/data";
 import { getPublicMenuItems, payTable, syncTable } from "../lib/api";
 import type { LiveTable, MenuItem, SplitMode, TipKey } from "../lib/types";
 import { C, R, S, SHADOW, T, MONO, STATUS } from "../lib/theme";
@@ -1234,7 +1234,7 @@ export function CustomerView({
                         }}
                       >
                         <span style={{ ...MONO, fontSize: 17, fontWeight: 700, color: C.brand }}>
-                          $
+                          {currencySymbol(currency)}
                         </span>
                         <input
                           type="number"
