@@ -35,17 +35,14 @@ export function LogoMark({
       </defs>
       {/* ember tile */}
       <rect width="32" height="32" rx="8" fill={`url(#${tile})`} />
-      {/* bold N monogram */}
-      <path
-        d="M9 22.5 V9.5 L19.5 22.5 V9.5"
-        stroke="#FFFFFF"
-        strokeWidth="3.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
+      {/* stylised slanted N monogram (forward momentum), filled for weight */}
+      <g transform="translate(2.2,0) skewX(-9)">
+        <path d="M8 9 h3.4 v14 h-3.4 z" fill="#FFFFFF" />
+        <path d="M15.4 9 h3.4 v14 h-3.4 z" fill="#FFFFFF" />
+        <path d="M8 9 L11.4 9 L18.8 23 L15.4 23 Z" fill="#FFFFFF" />
+      </g>
       {/* the nuqra - the dot / the tap */}
-      <circle cx="23.6" cy="22" r="2.15" fill="#FFFFFF" />
+      <circle cx="24.4" cy="21.6" r="2.05" fill="#FFFFFF" />
     </svg>
   );
 }
