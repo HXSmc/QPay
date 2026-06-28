@@ -1,8 +1,8 @@
-// Nuqra logo. A modern, flat monogram: a bold "N" with a single struck dot -
-// the "nuqra" itself (نقرة = a dot / a tap), which is also the tap-to-pay point.
-// Reduced to one confident idea: maximally legible down to 16px, ownable, and
-// it encodes the name. Used in the marketing header, admin sidebar, login, and
-// as the favicon (app/icon.svg mirrors this geometry).
+// Nuqra logo. A modern, flat monogram: a single bold, slanted "N" - the italic
+// gives forward momentum (fast payments) and the solid weight makes it
+// distinctive and eye-catching while staying legible down to 16px. Used in the
+// marketing header, admin sidebar, login, and as the favicon (app/icon.svg
+// mirrors this geometry).
 
 import { C } from "../../lib/theme";
 
@@ -35,14 +35,12 @@ export function LogoMark({
       </defs>
       {/* ember tile */}
       <rect width="32" height="32" rx="8" fill={`url(#${tile})`} />
-      {/* stylised slanted N monogram (forward momentum), filled for weight */}
-      <g transform="translate(2.2,0) skewX(-9)">
-        <path d="M8 9 h3.4 v14 h-3.4 z" fill="#FFFFFF" />
-        <path d="M15.4 9 h3.4 v14 h-3.4 z" fill="#FFFFFF" />
-        <path d="M8 9 L11.4 9 L18.8 23 L15.4 23 Z" fill="#FFFFFF" />
+      {/* stylised slanted N monogram - centered, filled, bold (forward momentum) */}
+      <g transform="translate(0.6,0) skewX(-9)">
+        <path d="M8.8 8.5 h3.7 v15 h-3.7 z" fill="#FFFFFF" />
+        <path d="M18 8.5 h3.7 v15 h-3.7 z" fill="#FFFFFF" />
+        <path d="M8.8 8.5 L12.5 8.5 L21.7 23.5 L18 23.5 Z" fill="#FFFFFF" />
       </g>
-      {/* the nuqra - the dot / the tap */}
-      <circle cx="24.4" cy="21.6" r="2.05" fill="#FFFFFF" />
     </svg>
   );
 }
