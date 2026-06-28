@@ -40,10 +40,10 @@ import type {
 
 const MAX_TXN_HISTORY = 1000;
 const MAX_LEADS = 1000;
-/** Trial admins issued from the marketing demo form are valid this many days. */
-export const TRIAL_DAYS = 7;
-/** Default renewal granted from the superadmin console. */
-export const RENEW_DAYS = 30;
+// Re-export the shared lifecycle constants so existing `@/app/lib/store` imports
+// keep working (single source of truth lives in ./constants).
+export { TRIAL_DAYS, RENEW_DAYS } from "./constants";
+import { RENEW_DAYS, SUPER_EMAIL, SUPER_PASSWORD, TRIAL_DAYS } from "./constants";
 
 // ---------------------------------------------------------------------------
 // Public (non-secret) account view
@@ -94,12 +94,6 @@ function genPassword(): string {
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
 export const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
-
-
-const SUPER_EMAIL = (process.env.SUPERADMIN_EMAIL || "AliTheAdmin@gmail.com")
-  .trim()
-  .toLowerCase();
-const SUPER_PASSWORD = process.env.SUPERADMIN_PASSWORD || "QPayAdmin_1";
 
 function seed(): Store {
   return {
@@ -187,10 +181,26 @@ async function ensureSuperadminBlob(s: Store): Promise<boolean> {
 async function readStoreBlob(): Promise<Store> {
   // Local-dev fallback only (production uses the relational Supabase backend).
   let raw: Store;
+  let text: string | null = null;
   try {
-    raw = JSON.parse(await fs.readFile(STORE_FILE, "utf8")) as Store;
+    text = await fs.readFile(STORE_FILE, "utf8");
   } catch {
+    text = null; // no store file yet (first run) — seed silently
+  }
+  if (text === null) {
     raw = seed();
+  } else {
+    try {
+      raw = JSON.parse(text) as Store;
+    } catch (e) {
+      // Corrupt store file is NOT normal — surface it instead of silently
+      // re-seeding (which would look like "data vanished").
+      console.warn(
+        `store: ${STORE_FILE} is corrupt JSON — re-seeding. Cause:`,
+        e instanceof Error ? e.message : e,
+      );
+      raw = seed();
+    }
   }
   const s = normalize(raw);
   if (await ensureSuperadminBlob(s)) await writeStoreBlob(s);

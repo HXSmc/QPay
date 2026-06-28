@@ -12,6 +12,7 @@
 // store-core.ts so the two backends never drift.
 
 import { hashPassword } from "./auth";
+import { SUPER_EMAIL, SUPER_PASSWORD } from "./constants";
 import { sb } from "./supabase";
 import {
   applyPayment,
@@ -100,11 +101,6 @@ function rowToUser(r: AccountRow): AdminUser {
 // ---------------------------------------------------------------------------
 // Bootstrap: ensure the super account exists (first boot)
 // ---------------------------------------------------------------------------
-
-const SUPER_EMAIL = (process.env.SUPERADMIN_EMAIL || "AliTheAdmin@gmail.com")
-  .trim()
-  .toLowerCase();
-const SUPER_PASSWORD = process.env.SUPERADMIN_PASSWORD || "QPayAdmin_1";
 
 let superEnsured = false;
 
@@ -292,10 +288,18 @@ async function casTable(
     });
     if (error) throw new Error(`store: table CAS failed — ${error.message}`);
     if (data === true) return t; // committed (txn, if any, persisted atomically)
-    // Lost the CAS — another writer advanced the row. Retry.
+    // Lost the CAS — another writer advanced the row. Log for observability and
+    // retry (a few concurrent payers on the same table is normal; exhausting the
+    // retries is not, and should be visible).
     if (attempt >= MAX_CAS_RETRIES) {
+      console.error(
+        `store: table CAS exhausted ${MAX_CAS_RETRIES} retries for table id=${id} (concurrent write storm)`,
+      );
       throw new Error("store: table write conflict (max retries exceeded)");
     }
+    console.warn(
+      `store: table CAS lost (attempt ${attempt + 1}/${MAX_CAS_RETRIES}) for table id=${id}, retrying`,
+    );
     await sleep(15 * (attempt + 1));
   }
 }

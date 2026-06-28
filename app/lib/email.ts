@@ -81,6 +81,14 @@ export async function sendTrialCredentials(opts: {
     month: "long",
     day: "numeric",
   });
+  // Derive the day count from the actual expiry so the copy can't drift from the
+  // real TRIAL_DAYS the store applied.
+  const days = Math.max(
+    1,
+    Math.round(
+      (new Date(opts.expiresAt).getTime() - Date.now()) / 86_400_000,
+    ),
+  );
   const subject = "Your QPay demo admin login";
   const text = [
     `Welcome to QPay${opts.restaurant ? `, ${opts.restaurant}` : ""}!`,
@@ -91,7 +99,7 @@ export async function sendTrialCredentials(opts: {
     `Email:    ${opts.to}`,
     `Password: ${opts.password}`,
     ``,
-    `This trial account is valid until ${expires} (7 days).`,
+    `This trial account is valid until ${expires} (${days} days).`,
     `Need more time? Reply and our team can extend it.`,
   ].join("\n");
   const html = `
@@ -112,7 +120,7 @@ export async function sendTrialCredentials(opts: {
       </table>
       <a href="${escapeHtml(opts.loginUrl)}" style="display:inline-block;background:#2E5BFF;color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px">Sign in to QPay</a>
       <p style="font-size:13px;color:#64748B;line-height:1.6;margin:22px 0 0">
-        This trial account is valid until <strong>${escapeHtml(expires)}</strong> (7 days). Need more time? Reply and our team can extend it.
+        This trial account is valid until <strong>${escapeHtml(expires)}</strong> (${days} days). Need more time? Reply and our team can extend it.
       </p>
     </div>
   </div>`;
