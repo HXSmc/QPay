@@ -35,11 +35,12 @@ export function LogoMark({
       </defs>
       {/* ember tile */}
       <rect width="32" height="32" rx="8" fill={`url(#${tile})`} />
-      {/* stylised slanted N monogram - centered, filled, bold (forward momentum) */}
-      <g transform="translate(0.6,0) skewX(-9)">
-        <path d="M8.8 8.5 h3.7 v15 h-3.7 z" fill="#FFFFFF" />
-        <path d="M18 8.5 h3.7 v15 h-3.7 z" fill="#FFFFFF" />
-        <path d="M8.8 8.5 L12.5 8.5 L21.7 23.5 L18 23.5 Z" fill="#FFFFFF" />
+      {/* stylised slanted N monogram - optically centered (translate offsets the
+          skew), filled and bold for an energetic, eye-catching mark */}
+      <g transform="translate(4.05,0) skewX(-12)">
+        <path d="M8.8 8.5 h3.9 v15 h-3.9 z" fill="#FFFFFF" />
+        <path d="M18 8.5 h3.9 v15 h-3.9 z" fill="#FFFFFF" />
+        <path d="M8.8 8.5 L12.7 8.5 L21.9 23.5 L18 23.5 Z" fill="#FFFFFF" />
       </g>
     </svg>
   );
