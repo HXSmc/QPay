@@ -13,6 +13,7 @@ import path from "path";
 import { constantTimeEqual, getSession, hashPassword } from "./auth";
 import { useSupabase } from "./supabase";
 import * as rel from "./store-sb";
+import { fmt, type Currency } from "./data";
 import {
   applyPayment,
   buildOrderLines,
@@ -303,7 +304,8 @@ export async function setTableItems(
     const t = s.tables.find((x) => x.num === num && x.owner === owner);
     if (!t) return { result: null, write: false };
     t.items = items;
-    t.amount = orderAmount(items, settingsFor(s, owner).taxRate);
+    const setForAmount = settingsFor(s, owner);
+    t.amount = orderAmount(items, setForAmount.taxRate, setForAmount.currency);
     t.paidQty = zeros(items.length);
     t.reservations = [];
     t.paid = 0;
@@ -363,7 +365,7 @@ export async function setTableStatus(
     if (!t) return { result: null, write: false };
     t.status = status;
     if (status === "open") t.amount = "—";
-    else if (t.amount === "—") t.amount = "$0";
+    else if (t.amount === "—") t.amount = fmt(0, settingsFor(s, t.owner).currency);
     return { result: t, write: true };
   });
 }
@@ -661,7 +663,7 @@ export async function setSettings(
 
 export async function getPublicRestaurant(
   token: string,
-): Promise<{ name: string; taxRate: number } | null> {
+): Promise<{ name: string; taxRate: number; currency: Currency } | null> {
   if (useSupabase) return rel.getPublicRestaurant(token);
   const s = await readStoreBlob();
   const t = s.tables.find((x) => constantTimeEqual(x.token, token));
@@ -669,7 +671,7 @@ export async function getPublicRestaurant(
   const set = settingsFor(s, t.owner);
   const user = s.users.find((u) => u.id === t.owner);
   const fallback = user ? user.email.split("@")[0] : "Restaurant";
-  return { name: set.name || fallback, taxRate: set.taxRate };
+  return { name: set.name || fallback, taxRate: set.taxRate, currency: set.currency };
 }
 
 // ===========================================================================

@@ -4,12 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { C, R, S, T } from "../../lib/theme";
 import { Wordmark } from "./Logo";
+import { LanguageToggle } from "./LanguageToggle";
+import { useT } from "../../lib/i18n-client";
 
 // Seamless sticky navbar: it sits transparent over the page at the top and,
 // only once the page scrolls, melts into a soft blurred surface (no hard 1px
 // border, no boxed bar). The logo/text color stays constant the whole time.
 export function BrandHeader() {
   const [scrolled, setScrolled] = useState(false);
+  const tr = useT();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
@@ -59,9 +62,10 @@ export function BrandHeader() {
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: S[2],
+          gap: S[3],
         }}
       >
+        <LanguageToggle />
         <Link
           href="/admin/login"
           className="qp-nav"
@@ -75,7 +79,7 @@ export function BrandHeader() {
             borderRadius: R.md,
           }}
         >
-          Sign in
+          {tr("Sign in")}
         </Link>
       </nav>
     </header>

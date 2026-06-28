@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { SITE } from "../lib/site";
 import { C, R, S, SHADOW, T, MONO, btn, card } from "../lib/theme";
 import { SalesDropdown } from "./site/SalesDropdown";
-import { DemoPopup } from "./site/DemoPopup";
+import { useT } from "../lib/i18n-client";
 
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
 
@@ -129,6 +129,7 @@ const FAQ = [
 ];
 
 export function MarketingView() {
+  const tr = useT();
   const router = useRouter();
   const [salesOpen, setSalesOpen] = useState(false);
   const [reduced, setReduced] = useState(false);
@@ -197,10 +198,10 @@ export function MarketingView() {
           }}
         >
           <div style={{ fontSize: 12, opacity: 0.85, fontWeight: 600 }}>
-            The Copper Kitchen
+            {tr("The Copper Kitchen")}
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, marginTop: 3 }}>
-            Table 12 · 4 guests
+            {tr("Table 12 · 4 guests")}
           </div>
         </div>
         <div style={{ padding: "18px 20px 20px" }}>
@@ -221,7 +222,7 @@ export function MarketingView() {
                 padding: "6px 0",
               }}
             >
-              <span>{name}</span>
+              <span>{tr(name)}</span>
               <span style={{ fontWeight: 600, color: C.text, ...MONO }}>
                 {price}
               </span>
@@ -243,7 +244,7 @@ export function MarketingView() {
               color: C.text,
             }}
           >
-            <span>Total</span>
+            <span>{tr("Total")}</span>
             <span style={{ color: C.brand, fontSize: 17, ...MONO }}>$77.49</span>
           </div>
           <button
@@ -263,7 +264,7 @@ export function MarketingView() {
               boxShadow: SHADOW.cta,
             }}
           >
-            <span style={MONO}>Pay $77.49</span>
+            <span style={MONO}>{tr("Pay $77.49")}</span>
           </button>
         </div>
       </div>
@@ -306,8 +307,8 @@ export function MarketingView() {
                 maxWidth: 560,
               }}
             >
-              Turn tables faster.{" "}
-              <span style={{ color: C.brand }}>Get paid before they leave.</span>
+              {tr("Turn tables faster.")}{" "}
+              <span style={{ color: C.brand }}>{tr("Get paid before they leave.")}</span>
             </h1>
             <p
               style={{
@@ -318,8 +319,9 @@ export function MarketingView() {
                 maxWidth: 460,
               }}
             >
-              Diners scan, split, tip, and pay in under 30 seconds. No app, no
-              waiting on the check.
+              {tr(
+                "Diners scan, split, tip, and pay in under 30 seconds. No app, no waiting on the check."
+              )}
             </p>
             <div
               style={{
@@ -339,7 +341,7 @@ export function MarketingView() {
                   padding: "15px 26px",
                 }}
               >
-                Get a free demo
+                {tr("Start free trial")}
                 <svg
                   width="18"
                   height="18"
@@ -376,7 +378,7 @@ export function MarketingView() {
                   textDecorationColor: C.borderStrong,
                 }}
               >
-                See how it works
+                {tr("See how it works")}
                 <svg
                   width="16"
                   height="16"
@@ -402,7 +404,7 @@ export function MarketingView() {
                 margin: "18px 0 0",
               }}
             >
-              {SITE.heroBadge}
+              {tr(SITE.heroBadge)}
             </p>
           </div>
 
@@ -432,7 +434,7 @@ export function MarketingView() {
         }}
       >
         <div style={{ maxWidth: 620, marginBottom: 40 }}>
-          <div style={eyebrow}>Everything at the table</div>
+          <div style={eyebrow}>{tr("Everything at the table")}</div>
           <h2
             style={{
               fontSize: 42,
@@ -444,7 +446,7 @@ export function MarketingView() {
               textWrap: "balance",
             }}
           >
-            One QR code. Every way to pay.
+            {tr("One QR code. Every way to pay.")}
           </h2>
           <p
             style={{
@@ -454,8 +456,9 @@ export function MarketingView() {
               lineHeight: 1.55,
             }}
           >
-            Built for the rush. Nuqra removes the slowest part of the meal, the
-            wait for the check.
+            {tr(
+              "Built for the rush. Nuqra removes the slowest part of the meal, the wait for the check."
+            )}
           </p>
         </div>
 
@@ -509,7 +512,7 @@ export function MarketingView() {
                   margin: "2px 0 8px",
                 }}
               >
-                {SOLUTIONS[0].title}
+                {tr(SOLUTIONS[0].title)}
               </h3>
               <p
                 style={{
@@ -519,7 +522,7 @@ export function MarketingView() {
                   margin: 0,
                 }}
               >
-                {SOLUTIONS[0].body}
+                {tr(SOLUTIONS[0].body)}
               </p>
             </div>
           </div>
@@ -549,7 +552,7 @@ export function MarketingView() {
                   letterSpacing: "0.02em",
                 }}
               >
-                Table 12
+                {tr("Table 12")}
               </div>
               <div
                 style={{
@@ -591,7 +594,7 @@ export function MarketingView() {
               >
                 <path d="M20 6 9 17l-4-4" />
               </svg>
-              Paid
+              {tr("Paid")}
             </span>
           </div>
         </div>
@@ -660,7 +663,7 @@ export function MarketingView() {
                   letterSpacing: "-0.02em",
                 }}
               >
-                Faster turns, fuller tables
+                {tr("Faster turns, fuller tables")}
               </div>
               <div
                 style={{
@@ -670,8 +673,9 @@ export function MarketingView() {
                   lineHeight: 1.5,
                 }}
               >
-                Guests pay the moment they are ready, so the next party is seated
-                sooner.
+                {tr(
+                  "Guests pay the moment they are ready, so the next party is seated sooner."
+                )}
               </div>
             </div>
           </div>
@@ -714,7 +718,7 @@ export function MarketingView() {
                 margin: "18px 0 8px",
               }}
             >
-              {SOLUTIONS[1].title}
+              {tr(SOLUTIONS[1].title)}
             </h3>
             <p
               style={{
@@ -724,7 +728,7 @@ export function MarketingView() {
                 margin: 0,
               }}
             >
-              {SOLUTIONS[1].body}
+              {tr(SOLUTIONS[1].body)}
             </p>
           </div>
 
@@ -766,7 +770,7 @@ export function MarketingView() {
                 margin: "18px 0 8px",
               }}
             >
-              {SOLUTIONS[2].title}
+              {tr(SOLUTIONS[2].title)}
             </h3>
             <p
               style={{
@@ -776,7 +780,7 @@ export function MarketingView() {
                 margin: 0,
               }}
             >
-              {SOLUTIONS[2].body}
+              {tr(SOLUTIONS[2].body)}
             </p>
           </div>
 
@@ -818,7 +822,7 @@ export function MarketingView() {
                 margin: "18px 0 8px",
               }}
             >
-              {SOLUTIONS[3].title}
+              {tr(SOLUTIONS[3].title)}
             </h3>
             <p
               style={{
@@ -828,7 +832,7 @@ export function MarketingView() {
                 margin: 0,
               }}
             >
-              {SOLUTIONS[3].body}
+              {tr(SOLUTIONS[3].body)}
             </p>
           </div>
         </div>
@@ -878,7 +882,7 @@ export function MarketingView() {
                 maxWidth: 420,
               }}
             >
-              The math works in your favor
+              {tr("The math works in your favor")}
             </h2>
             <p
               style={{
@@ -889,7 +893,9 @@ export function MarketingView() {
                 lineHeight: 1.55,
               }}
             >
-              What faster table-side checkout adds up to over a full service.
+              {tr(
+                "What faster table-side checkout adds up to over a full service."
+              )}
             </p>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
               <span
@@ -923,7 +929,7 @@ export function MarketingView() {
                 fontWeight: 500,
               }}
             >
-              {METRICS[0].label}
+              {tr(METRICS[0].label)}
             </div>
           </div>
 
@@ -969,11 +975,11 @@ export function MarketingView() {
                     fontSize: 14.5,
                     color: "rgba(255,255,255,0.64)",
                     fontWeight: 500,
-                    textAlign: "right",
+                    textAlign: "end",
                     maxWidth: 170,
                   }}
                 >
-                  {m.label}
+                  {tr(m.label)}
                 </div>
               </div>
             ))}
@@ -991,7 +997,7 @@ export function MarketingView() {
         }}
       >
         <div style={{ maxWidth: 620, marginBottom: 28 }}>
-          <div style={eyebrow}>Before you switch</div>
+          <div style={eyebrow}>{tr("Before you switch")}</div>
           <h2
             style={{
               fontSize: 36,
@@ -1003,7 +1009,7 @@ export function MarketingView() {
               textWrap: "balance",
             }}
           >
-            Less to change than you think.
+            {tr("Less to change than you think.")}
           </h2>
         </div>
         <dl style={{ margin: 0 }}>
@@ -1028,7 +1034,7 @@ export function MarketingView() {
                   margin: 0,
                 }}
               >
-                {item.q}
+                {tr(item.q)}
               </dt>
               <dd
                 style={{
@@ -1039,7 +1045,7 @@ export function MarketingView() {
                   maxWidth: 540,
                 }}
               >
-                {item.a}
+                {tr(item.a)}
               </dd>
             </div>
           ))}
@@ -1068,7 +1074,7 @@ export function MarketingView() {
               textWrap: "balance",
             }}
           >
-            Ready to stop chasing checks?
+            {tr("Ready to stop chasing checks?")}
           </h2>
           <p
             style={{
@@ -1079,8 +1085,9 @@ export function MarketingView() {
               lineHeight: 1.55,
             }}
           >
-            Get paid before they leave the table. Setup takes one afternoon,
-            and your first trial login lands in your inbox on the spot.
+            {tr(
+              "Get paid before they leave the table. Setup takes one afternoon, and your first trial login lands in your inbox on the spot."
+            )}
           </p>
           <div
             style={{
@@ -1104,7 +1111,7 @@ export function MarketingView() {
                 onClick={() => router.push("/demo")}
                 style={{ ...btn("primary", { size: "lg" }) }}
               >
-                Start free trial
+                {tr("Start free trial")}
               </button>
               <button
                 className="qp-press"
@@ -1113,7 +1120,7 @@ export function MarketingView() {
                 aria-controls="sales-panel"
                 style={{ ...btn("secondary", { size: "lg" }) }}
               >
-                Talk to sales
+                {tr("Talk to sales")}
               </button>
             </div>
             <div
@@ -1139,16 +1146,14 @@ export function MarketingView() {
         >
           © {SITE.copyrightYear} {SITE.company} ·{" "}
           <Link href="/privacy" style={{ color: C.muted, textDecoration: "underline" }}>
-            Privacy
+            {tr("Privacy")}
           </Link>{" "}
           ·{" "}
           <Link href="/terms" style={{ color: C.muted, textDecoration: "underline" }}>
-            Terms
+            {tr("Terms")}
           </Link>
         </div>
       </div>
-
-      <DemoPopup />
     </div>
   );
 }

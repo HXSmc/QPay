@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { submitLead, type LeadResult } from "../../lib/api";
 import { C, S, STATUS, T, btn, field } from "../../lib/theme";
 import { Alert, Spinner } from "../ui/Primitives";
+import { useT } from "../../lib/i18n-client";
 
 // Basic format check (local-part@domain.tld). Catches obvious typos before we
 // hit the network, without trying to be an RFC-complete validator.
@@ -13,6 +14,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // flow inside an expandable section. `open` only drives focus + reset; the
 // expand/collapse animation is owned by the parent section.
 export function DemoForm({ open }: { open: boolean }) {
+  const tr = useT();
   const [sent, setSent] = useState(false);
   const [result, setResult] = useState<LeadResult | null>(null);
   const [name, setName] = useState("");
@@ -26,7 +28,7 @@ export function DemoForm({ open }: { open: boolean }) {
     e.preventDefault();
     setError("");
     if (!EMAIL_RE.test(email.trim())) {
-      setError("Please enter a valid work email (name@company.com).");
+      setError(tr("Please enter a valid work email (name@company.com)."));
       return;
     }
     setBusy(true);
@@ -35,7 +37,7 @@ export function DemoForm({ open }: { open: boolean }) {
       setResult(res);
       setSent(true);
     } catch {
-      setError("Couldn't send your request. Please try again.");
+      setError(tr("Couldn't send your request. Please try again."));
     } finally {
       setBusy(false);
     }
@@ -90,28 +92,31 @@ export function DemoForm({ open }: { open: boolean }) {
           </svg>
         </div>
         <h3 style={{ ...T.h1, color: C.text, margin: "0 0 8px" }}>
-          {result?.status === "exists" ? "Check your inbox" : "Your demo is ready"}
+          {result?.status === "exists" ? tr("Check your inbox") : tr("Your trial is ready")}
         </h3>
         <p style={{ ...T.body, color: C.muted, margin: "0 0 16px", maxWidth: 460 }}>
           {result?.status === "exists" ? (
             <>
-              Thanks{name ? `, ${name}` : ""}. This email already has a Nuqra
-              account, so we&apos;ve sent you a note on how to reach our sales
-              team to extend or upgrade.
+              {tr("Thanks")}{name ? `, ${name}` : ""}.{" "}
+              {tr(
+                "This email already has a Nuqra account, so we've sent you a note on how to reach our sales team to extend or upgrade."
+              )}
             </>
           ) : (
             <>
-              Thanks{name ? `, ${name}` : ""}. We&apos;ve emailed your trial
-              admin login to <strong>{email}</strong>. It&apos;s valid for 7
-              days. Check your inbox to sign in.
+              {tr("Thanks")}{name ? `, ${name}` : ""}.{" "}
+              {tr("We've emailed your trial admin login to")}{" "}
+              <strong>{email}</strong>.{" "}
+              {tr("It's valid for 7 days. Check your inbox to sign in.")}
             </>
           )}
         </p>
         {result && !result.emailed && (
           <div style={{ marginBottom: 18, maxWidth: 460 }}>
             <Alert kind="warn">
-              Email delivery is still being set up. Contact sales if it
-              doesn&apos;t arrive.
+              {tr(
+                "Email delivery is still being set up. Contact sales if it doesn't arrive."
+              )}
             </Alert>
           </div>
         )}
@@ -120,7 +125,7 @@ export function DemoForm({ open }: { open: boolean }) {
           onClick={reset}
           style={{ ...btn("secondary", { size: "md" }) }}
         >
-          Send another request
+          {tr("Send another request")}
         </button>
       </div>
     );
@@ -138,13 +143,13 @@ export function DemoForm({ open }: { open: boolean }) {
       >
         <div>
           <label htmlFor="demo-name" style={labelStyle}>
-            Your name
+            {tr("Your name")}
           </label>
           <input
             id="demo-name"
             required
             ref={firstInputRef}
-            aria-label="Your name"
+            aria-label={tr("Your name")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={field()}
@@ -152,13 +157,13 @@ export function DemoForm({ open }: { open: boolean }) {
         </div>
         <div>
           <label htmlFor="demo-email" style={labelStyle}>
-            Work email
+            {tr("Work email")}
           </label>
           <input
             id="demo-email"
             required
             type="email"
-            aria-label="Work email"
+            aria-label={tr("Work email")}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             style={field()}
@@ -166,12 +171,12 @@ export function DemoForm({ open }: { open: boolean }) {
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
           <label htmlFor="demo-restaurant" style={labelStyle}>
-            Restaurant name
+            {tr("Restaurant name")}
           </label>
           <input
             id="demo-restaurant"
             required
-            aria-label="Restaurant name"
+            aria-label={tr("Restaurant name")}
             value={restaurant}
             onChange={(e) => setRestaurant(e.target.value)}
             style={field()}
@@ -195,10 +200,10 @@ export function DemoForm({ open }: { open: boolean }) {
       >
         {busy ? (
           <>
-            <Spinner size={16} color="#fff" /> Sending
+            <Spinner size={16} color="#fff" /> {tr("Sending")}
           </>
         ) : (
-          "Request demo"
+          tr("Start free trial")
         )}
       </button>
       <p
@@ -209,7 +214,7 @@ export function DemoForm({ open }: { open: boolean }) {
           marginBottom: 0,
         }}
       >
-        7-day trial admin login, no card required.
+        {tr("7-day trial admin login, no card required.")}
       </p>
     </form>
   );

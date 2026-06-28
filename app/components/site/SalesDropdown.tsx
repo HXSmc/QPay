@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { SITE } from "../../lib/site";
 import { C, R, S, SHADOW, T, MONO, STATUS, card, btn } from "../../lib/theme";
+import { useT } from "../../lib/i18n-client";
 
 const PHONE = SITE.salesPhone;
 
@@ -10,6 +11,7 @@ const PHONE = SITE.salesPhone;
 // it renders as a normal in-flow card that the footer expands in place. Keeps
 // the copy-to-clipboard behavior.
 export function SalesDropdown() {
+  const tr = useT();
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "ok" | "fail">("idle");
 
@@ -36,7 +38,7 @@ export function SalesDropdown() {
   const failed = copyState === "fail";
 
   return (
-    <div style={{ ...card({ pad: S[5], elevated: true }), textAlign: "left" }}>
+    <div style={{ ...card({ pad: S[5], elevated: true }), textAlign: "start" }}>
       {/* Header: icon + title + hours */}
       <div
         style={{
@@ -74,9 +76,9 @@ export function SalesDropdown() {
           </svg>
         </div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ ...T.h3, color: C.text }}>Call our sales team</div>
+          <div style={{ ...T.h3, color: C.text }}>{tr("Call our sales team")}</div>
           <div style={{ ...T.caption, color: C.muted, fontWeight: 500 }}>
-            {SITE.salesHours}
+            {tr(SITE.salesHours)}
           </div>
         </div>
       </div>
@@ -115,10 +117,10 @@ export function SalesDropdown() {
         }}
       >
         {copyState === "ok"
-          ? "Copied"
+          ? tr("Copied")
           : copyState === "fail"
-            ? "Copy failed, select above"
-            : "Copy number"}
+            ? tr("Copy failed, select above")
+            : tr("Copy number")}
       </button>
     </div>
   );

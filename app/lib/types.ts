@@ -1,3 +1,5 @@
+import type { Currency } from "./data";
+
 export type SplitMode = "full" | "equal" | "item";
 export type TipKey = "0" | "10" | "15" | "20" | "custom";
 
@@ -160,6 +162,8 @@ export interface RestaurantSettings {
   name: string;
   /** Tax rate as a percent (e.g. 8 = 8%). Flows into the bill total. */
   taxRate: number;
+  /** Display currency for all money shown to this admin + their diners. */
+  currency: Currency;
   autoReceipts: boolean;
   tipPrompts: boolean;
 }

@@ -26,6 +26,7 @@ export async function PUT(req: Request) {
   const next = await setSettings(user.id, {
     name: body.name,
     taxRate: body.taxRate,
+    currency: body.currency,
     autoReceipts: body.autoReceipts,
     tipPrompts: body.tipPrompts,
   });

@@ -27,6 +27,5 @@ export const SITE = {
     { value: "15", unit: "min", label: "saved per table" },
     { value: "+30", unit: "%", label: "average tip increase" },
     { value: "+22", unit: "%", label: "table turnover" },
-    { value: "4.9", unit: "★", label: "guest satisfaction" },
   ],
 } as const;

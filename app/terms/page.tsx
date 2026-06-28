@@ -2,10 +2,13 @@ import Link from "next/link";
 import { BrandHeader } from "../components/site/BrandHeader";
 import { SITE } from "../lib/site";
 import { C, R, S, SHADOW, T } from "../lib/theme";
+import { getServerLocale } from "../lib/i18n-server";
+import { t } from "../lib/i18n";
 
 export const metadata = { title: "Terms of service · Nuqra" };
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const locale = await getServerLocale();
   return (
     <div style={{ minHeight: "100vh", background: C.canvas, color: C.text }}>
       <BrandHeader />
@@ -27,7 +30,7 @@ export default function TermsPage() {
             marginBottom: S[3],
           }}
         >
-          Legal
+          {t("Legal", locale)}
         </div>
         <h1
           style={{
@@ -38,7 +41,7 @@ export default function TermsPage() {
             margin: 0,
           }}
         >
-          Terms of service
+          {t("Terms of service", locale)}
         </h1>
         <p
           style={{
@@ -48,7 +51,7 @@ export default function TermsPage() {
             marginBottom: S[6],
           }}
         >
-          {SITE.company} · last updated {SITE.legalUpdated}
+          {SITE.company} · {t("last updated", locale)} {SITE.legalUpdated}
         </p>
 
         <div
@@ -61,9 +64,10 @@ export default function TermsPage() {
           }}
         >
           <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, marginTop: 0 }}>
-            By using Nuqra you agree to use it lawfully for accepting restaurant
-            payments. The service is provided as-is; this prototype demonstrates a
-            scan-to-pay flow and is not a production payment processor.
+            {t(
+              "By using Nuqra you agree to use it lawfully for accepting restaurant payments. The service is provided as-is; this prototype demonstrates a scan-to-pay flow and is not a production payment processor.",
+              locale,
+            )}
           </p>
 
           <h2
@@ -75,11 +79,13 @@ export default function TermsPage() {
               borderTop: `1px solid ${C.border}`,
             }}
           >
-            Accounts
+            {t("Accounts", locale)}
           </h2>
           <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
-            Admin accounts are issued by the operator. You are responsible for
-            keeping your credentials confidential.
+            {t(
+              "Admin accounts are issued by the operator. You are responsible for keeping your credentials confidential.",
+              locale,
+            )}
           </p>
 
           <h2
@@ -91,10 +97,10 @@ export default function TermsPage() {
               borderTop: `1px solid ${C.border}`,
             }}
           >
-            Contact
+            {t("Contact", locale)}
           </h2>
           <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
-            Questions? Call {SITE.salesPhone}.
+            {t("Questions? Call", locale)} {SITE.salesPhone}.
           </p>
         </div>
 
@@ -103,7 +109,7 @@ export default function TermsPage() {
             href="/"
             style={{ ...T.label, color: C.brand, textDecoration: "none" }}
           >
-            ← Back to home
+            ← {t("Back to home", locale)}
           </Link>
         </p>
       </article>

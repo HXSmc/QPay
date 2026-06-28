@@ -3,6 +3,8 @@ import { CustomerView } from "../components/CustomerView";
 import { getPublicRestaurant, getTableByToken } from "../lib/store";
 import { DEFAULT_TAX_RATE } from "../lib/data";
 import { C } from "../lib/theme";
+import { getServerLocale } from "../lib/i18n-server";
+import { t } from "../lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +31,7 @@ export default async function CustomerPage({
   const tableNumber = table?.num || sp.table?.trim() || "";
   // Non-secret display name + tax rate for the scanned table's restaurant.
   const info = ok ? await getPublicRestaurant(token) : null;
+  const locale = await getServerLocale();
 
   return (
     <div
@@ -44,8 +47,9 @@ export default async function CustomerPage({
         tableNumber={tableNumber || "—"}
         token={token}
         initialTable={table}
-        restaurant={info?.name || "Restaurant"}
+        restaurant={info?.name || t("Restaurant", locale)}
         taxRate={info?.taxRate ?? DEFAULT_TAX_RATE}
+        currency={info?.currency ?? "USD"}
       />
     </div>
   );

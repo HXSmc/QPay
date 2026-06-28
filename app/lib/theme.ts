@@ -13,10 +13,10 @@ import type { CSSProperties } from "react";
 
 // --- Color -----------------------------------------------------------------
 export const C = {
-  brand: "#C2410C", // burnt ember — the single accent (white text passes AA)
-  brandLight: "#E2592A",
-  brandDark: "#9A3412",
-  brandTint: "#FBEEE7", // pale ember surface for active/hover/quiet chips
+  brand: "#0E7490", // deep cyan — the single accent (white text passes AA 4.8:1)
+  brandLight: "#1FA8C9", // bright cyan — logo gradient + accents on dark
+  brandDark: "#0B5563", // deep teal
+  brandTint: "#E2F5F9", // pale cyan surface for active/hover/quiet chips
 
   // Text: three cool inks (no competing greys).
   text: "#0E1116", // primary (cool near-black)

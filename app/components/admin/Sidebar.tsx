@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getMe, logout, type Me } from "../../lib/api";
 import { LogoMark } from "../site/Logo";
+import { LanguageToggle } from "../site/LanguageToggle";
 import { C, R, S, SHADOW, T } from "../../lib/theme";
+import { useT } from "../../lib/i18n-client";
 
 const NAV = [
   {
@@ -97,6 +99,7 @@ const NAV = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const tr = useT();
   const [me, setMe] = useState<Me | null>(null);
 
   useEffect(() => {
@@ -159,7 +162,7 @@ export function Sidebar() {
           padding: `0 ${S[3]}px ${S[1]}px`,
         }}
       >
-        Manage
+        {tr("Manage")}
       </div>
 
       {/* Primary navigation */}
@@ -203,7 +206,7 @@ export function Sidebar() {
               >
                 {item.icon}
               </span>
-              {item.label}
+              {tr(item.label)}
             </Link>
           );
         })}
@@ -251,13 +254,14 @@ export function Sidebar() {
             {me?.email ?? "..."}
           </div>
           <div style={{ ...T.caption, color: C.faint }}>
-            {me?.role === "super" ? "Super Admin" : "Administrator"}
+            {me?.role === "super" ? tr("Super Admin") : tr("Administrator")}
           </div>
         </div>
+        <LanguageToggle onDark />
         <button
           onClick={signOut}
-          title="Sign out"
-          aria-label="Sign out"
+          title={tr("Sign out")}
+          aria-label={tr("Sign out")}
           className="qp-press"
           style={{
             border: "none",

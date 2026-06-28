@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { fmt } from "../../lib/data";
+import { fmt, type Currency } from "../../lib/data";
 import { setTableItems } from "../../lib/api";
 import type { LiveTable, OrderItem } from "../../lib/types";
 import { C, R, S, T, NUM, MONO, STATUS, btn, field as fieldStyle } from "../../lib/theme";
@@ -14,10 +14,12 @@ import { Alert, Modal, Spinner } from "../ui/Primitives";
  */
 export function OrderModal({
   table,
+  currency = "USD",
   onClose,
   onSaved,
 }: {
   table: LiveTable;
+  currency?: Currency;
   onClose: () => void;
   onSaved: (t: LiveTable) => void;
 }) {
@@ -182,7 +184,7 @@ export function OrderModal({
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: S[3] }}>
                   <span style={{ ...T.body, fontWeight: 700, ...MONO }}>
-                    {fmt(it.price)}
+                    {fmt(it.price, currency)}
                   </span>
                   <button
                     onClick={() => removeLine(i)}
@@ -218,7 +220,7 @@ export function OrderModal({
             }}
           >
             <span>Subtotal</span>
-            <span style={{ color: C.brand, ...MONO }}>{fmt(subtotal)}</span>
+            <span style={{ color: C.brand, ...MONO }}>{fmt(subtotal, currency)}</span>
           </div>
         )}
 

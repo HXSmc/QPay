@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { billDue, fmt, TIP_PCT } from "../lib/data";
+import { billDue, fmt, TIP_PCT, type Currency } from "../lib/data";
 import { getPublicMenuItems, payTable, syncTable } from "../lib/api";
 import type { LiveTable, MenuItem, SplitMode, TipKey } from "../lib/types";
 import { C, R, S, SHADOW, T, MONO, STATUS } from "../lib/theme";
+import { useT } from "../lib/i18n-client";
 import { MenuModal } from "./site/MenuModal";
 import { OrderModal } from "./site/OrderModal";
 import { Toast } from "./ui/Primitives";
@@ -31,15 +32,17 @@ function Money({
   size = 15,
   weight = 600,
   color = C.text,
+  currency = "USD",
 }: {
   value: number | string;
   size?: number;
   weight?: number;
   color?: string;
+  currency?: Currency;
 }) {
   return (
     <span style={{ ...MONO, fontSize: size, fontWeight: weight, color }}>
-      {typeof value === "number" ? fmt(value) : value}
+      {typeof value === "number" ? fmt(value, currency) : value}
     </span>
   );
 }
@@ -66,13 +69,16 @@ export function CustomerView({
   token,
   restaurant = "Restaurant",
   taxRate = 8,
+  currency = "USD",
 }: {
   tableNumber?: string;
   initialTable?: CustTable | null;
   token: string;
   restaurant?: string;
   taxRate?: number;
+  currency?: Currency;
 }) {
+  const tr = useT();
   // Stable per-phone id so reservations from other phones are distinguishable.
   const [clientId] = useState(() => {
     if (typeof window === "undefined") return "ssr";
@@ -204,10 +210,10 @@ export function CustomerView({
   let payNote = "";
   if (split === "equal") {
     principal = equalPrincipal;
-    payNote = " (your share)";
+    payNote = tr(" (your share)");
   } else if (split === "item") {
     principal = itemPrincipal;
-    payNote = " (your items)";
+    payNote = tr(" (your items)");
   }
   const tipAmt = isCustomTip
     ? Math.max(0, Number(customTip) || 0)
@@ -215,10 +221,10 @@ export function CustomerView({
   const payAmount = +(principal + tipAmt).toFixed(2);
 
   const payLabel = fullyPaid
-    ? "Bill fully paid"
+    ? tr("Bill fully paid")
     : split === "item" && selectedCount === 0
-      ? "Select items to pay"
-      : "Pay " + fmt(payAmount) + payNote;
+      ? tr("Select items to pay")
+      : tr("Pay") + " " + fmt(payAmount, currency) + payNote;
 
   const payDisabled =
     paying ||
@@ -311,11 +317,11 @@ export function CustomerView({
   };
 
   const otherGuests = reservations.filter((r) => r.id !== ownId).length;
-  const equalNote = `${fmt(perPerson)} per person × ${clampedPaying}`;
+  const equalNote = `${fmt(perPerson, currency)} ${tr("per person")} × ${clampedPaying}`;
   const itemNote =
     selectedUnits === 0
-      ? "No items selected yet"
-      : `${selectedUnits} item${selectedUnits === 1 ? "" : "s"} selected`;
+      ? tr("No items selected yet")
+      : `${selectedUnits} ${selectedUnits === 1 ? tr("item selected") : tr("items selected")}`;
 
   const reduced = usePrefersReducedMotion();
 
@@ -428,7 +434,7 @@ export function CustomerView({
                     textTransform: "uppercase",
                   }}
                 >
-                  Your bill at
+                  {tr("Your bill at")}
                 </div>
                 <div
                   style={{
@@ -460,7 +466,7 @@ export function CustomerView({
                     color: C.brandLight,
                   }}
                 >
-                  TABLE
+                  {tr("TABLE")}
                 </div>
                 <div style={{ ...MONO, fontSize: 24, fontWeight: 700, lineHeight: 1.05, color: "#fff" }}>
                   {tableNumber}
@@ -495,9 +501,9 @@ export function CustomerView({
                   animation: reduced ? undefined : "qpv-livepulse 2.4s ease-in-out infinite",
                 }}
               />
-              Live bill
+              {tr("Live bill")}
               {otherGuests > 0
-                ? `, ${otherGuests} other phone${otherGuests === 1 ? "" : "s"} paying`
+                ? `, ${otherGuests} ${otherGuests === 1 ? tr("other phone paying") : tr("other phones paying")}`
                 : ""}
             </div>
           </div>
@@ -548,7 +554,7 @@ export function CustomerView({
                   <line x1="7" x2="17" y1="12" y2="12" />
                   <line x1="7" x2="13" y1="16" y2="16" />
                 </svg>
-                {menuOpen ? "Hide menu" : "View menu"}
+                {menuOpen ? tr("Hide menu") : tr("View menu")}
               </button>
               {canOrder && (
                 <button
@@ -590,7 +596,7 @@ export function CustomerView({
                     <circle cx="19" cy="21" r="1" />
                     <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
                   </svg>
-                  {orderOpen ? "Close order" : "Order food"}
+                  {orderOpen ? tr("Close order") : tr("Order food")}
                 </button>
               )}
             </div>
@@ -608,8 +614,9 @@ export function CustomerView({
                 open={orderOpen}
                 token={token}
                 items={orderItems}
+                currency={currency}
                 onClose={() => setOrderOpen(false)}
-                onPlaced={() => setOrderToast("Order sent to the kitchen")}
+                onPlaced={() => setOrderToast(tr("Order sent to the kitchen"))}
               />
             )}
 
@@ -643,7 +650,7 @@ export function CustomerView({
                     <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
                   </svg>
                 </div>
-                <div style={{ ...T.h2, color: C.text }}>No items yet</div>
+                <div style={{ ...T.h2, color: C.text }}>{tr("No items yet")}</div>
                 <div
                   style={{
                     ...T.body,
@@ -654,14 +661,13 @@ export function CustomerView({
                     marginInline: "auto",
                   }}
                 >
-                  Your server is still adding items to this table. Your bill will
-                  appear here shortly.
+                  {tr("Your server is still adding items to this table. Your bill will appear here shortly.")}
                 </div>
               </div>
             ) : (
               <>
                 {/* Order summary */}
-                <div style={{ ...sectionLabel, marginBottom: S[2] }}>Order summary</div>
+                <div style={{ ...sectionLabel, marginBottom: S[2] }}>{tr("Order summary")}</div>
                 {items.map((it) => (
                   <div
                     key={it.name}
@@ -696,7 +702,7 @@ export function CustomerView({
                         {it.name}
                       </span>
                     </div>
-                    <Money value={it.price} size={15} weight={600} />
+                    <Money value={it.price} size={15} weight={600} currency={currency} />
                   </div>
                 ))}
 
@@ -711,8 +717,8 @@ export function CustomerView({
                   }}
                 >
                   {[
-                    ["Subtotal", subtotal],
-                    [`Tax (${taxRate}%)`, tax],
+                    [tr("Subtotal"), subtotal],
+                    [`${tr("Tax")} (${taxRate}%)`, tax],
                   ].map(([label, val]) => (
                     <div
                       key={String(label)}
@@ -726,7 +732,7 @@ export function CustomerView({
                       }}
                     >
                       <span>{label}</span>
-                      <Money value={val as number} size={14} weight={600} />
+                      <Money value={val as number} size={14} weight={600} currency={currency} />
                     </div>
                   ))}
                   <div style={{ borderTop: `1px dashed ${C.borderStrong}`, margin: "11px 0" }} />
@@ -737,8 +743,8 @@ export function CustomerView({
                       alignItems: "baseline",
                     }}
                   >
-                    <span style={{ ...T.h3, fontSize: 16, color: C.text }}>Total</span>
-                    <Money value={due} size={24} weight={700} color={C.brand} />
+                    <span style={{ ...T.h3, fontSize: 16, color: C.text }}>{tr("Total")}</span>
+                    <Money value={due} size={24} weight={700} color={C.brand} currency={currency} />
                   </div>
                   {paid > 0 && (
                     <>
@@ -753,8 +759,8 @@ export function CustomerView({
                           marginTop: 10,
                         }}
                       >
-                        <span>Paid so far</span>
-                        <Money value={"-" + fmt(paid)} size={13.5} weight={700} color={STATUS.success.fg} />
+                        <span>{tr("Paid so far")}</span>
+                        <Money value={"-" + fmt(paid, currency)} size={13.5} weight={700} color={STATUS.success.fg} currency={currency} />
                       </div>
                       <div
                         style={{
@@ -767,12 +773,13 @@ export function CustomerView({
                           marginTop: 3,
                         }}
                       >
-                        <span>{fullyPaid ? "Settled" : "Remaining"}</span>
+                        <span>{fullyPaid ? tr("Settled") : tr("Remaining")}</span>
                         <Money
                           value={remaining}
                           size={16}
                           weight={700}
                           color={fullyPaid ? STATUS.success.fg : C.text}
+                          currency={currency}
                         />
                       </div>
                     </>
@@ -815,20 +822,21 @@ export function CustomerView({
                       >
                         <path d="M20 6 9 17l-4-4" />
                       </svg>
-                      <span>Paid </span>
+                      <span>{tr("Paid")} </span>
                       <Money
                         value={result.paid}
                         size={15}
                         weight={700}
                         color={result.cleared ? STATUS.success.fg : STATUS.warn.fg}
+                        currency={currency}
                       />
                     </div>
                     <div style={{ fontSize: 13.5, fontWeight: 500, color: C.muted, marginTop: 6 }}>
                       {result.cleared || remaining <= 0.001 ? (
-                        "Bill fully paid. Thanks!"
+                        tr("Bill fully paid. Thanks!")
                       ) : (
                         <>
-                          Payment received, <Money value={remaining} size={13.5} weight={600} color={C.muted} /> remaining
+                          {tr("Payment received,")} <Money value={remaining} size={13.5} weight={600} color={C.muted} currency={currency} /> {tr("remaining")}
                         </>
                       )}
                     </div>
@@ -849,13 +857,13 @@ export function CustomerView({
                       fontSize: 16,
                     }}
                   >
-                    This bill is fully paid. Thank you.
+                    {tr("This bill is fully paid. Thank you.")}
                   </div>
                 ) : (
                   <>
                     {/* Split selector */}
                     <div style={{ ...sectionLabel, margin: `${S[5]}px 0 ${S[3]}px` }}>
-                      How do you want to pay?
+                      {tr("How do you want to pay?")}
                     </div>
                     <div style={{ display: "flex", gap: S[2] }}>
                       {SPLIT_DEFS.map((o) => {
@@ -886,18 +894,18 @@ export function CustomerView({
                               color: active ? C.brand : C.text,
                             }}
                           >
-                            <div style={{ fontSize: 13.5, fontWeight: 700 }}>{o.label}</div>
+                            <div style={{ fontSize: 13.5, fontWeight: 700 }}>{tr(o.label)}</div>
                             <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600 }}>
                               {o.key === "full" ? (
-                                <Money value={remaining} size={12} weight={600} color={subColor} />
+                                <Money value={remaining} size={12} weight={600} color={subColor} currency={currency} />
                               ) : o.key === "equal" ? (
                                 <>
-                                  <Money value={perPerson} size={12} weight={600} color={subColor} /> ea
+                                  <Money value={perPerson} size={12} weight={600} color={subColor} currency={currency} /> {tr("ea")}
                                 </>
                               ) : selectedCount ? (
-                                <Money value={itemPrincipal} size={12} weight={600} color={subColor} />
+                                <Money value={itemPrincipal} size={12} weight={600} color={subColor} currency={currency} />
                               ) : (
-                                <span style={{ color: subColor }}>Choose</span>
+                                <span style={{ color: subColor }}>{tr("Choose")}</span>
                               )}
                             </div>
                           </div>
@@ -927,17 +935,17 @@ export function CustomerView({
                         >
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
-                              People at the table
+                              {tr("People at the table")}
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                            <button onClick={atTableDec} aria-label="Fewer people" style={stepperBtn}>
+                            <button onClick={atTableDec} aria-label={tr("Fewer people")} style={stepperBtn}>
                               −
                             </button>
                             <span style={{ ...MONO, fontSize: 17, fontWeight: 700, minWidth: 22, textAlign: "center", color: C.text }}>
                               {peopleAtTable}
                             </span>
-                            <button onClick={atTableInc} aria-label="More people" style={stepperBtn}>
+                            <button onClick={atTableInc} aria-label={tr("More people")} style={stepperBtn}>
                               +
                             </button>
                           </div>
@@ -952,17 +960,17 @@ export function CustomerView({
                         >
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
-                              You&apos;re paying for
+                              {tr("You're paying for")}
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                            <button onClick={payingDec} aria-label="Pay for fewer" style={stepperBtn}>
+                            <button onClick={payingDec} aria-label={tr("Pay for fewer")} style={stepperBtn}>
                               −
                             </button>
                             <span style={{ ...MONO, fontSize: 17, fontWeight: 700, minWidth: 22, textAlign: "center", color: C.text }}>
                               {clampedPaying}
                             </span>
-                            <button onClick={payingInc} aria-label="Pay for more" style={stepperBtn}>
+                            <button onClick={payingInc} aria-label={tr("Pay for more")} style={stepperBtn}>
                               +
                             </button>
                           </div>
@@ -978,12 +986,12 @@ export function CustomerView({
                           }}
                         >
                           <div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>You pay</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{tr("You pay")}</div>
                             <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
-                              {equalNote}, capped at remaining
+                              {equalNote}{tr(", capped at remaining")}
                             </div>
                           </div>
-                          <Money value={equalPrincipal} size={21} weight={700} color={C.brand} />
+                          <Money value={equalPrincipal} size={21} weight={700} color={C.brand} currency={currency} />
                         </div>
                       </div>
                     )}
@@ -992,7 +1000,7 @@ export function CustomerView({
                     {split === "item" && (
                       <div style={{ marginTop: S[3] }}>
                         <div style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: S[2] }}>
-                          Tap the items you&apos;re paying for. Paid &amp; held items lock for everyone.
+                          {tr("Tap the items you're paying for. Paid & held items lock for everyone.")}
                         </div>
                         {items.map((it, i) => {
                           const q = selectedQty[i] ?? 0;
@@ -1020,8 +1028,8 @@ export function CustomerView({
                                     role: "button",
                                     tabIndex: 0,
                                     "aria-pressed": sel,
-                                    "aria-label": `${it.name}, ${fmt(it.price)}${
-                                      sel ? ", selected" : ""
+                                    "aria-label": `${it.name}, ${fmt(it.price, currency)}${
+                                      sel ? tr(", selected") : ""
                                     }`,
                                     onKeyDown: (e: React.KeyboardEvent) => {
                                       if (e.key === "Enter" || e.key === " ") {
@@ -1087,7 +1095,7 @@ export function CustomerView({
                                       setQty(i, q - 1);
                                     }}
                                     disabled={q <= 0}
-                                    aria-label="Remove one"
+                                    aria-label={tr("Remove one")}
                                     style={{ ...miniBtn, opacity: q <= 0 ? 0.4 : 1 }}
                                   >
                                     −
@@ -1101,7 +1109,7 @@ export function CustomerView({
                                       setQty(i, q + 1);
                                     }}
                                     disabled={q >= avail}
-                                    aria-label="Add one"
+                                    aria-label={tr("Add one")}
                                     style={{ ...miniBtn, opacity: q >= avail ? 0.4 : 1 }}
                                   >
                                     +
@@ -1114,10 +1122,10 @@ export function CustomerView({
                                 </div>
                                 <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
                                   {isMulti
-                                    ? `${it.qty} at ${fmt(unitPrice(i))} each`
-                                    : fmt(it.price)}
-                                  {paidU > 0 ? `, ${paidU} paid` : ""}
-                                  {heldOther > 0 ? `, ${heldOther} held` : ""}
+                                    ? `${it.qty} ${tr("at")} ${fmt(unitPrice(i), currency)} ${tr("each")}`
+                                    : fmt(it.price, currency)}
+                                  {paidU > 0 ? `, ${paidU} ${tr("paid")}` : ""}
+                                  {heldOther > 0 ? `, ${heldOther} ${tr("held")}` : ""}
                                 </div>
                               </div>
                               {lineBadge ? (
@@ -1134,13 +1142,14 @@ export function CustomerView({
                                     borderRadius: R.pill,
                                   }}
                                 >
-                                  {lineBadge.t}
+                                  {tr(lineBadge.t)}
                                 </span>
                               ) : (
                                 <Money
                                   value={isMulti ? unitPrice(i) * Math.max(q, 0) : it.price}
                                   size={14}
                                   weight={700}
+                                  currency={currency}
                                 />
                               )}
                             </div>
@@ -1159,18 +1168,18 @@ export function CustomerView({
                           }}
                         >
                           <div>
-                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>You pay</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{tr("You pay")}</div>
                             <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
                               {itemNote}
                             </div>
                           </div>
-                          <Money value={itemPrincipal} size={21} weight={700} color={C.brand} />
+                          <Money value={itemPrincipal} size={21} weight={700} color={C.brand} currency={currency} />
                         </div>
                       </div>
                     )}
 
                     {/* Tip */}
-                    <div style={{ ...sectionLabel, margin: `${S[5]}px 0 ${S[3]}px` }}>Add a tip</div>
+                    <div style={{ ...sectionLabel, margin: `${S[5]}px 0 ${S[3]}px` }}>{tr("Add a tip")}</div>
                     <div
                       style={{
                         display: "grid",
@@ -1206,7 +1215,7 @@ export function CustomerView({
                               color: active ? C.brand : C.muted,
                             }}
                           >
-                            {o.label}
+                            {tr(o.label)}
                           </div>
                         );
                       })}
@@ -1229,7 +1238,7 @@ export function CustomerView({
                         </span>
                         <input
                           type="number"
-                          aria-label="Custom tip amount"
+                          aria-label={tr("Custom tip amount")}
                           value={customTip}
                           onChange={(e) => {
                             setCustomTip(e.target.value);
@@ -1248,7 +1257,7 @@ export function CustomerView({
                           }}
                         />
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: C.muted, whiteSpace: "nowrap" }}>
-                          custom tip
+                          {tr("custom tip")}
                         </span>
                       </div>
                     )}
@@ -1280,7 +1289,7 @@ export function CustomerView({
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M17.05 12.04c-.02-2.05 1.68-3.04 1.75-3.09-.95-1.39-2.43-1.58-2.96-1.6-1.26-.13-2.46.74-3.1.74-.64 0-1.62-.72-2.67-.7-1.37.02-2.64.8-3.35 2.02-1.43 2.48-.37 6.15 1.02 8.16.68.99 1.49 2.1 2.55 2.06 1.03-.04 1.42-.66 2.66-.66 1.24 0 1.59.66 2.67.64 1.1-.02 1.8-1 2.48-2 .78-1.15 1.1-2.26 1.12-2.32-.02-.01-2.15-.82-2.17-3.25zM15.1 5.82c.56-.68.94-1.62.84-2.56-.81.03-1.79.54-2.37 1.22-.52.6-.98 1.56-.86 2.48.9.07 1.83-.46 2.39-1.14z" />
                         </svg>
-                        Pay
+                        {tr("Pay")}
                       </button>
                       <button
                         onClick={() => handlePay("Google Pay")}
@@ -1322,7 +1331,7 @@ export function CustomerView({
                             d="M12 5.35c1.6 0 3.05.55 4.18 1.63l3.13-3.13C17.43 2.1 14.95 1 12 1 7.74 1 4.02 3.4 2.22 7.03l3.65 2.84C6.73 7.28 9.15 5.35 12 5.35z"
                           />
                         </svg>
-                        Pay
+                        {tr("Pay")}
                       </button>
                     </div>
 
@@ -1349,14 +1358,14 @@ export function CustomerView({
                       }}
                     >
                       {paying ? (
-                        "Processing."
+                        tr("Processing.")
                       ) : fullyPaid ? (
-                        "Bill fully paid"
+                        tr("Bill fully paid")
                       ) : split === "item" && selectedCount === 0 ? (
-                        "Select items to pay"
+                        tr("Select items to pay")
                       ) : (
                         <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6 }}>
-                          Pay <Money value={payAmount} size={17} weight={700} color="#fff" />
+                          {tr("Pay")} <Money value={payAmount} size={17} weight={700} color="#fff" currency={currency} />
                           {payNote}
                         </span>
                       )}
@@ -1387,7 +1396,7 @@ export function CustomerView({
                         <rect width="18" height="11" x="3" y="11" rx="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
-                      Secured by Nuqra, 256-bit encryption
+                      {tr("Secured by Nuqra, 256-bit encryption")}
                     </div>
                   </>
                 )}

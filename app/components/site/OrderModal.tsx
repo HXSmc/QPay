@@ -13,7 +13,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { C, R, S, T, btn, field } from "../../lib/theme";
-import { fmt } from "../../lib/data";
+import { useT } from "../../lib/i18n-client";
+import { fmt, type Currency } from "../../lib/data";
 import { placeOrder } from "../../lib/api";
 import { Alert, Spinner } from "../ui/Primitives";
 import type { MenuItem } from "../../lib/types";
@@ -38,15 +39,18 @@ export function OrderModal({
   open,
   token,
   items,
+  currency = "USD",
   onClose,
   onPlaced,
 }: {
   open: boolean;
   token: string;
   items: MenuItem[];
+  currency?: Currency;
   onClose: () => void;
   onPlaced: () => void;
 }) {
+  const tr = useT();
   const [cart, setCart] = useState<Cart>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -118,7 +122,7 @@ export function OrderModal({
       onPlaced();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not place the order. Try again.");
+      setError(e instanceof Error ? e.message : tr("Could not place the order. Try again."));
     } finally {
       setBusy(false);
     }
@@ -159,15 +163,15 @@ export function OrderModal({
             }}
           >
             <div>
-              <div style={{ ...T.h3, color: C.text }}>Order food</div>
+              <div style={{ ...T.h3, color: C.text }}>{tr("Order food")}</div>
               <div style={{ ...T.caption, color: C.muted, marginTop: 2 }}>
-                Add items and any notes for the kitchen.
+                {tr("Add items and any notes for the kitchen.")}
               </div>
             </div>
             <button
               ref={closeRef}
               onClick={onClose}
-              aria-label="Close order"
+              aria-label={tr("Close order")}
               style={{
                 width: 30,
                 height: 30,
@@ -199,7 +203,7 @@ export function OrderModal({
                     marginBottom: S[2],
                   }}
                 >
-                  {cat}
+                  {tr(cat)}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>
                   {list.map((it) => {
@@ -227,7 +231,7 @@ export function OrderModal({
                               </div>
                             )}
                             <div style={{ ...T.label, color: C.brand, marginTop: 6 }}>
-                              {fmt(it.price)}
+                              {fmt(it.price, currency)}
                             </div>
                           </div>
                           <Stepper qty={qty} onChange={(q) => setQty(it.id, q)} />
@@ -236,7 +240,7 @@ export function OrderModal({
                           <input
                             value={line?.comment ?? ""}
                             onChange={(e) => setComment(it.id, e.target.value)}
-                            placeholder="Add a note, e.g. no cheese"
+                            placeholder={tr("Add a note, e.g. no cheese")}
                             maxLength={160}
                             style={{ ...field(), marginTop: 12, fontSize: 13.5 }}
                           />
@@ -265,9 +269,9 @@ export function OrderModal({
               {busy ? (
                 <Spinner color="#fff" />
               ) : count === 0 ? (
-                "Choose items to order"
+                tr("Choose items to order")
               ) : (
-                `Place order, ${count} item${count === 1 ? "" : "s"}, ${fmt(total)}`
+                `${tr("Place order")}, ${count} ${count === 1 ? tr("item") : tr("items")}, ${fmt(total, currency)}`
               )}
             </button>
           </div>
@@ -278,6 +282,7 @@ export function OrderModal({
 }
 
 function Stepper({ qty, onChange }: { qty: number; onChange: (q: number) => void }) {
+  const tr = useT();
   const sq: React.CSSProperties = {
     width: 32,
     height: 32,
@@ -298,20 +303,20 @@ function Stepper({ qty, onChange }: { qty: number; onChange: (q: number) => void
       <button
         className="qp-press"
         onClick={() => onChange(1)}
-        aria-label="Add"
+        aria-label={tr("Add")}
         style={{ ...btn("secondary", { size: "sm" }), color: C.brand, borderColor: C.brand, height: 32 }}
       >
-        Add
+        {tr("Add")}
       </button>
     );
   }
   return (
     <div style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 32 }}>
-      <button className="qp-press" style={sq} onClick={() => onChange(qty - 1)} aria-label="Remove one">
+      <button className="qp-press" style={sq} onClick={() => onChange(qty - 1)} aria-label={tr("Remove one")}>
         −
       </button>
       <span style={{ minWidth: 16, textAlign: "center", fontWeight: 800, fontSize: 15 }}>{qty}</span>
-      <button className="qp-press" style={sq} onClick={() => onChange(qty + 1)} aria-label="Add one">
+      <button className="qp-press" style={sq} onClick={() => onChange(qty + 1)} aria-label={tr("Add one")}>
         +
       </button>
     </div>

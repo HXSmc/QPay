@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { getMe, getSettings, saveSettings } from "../../../lib/api";
 import { C, R, S, T, STATUS, SHADOW, btn, card, field } from "../../../lib/theme";
 import { Alert, Spinner, Toast } from "../../../components/ui/Primitives";
+import { CURRENCIES, type Currency } from "../../../lib/data";
+
+const CURRENCY_LABELS: Record<Currency, string> = {
+  USD: "USD (US Dollar $)",
+  GBP: "GBP (British Pound £)",
+  EUR: "EUR (Euro €)",
+  SAR: "SAR (Saudi Riyal)",
+};
 
 function Toggle({
   on,
@@ -60,6 +68,7 @@ function Toggle({
 export default function SettingsPage() {
   const [restaurant, setRestaurant] = useState("");
   const [taxRate, setTaxRate] = useState("8");
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [autoReceipts, setAutoReceipts] = useState(true);
   const [tipPrompts, setTipPrompts] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -82,6 +91,7 @@ export default function SettingsPage() {
         }
         setRestaurant(name);
         setTaxRate(String(s.taxRate));
+        setCurrency(s.currency);
         setAutoReceipts(s.autoReceipts);
         setTipPrompts(s.tipPrompts);
       })
@@ -102,6 +112,7 @@ export default function SettingsPage() {
       await saveSettings({
         name: restaurant.trim(),
         taxRate: Number(taxRate),
+        currency,
         autoReceipts,
         tipPrompts,
       });
@@ -157,6 +168,24 @@ export default function SettingsPage() {
           </div>
 
           {taxError && <Alert kind="danger">{taxError}</Alert>}
+
+          <div>
+            <label htmlFor="set-currency" style={labelStyle}>
+              Currency
+            </label>
+            <select
+              id="set-currency"
+              value={currency}
+              onChange={(e) => setCurrency(e.target.value as Currency)}
+              style={field()}
+            >
+              {CURRENCIES.map((c) => (
+                <option key={c} value={c}>
+                  {CURRENCY_LABELS[c]}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div style={row}>

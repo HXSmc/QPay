@@ -8,16 +8,18 @@ import { useEffect, useState } from "react";
 import {
   createMenuItem,
   deleteMenuItem,
+  getSettings,
   listMenuItems,
   updateMenuItem,
 } from "../../lib/api";
-import { fmt } from "../../lib/data";
+import { fmt, type Currency } from "../../lib/data";
 import { C, R, S, T, STATUS, MONO, btn, field } from "../../lib/theme";
 import { Alert, EmptyState, Skeleton, Spinner } from "../ui/Primitives";
 import type { MenuItem } from "../../lib/types";
 
 export function MenuItemsEditor() {
   const [items, setItems] = useState<MenuItem[] | null>(null);
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ name: "", price: "", category: "", description: "" });
@@ -27,6 +29,7 @@ export function MenuItemsEditor() {
     listMenuItems()
       .then(setItems)
       .catch(() => setItems([]));
+    getSettings().then((s) => setCurrency(s.currency)).catch(() => {});
   }, []);
 
   const add = async () => {
@@ -171,7 +174,7 @@ export function MenuItemsEditor() {
                     )}
                   </div>
                   <div style={{ ...T.h3, ...MONO, color: C.text, minWidth: 72, textAlign: "right" }}>
-                    {fmt(it.price)}
+                    {fmt(it.price, currency)}
                   </div>
                   <button
                     onClick={() => toggle(it)}

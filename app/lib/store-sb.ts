@@ -13,6 +13,7 @@
 
 import { hashPassword } from "./auth";
 import { SUPER_EMAIL, SUPER_PASSWORD } from "./constants";
+import { fmt, type Currency } from "./data";
 import { sb } from "./supabase";
 import {
   applyPayment,
@@ -148,9 +149,11 @@ export async function ensureSuperadmin(): Promise<void> {
 
 async function settingsRow(owner: string): Promise<RestaurantSettings> {
   const client = await sb();
+  // select("*") so a not-yet-migrated `currency` column simply comes back
+  // undefined (coerceSettings falls back to USD) instead of erroring the read.
   const { data, error } = await client
     .from("settings")
-    .select("name, tax_rate, auto_receipts, tip_prompts")
+    .select("*")
     .eq("owner", owner)
     .maybeSingle();
   if (error) throw new Error(`store: settings read failed — ${error.message}`);
@@ -159,6 +162,7 @@ async function settingsRow(owner: string): Promise<RestaurantSettings> {
       ? {
           name: data.name,
           taxRate: Number(data.tax_rate),
+          currency: data.currency,
           autoReceipts: data.auto_receipts,
           tipPrompts: data.tip_prompts,
         }
@@ -177,16 +181,21 @@ export async function setSettings(
   const cur = await settingsRow(owner);
   const next = mergeSettings(cur, patch);
   const client = await sb();
-  const { error } = await client.from("settings").upsert(
-    {
-      owner,
-      name: next.name,
-      tax_rate: next.taxRate,
-      auto_receipts: next.autoReceipts,
-      tip_prompts: next.tipPrompts,
-    },
-    { onConflict: "owner" },
-  );
+  const base = {
+    owner,
+    name: next.name,
+    tax_rate: next.taxRate,
+    auto_receipts: next.autoReceipts,
+    tip_prompts: next.tipPrompts,
+  };
+  // Try with currency; if the column hasn't been migrated yet, retry without it
+  // so saving settings never breaks (currency just won't persist until migrated).
+  let { error } = await client
+    .from("settings")
+    .upsert({ ...base, currency: next.currency }, { onConflict: "owner" });
+  if (error && /currency/i.test(error.message)) {
+    ({ error } = await client.from("settings").upsert(base, { onConflict: "owner" }));
+  }
   if (error) throw new Error(`store: settings write failed — ${error.message}`);
   return next;
 }
@@ -252,7 +261,7 @@ async function casTable(
   eqs: Eq[],
   apply: (
     t: LiveTable,
-    ctx: { taxRate: number },
+    ctx: { taxRate: number; currency: Currency },
   ) => Promise<{ write: boolean; txn?: Transaction | null }> | {
     write: boolean;
     txn?: Transaction | null;
@@ -265,8 +274,8 @@ async function casTable(
     const id = row.id;
     const version = Number(row.version) || 0;
     const t = rowToTable(row);
-    const taxRate = (await settingsRow(t.owner)).taxRate;
-    const res = await apply(t, { taxRate });
+    const set = await settingsRow(t.owner);
+    const res = await apply(t, { taxRate: set.taxRate, currency: set.currency });
     if (!res.write) return t;
 
     // Atomic CAS update + (optional) ledger insert in ONE DB transaction, so a
@@ -362,9 +371,9 @@ export async function setTableItems(
   owner: string,
 ): Promise<LiveTable | null> {
   // Located by (owner, num) — unique per owner.
-  return casTable([["owner", owner], ["num", Number(num)]], (t, { taxRate }) => {
+  return casTable([["owner", owner], ["num", Number(num)]], (t, { taxRate, currency }) => {
     t.items = items;
-    t.amount = orderAmount(items, taxRate);
+    t.amount = orderAmount(items, taxRate, currency);
     // Editing the order resets per-item locks, holds, and carried principal.
     t.paidQty = zeros(items.length);
     t.reservations = [];
@@ -409,10 +418,10 @@ export async function setTableStatus(
   status: TableStatus,
   owner: string,
 ): Promise<LiveTable | null> {
-  return casTable([["owner", owner], ["num", Number(num)]], (t) => {
+  return casTable([["owner", owner], ["num", Number(num)]], (t, { currency }) => {
     t.status = status;
     if (status === "open") t.amount = "—";
-    else if (t.amount === "—") t.amount = "$0";
+    else if (t.amount === "—") t.amount = fmt(0, currency);
     return { write: true };
   });
 }
@@ -699,14 +708,14 @@ export async function clearMenu(owner: string): Promise<void> {
 
 export async function getPublicRestaurant(
   token: string,
-): Promise<{ name: string; taxRate: number } | null> {
+): Promise<{ name: string; taxRate: number; currency: Currency } | null> {
   // Resolve by the unique token (the customer scanned a specific table).
   const t = await rawTableBy([["token", token]]);
   if (!t) return null;
   const set = await settingsRow(t.owner);
   const user = await getUserById(t.owner);
   const fallback = user ? user.email.split("@")[0] : "Restaurant";
-  return { name: set.name || fallback, taxRate: set.taxRate };
+  return { name: set.name || fallback, taxRate: set.taxRate, currency: set.currency };
 }
 
 // ---------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fmt } from "../../../lib/data";
-import { listTransactions } from "../../../lib/api";
+import { fmt, type Currency } from "../../../lib/data";
+import { getSettings, listTransactions } from "../../../lib/api";
 import type { Transaction } from "../../../lib/types";
 import { C, R, S, T, NUM, MONO, card } from "../../../lib/theme";
 import { Alert, EmptyState, Skeleton } from "../../../components/ui/Primitives";
@@ -12,6 +12,7 @@ const amountOf = (t: Transaction) =>
 
 export default function AnalyticsPage() {
   const [txns, setTxns] = useState<Transaction[]>([]);
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -20,6 +21,7 @@ export default function AnalyticsPage() {
       .then(setTxns)
       .catch(() => setError(true))
       .finally(() => setLoading(false));
+    getSettings().then((s) => setCurrency(s.currency)).catch(() => {});
   }, []);
 
   const revenue = txns.reduce((a, t) => a + amountOf(t), 0);
@@ -27,9 +29,9 @@ export default function AnalyticsPage() {
   const avg = count ? revenue / count : 0;
 
   const STATS = [
-    { label: "Revenue (recent)", value: fmt(revenue), money: true as const },
+    { label: "Revenue (recent)", value: fmt(revenue, currency), money: true as const },
     { label: "Transactions", value: String(count) },
-    { label: "Avg. ticket", value: fmt(avg), money: true as const },
+    { label: "Avg. ticket", value: fmt(avg, currency), money: true as const },
     { label: "Tips rate", notTracked: true as const },
   ];
 
@@ -98,7 +100,7 @@ export default function AnalyticsPage() {
           <div style={{ display: "flex", alignItems: "flex-end", gap: S[4], height: 200 }}>
             {methods.map((m) => (
               <div key={m.method} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: S[2] }}>
-                <div style={{ ...T.caption, fontWeight: 700, color: C.muted, ...NUM }}>{fmt(m.sum)}</div>
+                <div style={{ ...T.caption, fontWeight: 700, color: C.muted, ...NUM }}>{fmt(m.sum, currency)}</div>
                 <div
                   style={{
                     width: "100%",

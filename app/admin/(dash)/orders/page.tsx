@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listOrders, setOrderStatus } from "../../../lib/api";
-import { fmt } from "../../../lib/data";
+import { getSettings, listOrders, setOrderStatus } from "../../../lib/api";
+import { fmt, type Currency } from "../../../lib/data";
 import { C, R, S, T, MONO, SHADOW, badge, btn } from "../../../lib/theme";
 import { EmptyState, Skeleton } from "../../../components/ui/Primitives";
 import type { Order, OrderStatus } from "../../../lib/types";
@@ -18,6 +18,7 @@ const STATUS_BADGE: Record<OrderStatus, Parameters<typeof badge>[0]> = {
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[] | null>(null);
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [activeOnly, setActiveOnly] = useState(true);
   const activeRef = useRef(activeOnly);
   activeRef.current = activeOnly;
@@ -33,6 +34,10 @@ export default function OrdersPage() {
   useEffect(() => {
     load();
   }, [load, activeOnly]);
+
+  useEffect(() => {
+    getSettings().then((s) => setCurrency(s.currency)).catch(() => {});
+  }, []);
 
   // Live poll so new orders appear without a refresh (mirrors the dashboard).
   useEffect(() => {
@@ -109,7 +114,7 @@ export default function OrdersPage() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: S[4] }}>
           {orders.map((o) => (
-            <OrderCard key={o.id} order={o} onAdvance={advance} />
+            <OrderCard key={o.id} order={o} currency={currency} onAdvance={advance} />
           ))}
         </div>
       )}
@@ -117,7 +122,7 @@ export default function OrdersPage() {
   );
 }
 
-function OrderCard({ order, onAdvance }: { order: Order; onAdvance: (o: Order, s: OrderStatus) => void }) {
+function OrderCard({ order, currency, onAdvance }: { order: Order; currency: Currency; onAdvance: (o: Order, s: OrderStatus) => void }) {
   const time = new Date(order.createdAt).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -176,7 +181,7 @@ function OrderCard({ order, onAdvance }: { order: Order; onAdvance: (o: Order, s
           paddingTop: S[3],
         }}
       >
-        <span style={{ ...T.h3, ...MONO, color: C.text }}>{fmt(order.total)}</span>
+        <span style={{ ...T.h3, ...MONO, color: C.text }}>{fmt(order.total, currency)}</span>
         <div style={{ display: "flex", gap: 6 }}>
           {order.status === "placed" && (
             <button onClick={() => onAdvance(order, "preparing")} style={btn("primary", { size: "sm" })}>

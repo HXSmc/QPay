@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { billDue, fmt } from "../../../lib/data";
+import { billDue, fmt, type Currency } from "../../../lib/data";
 import {
   createTable,
   deleteTable,
@@ -36,6 +36,7 @@ export default function TablesPage() {
   const [orderFor, setOrderFor] = useState<LiveTable | null>(null);
   const [busy, setBusy] = useState(false);
   const [restaurantName, setRestaurantName] = useState("");
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   // Which table is awaiting a delete confirmation (inline, no browser dialog).
@@ -58,6 +59,7 @@ export default function TablesPage() {
       .finally(() => setLoading(false));
     getSettings()
       .then(async (s) => {
+        setCurrency(s.currency);
         if (s.name) return setRestaurantName(s.name);
         const me = await getMe();
         setRestaurantName(me.email.split("@")[0]);
@@ -200,7 +202,7 @@ export default function TablesPage() {
                 </div>
                 {t.status === "partial" && (
                   <div style={{ ...T.caption, color: C.muted, marginTop: S[2] - 1, ...MONO }}>
-                    Paid {fmt(t.paid)} of {fmt(billDue(t.items))}
+                    Paid {fmt(t.paid, currency)} of {fmt(billDue(t.items), currency)}
                   </div>
                 )}
                 <button
@@ -289,6 +291,7 @@ export default function TablesPage() {
                 <OrderModal
                   key={`order-${t.num}`}
                   table={orderFor}
+                  currency={currency}
                   onClose={() => setOrderFor(null)}
                   onSaved={applyTable}
                 />

@@ -5,8 +5,25 @@ export const BRAND = "#2E5BFF";
 /** Default tax rate (percent) when a restaurant hasn't set its own. */
 export const DEFAULT_TAX_RATE = 8;
 
-/** Format a number as a USD currency string, e.g. 12.5 -> "$12.50". */
-export const fmt = (n: number) => "$" + n.toFixed(2);
+/** Supported per-restaurant display currencies. */
+export const CURRENCIES = ["USD", "GBP", "EUR", "SAR"] as const;
+export type Currency = (typeof CURRENCIES)[number];
+export const DEFAULT_CURRENCY: Currency = "USD";
+
+const CURRENCY_SYMBOL: Record<Currency, string> = {
+  USD: "$",
+  GBP: "£",
+  EUR: "€",
+  SAR: "SAR ",
+};
+
+export function isCurrency(v: unknown): v is Currency {
+  return typeof v === "string" && (CURRENCIES as readonly string[]).includes(v);
+}
+
+/** Format a number as a currency string, e.g. fmt(12.5,"GBP") -> "£12.50". */
+export const fmt = (n: number, currency: Currency = DEFAULT_CURRENCY) =>
+  (CURRENCY_SYMBOL[currency] ?? "$") + n.toFixed(2);
 
 /**
  * Bill owed for an order: subtotal + tax (tip excluded — it varies per payer).

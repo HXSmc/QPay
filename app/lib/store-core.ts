@@ -2,7 +2,7 @@
 // disk/KV blob fallback). Keeping the payment-locking math in ONE place means the
 // two persistence layers can never drift on money. Nothing here touches I/O.
 
-import { billDue, DEFAULT_TAX_RATE, fmt } from "./data";
+import { billDue, DEFAULT_CURRENCY, DEFAULT_TAX_RATE, fmt, isCurrency, type Currency } from "./data";
 import type {
   LiveTable,
   OrderItem,
@@ -32,6 +32,7 @@ export function coerceSettings(
   return {
     name: typeof v?.name === "string" ? v.name : "",
     taxRate: typeof v?.taxRate === "number" ? v.taxRate : DEFAULT_TAX_RATE,
+    currency: isCurrency(v?.currency) ? v.currency : DEFAULT_CURRENCY,
     autoReceipts: v?.autoReceipts ?? true,
     tipPrompts: v?.tipPrompts ?? true,
   };
@@ -54,6 +55,7 @@ export function mergeSettings(
       patch.taxRate <= 30
         ? patch.taxRate
         : cur.taxRate,
+    currency: isCurrency(patch.currency) ? patch.currency : cur.currency,
     autoReceipts:
       typeof patch.autoReceipts === "boolean"
         ? patch.autoReceipts
@@ -63,11 +65,15 @@ export function mergeSettings(
   };
 }
 
-export function orderAmount(items: OrderItem[], taxRate: number): string {
+export function orderAmount(
+  items: OrderItem[],
+  taxRate: number,
+  currency: Currency = DEFAULT_CURRENCY,
+): string {
   if (!items.length) return "—";
   // Show the actual bill (subtotal + tax) so the admin "amount" matches what
   // `paid` and the customer's total are measured against.
-  return fmt(billDue(items, taxRate));
+  return fmt(billDue(items, taxRate), currency);
 }
 
 /**

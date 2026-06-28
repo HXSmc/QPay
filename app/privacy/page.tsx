@@ -2,10 +2,13 @@ import Link from "next/link";
 import { BrandHeader } from "../components/site/BrandHeader";
 import { SITE } from "../lib/site";
 import { C, R, S, SHADOW, T } from "../lib/theme";
+import { getServerLocale } from "../lib/i18n-server";
+import { t } from "../lib/i18n";
 
 export const metadata = { title: "Privacy policy · Nuqra" };
 
-export default function PrivacyPage() {
+export default async function PrivacyPage() {
+  const locale = await getServerLocale();
   return (
     <div style={{ minHeight: "100vh", background: C.canvas, color: C.text }}>
       <BrandHeader />
@@ -27,7 +30,7 @@ export default function PrivacyPage() {
             marginBottom: S[3],
           }}
         >
-          Legal
+          {t("Legal", locale)}
         </div>
         <h1
           style={{
@@ -38,7 +41,7 @@ export default function PrivacyPage() {
             margin: 0,
           }}
         >
-          Privacy policy
+          {t("Privacy policy", locale)}
         </h1>
         <p
           style={{
@@ -48,7 +51,7 @@ export default function PrivacyPage() {
             marginBottom: S[6],
           }}
         >
-          {SITE.company} · last updated {SITE.legalUpdated}
+          {SITE.company} · {t("last updated", locale)} {SITE.legalUpdated}
         </p>
 
         <div
@@ -61,9 +64,10 @@ export default function PrivacyPage() {
           }}
         >
           <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, marginTop: 0 }}>
-            Nuqra processes the minimum data needed to run scan-to-pay: table and
-            order details, payment records, and (for demo requests) the name,
-            email, and restaurant you submit. We do not sell personal data.
+            {t(
+              "Nuqra processes the minimum data needed to run scan-to-pay: table and order details, payment records, and (for demo requests) the name, email, and restaurant you submit. We do not sell personal data.",
+              locale,
+            )}
           </p>
 
           <h2
@@ -75,11 +79,13 @@ export default function PrivacyPage() {
               borderTop: `1px solid ${C.border}`,
             }}
           >
-            What we collect
+            {t("What we collect", locale)}
           </h2>
           <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
-            Account credentials (stored only as salted hashes), restaurant settings,
-            live table/order state, payment ledger entries, and demo-request leads.
+            {t(
+              "Account credentials (stored only as salted hashes), restaurant settings, live table/order state, payment ledger entries, and demo-request leads.",
+              locale,
+            )}
           </p>
 
           <h2
@@ -91,10 +97,11 @@ export default function PrivacyPage() {
               borderTop: `1px solid ${C.border}`,
             }}
           >
-            Contact
+            {t("Contact", locale)}
           </h2>
           <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
-            For privacy or data requests, email {SITE.privacyEmail} (or call{" "}
+            {t("For privacy or data requests, email", locale)} {SITE.privacyEmail} (
+            {t("or call", locale)}{" "}
             {SITE.salesPhone}).
           </p>
         </div>
@@ -104,7 +111,7 @@ export default function PrivacyPage() {
             href="/"
             style={{ ...T.label, color: C.brand, textDecoration: "none" }}
           >
-            ← Back to home
+            ← {t("Back to home", locale)}
           </Link>
         </p>
       </article>

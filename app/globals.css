@@ -24,6 +24,12 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Arabic / RTL: switch to the Arabic typeface (Geist has no Arabic glyphs).
+   Ledger figures keep --font-mono (Latin digits) via inline MONO. */
+html[lang="ar"] body {
+  font-family: var(--font-ar), system-ui, -apple-system, sans-serif;
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -276,7 +282,7 @@ select:focus-visible,
 textarea:focus-visible,
 [role="button"]:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid #C2410C !important;
+  outline: 2px solid #0E7490 !important;
   outline-offset: 2px !important;
   border-radius: 4px;
 }

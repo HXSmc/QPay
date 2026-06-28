@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { fmt } from "../../lib/data";
-import { getMe, listTables, listTransactions, type Me } from "../../lib/api";
+import { fmt, type Currency } from "../../lib/data";
+import { getMe, getSettings, listTables, listTransactions, type Me } from "../../lib/api";
 import { downloadCsv, transactionsToCsv } from "../../lib/csv";
 import type { LiveTable, TableStatus, Transaction } from "../../lib/types";
 import { C, R, S, T, NUM, MONO, STATUS, SHADOW, badge, btn, card } from "../../lib/theme";
@@ -27,6 +27,7 @@ export default function DashboardPage() {
   const [tables, setTables] = useState<LiveTable[]>([]);
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [me, setMe] = useState<Me | null>(null);
+  const [currency, setCurrency] = useState<Currency>("USD");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   // Rendered after mount only, so the server HTML and first client render match
@@ -35,6 +36,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     getMe().then(setMe).catch(() => {});
+    getSettings().then((s) => setCurrency(s.currency)).catch(() => {});
     Promise.all([
       listTables().then(setTables),
       listTransactions().then(setTxns),
@@ -63,7 +65,7 @@ export default function DashboardPage() {
   // Real figures derived from the live ledger; tips and turn-time aren't tracked
   // by this prototype, so they're shown as unavailable rather than faked.
   const metrics = [
-    { value: fmt(revenue), label: "Revenue (recent)", delta: `${txns.length} txns`, money: true as const },
+    { value: fmt(revenue, currency), label: "Revenue (recent)", delta: `${txns.length} txns`, money: true as const },
     { value: `${active} / ${tables.length}`, label: "Active tables", delta: "Live" },
     { label: "Tips collected", notTracked: true as const },
     { label: "Avg. turn time", notTracked: true as const },

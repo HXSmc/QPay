@@ -7,9 +7,11 @@ import { login } from "../../lib/api";
 import { C, R, S, T, SHADOW, btn, field } from "../../lib/theme";
 import { Alert, Spinner } from "../../components/ui/Primitives";
 import { Wordmark } from "../../components/site/Logo";
+import { useT } from "../../lib/i18n-client";
 
 export default function LoginPage() {
   const router = useRouter();
+  const tr = useT();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -36,7 +38,7 @@ export default function LoginPage() {
       router.push(dest);
       router.refresh();
     } else {
-      setError("Invalid credentials.");
+      setError(tr("Invalid credentials."));
     }
   };
 
@@ -58,7 +60,7 @@ export default function LoginPage() {
       <div style={{ width: "100%", maxWidth: 392 }}>
         <Link
           href="/"
-          aria-label="Nuqra home"
+          aria-label={tr("Nuqra home")}
           style={{
             display: "flex",
             alignItems: "center",
@@ -91,9 +93,9 @@ export default function LoginPage() {
             </svg>
           </span>
 
-          <h1 style={{ ...T.h1, margin: `0 0 ${S[1]}px` }}>Manager sign in</h1>
+          <h1 style={{ ...T.h1, margin: `0 0 ${S[1]}px` }}>{tr("Manager sign in")}</h1>
           <p style={{ ...T.body, color: C.muted, margin: `0 0 ${S[5]}px` }}>
-            Access the Nuqra admin dashboard.
+            {tr("Access the Nuqra admin dashboard.")}
           </p>
 
           <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: S[4] }}>
@@ -101,7 +103,7 @@ export default function LoginPage() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>
               <label htmlFor="login-email" style={labelStyle}>
-                Email
+                {tr("Email")}
               </label>
               <input
                 id="login-email"
@@ -118,7 +120,7 @@ export default function LoginPage() {
 
             <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>
               <label htmlFor="login-password" style={labelStyle}>
-                Password
+                {tr("Password")}
               </label>
               <div style={{ position: "relative" }}>
                 <input
@@ -127,7 +129,7 @@ export default function LoginPage() {
                   required
                   name="password"
                   autoComplete="current-password"
-                  placeholder="Your password"
+                  placeholder={tr("Your password")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   style={{ ...field(), paddingRight: 46 }}
@@ -135,7 +137,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? tr("Hide password") : tr("Show password")}
                   aria-pressed={showPassword}
                   style={{
                     position: "absolute",
@@ -178,7 +180,7 @@ export default function LoginPage() {
               style={{ ...btn("primary", { full: true, disabled: busy }), marginTop: S[1], fontSize: 15.5, padding: 13 }}
             >
               {busy && <Spinner size={16} color="#fff" />}
-              {busy ? "Signing in." : "Sign in"}
+              {busy ? tr("Signing in.") : tr("Sign in")}
             </button>
           </form>
         </div>
@@ -198,7 +200,7 @@ export default function LoginPage() {
             <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
           </svg>
-          Accounts are issued by your administrator.
+          {tr("Accounts are issued by your administrator.")}
         </div>
       </div>
     </div>

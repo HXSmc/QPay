@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getMenu } from "../../lib/api";
 import { C, R, btn } from "../../lib/theme";
+import { useT } from "../../lib/i18n-client";
 import type { MenuMeta } from "../../lib/types";
 import { Modal } from "../ui/Primitives";
 
@@ -41,6 +42,7 @@ export function MenuModal({
   token?: string;
   onClose: () => void;
 }) {
+  const tr = useT();
   const [meta, setMeta] = useState<MenuMeta | null>(null);
   const [loading, setLoading] = useState(true);
   // Stays true after the first open so the panel content survives the collapse
@@ -182,7 +184,7 @@ export function MenuModal({
               }}
             >
               <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0, color: C.text }}>
-                Menu
+                {tr("Menu")}
               </h3>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {canFullscreen && (
@@ -190,19 +192,19 @@ export function MenuModal({
                     type="button"
                     className="qp-cta-lift"
                     onClick={() => setFs(true)}
-                    aria-label="View menu fullscreen"
+                    aria-label={tr("View menu fullscreen")}
                     style={{ ...btn("secondary", { size: "sm" }), gap: 6 }}
                   >
                     <span aria-hidden style={{ fontSize: 14, lineHeight: 1 }}>
                       ⤢
                     </span>
-                    Fullscreen
+                    {tr("Fullscreen")}
                   </button>
                 )}
                 <button
                   ref={closeBtnRef}
                   onClick={onClose}
-                  aria-label="Hide menu"
+                  aria-label={tr("Hide menu")}
                   style={{
                     border: "none",
                     background: C.canvas,
@@ -231,28 +233,28 @@ export function MenuModal({
             >
               {!loaded || loading ? (
                 <span style={{ color: C.muted, fontSize: 14, fontWeight: 600, padding: 40 }}>
-                  Loading.
+                  {tr("Loading.")}
                 </span>
               ) : !src ? (
                 <div style={{ textAlign: "center", padding: 40, color: C.muted }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: C.muted }}>
-                    No menu uploaded yet
+                    {tr("No menu uploaded yet")}
                   </div>
                   <div style={{ fontSize: 13, marginTop: 6 }}>
-                    The restaurant hasn&apos;t added a menu.
+                    {tr("The restaurant hasn't added a menu.")}
                   </div>
                 </div>
               ) : isPdf ? (
                 <iframe
                   src={src}
-                  title="Menu PDF"
+                  title={tr("Menu PDF")}
                   style={{ width: "100%", height: "62vh", border: "none" }}
                 />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={src}
-                  alt="Menu"
+                  alt={tr("Menu")}
                   style={{
                     width: "100%",
                     height: "auto",
@@ -270,7 +272,7 @@ export function MenuModal({
       {fs && src && (
         <Modal
           fullScreen
-          ariaLabel="Menu"
+          ariaLabel={tr("Menu")}
           onClose={() => setFs(false)}
           panelStyle={{
             display: "flex",
@@ -298,14 +300,14 @@ export function MenuModal({
               {!isPdf && (
                 <div
                   role="group"
-                  aria-label="Zoom"
+                  aria-label={tr("Zoom")}
                   style={{ display: "flex", alignItems: "center", gap: 6 }}
                 >
                   <button
                     type="button"
                     className="qp-press"
                     onClick={zoomOut}
-                    aria-label="Zoom out"
+                    aria-label={tr("Zoom out")}
                     disabled={zoom <= ZOOM_MIN}
                     style={zoomBtn}
                   >
@@ -315,7 +317,7 @@ export function MenuModal({
                     type="button"
                     className="qp-press"
                     onClick={zoomReset}
-                    aria-label="Reset zoom"
+                    aria-label={tr("Reset zoom")}
                     style={{
                       ...btn("secondary", { size: "sm" }),
                       minWidth: 56,
@@ -328,7 +330,7 @@ export function MenuModal({
                     type="button"
                     className="qp-press"
                     onClick={zoomIn}
-                    aria-label="Zoom in"
+                    aria-label={tr("Zoom in")}
                     disabled={zoom >= ZOOM_MAX}
                     style={zoomBtn}
                   >
@@ -339,7 +341,7 @@ export function MenuModal({
               <button
                 type="button"
                 onClick={() => setFs(false)}
-                aria-label="Exit fullscreen"
+                aria-label={tr("Exit fullscreen")}
                 style={{
                   border: "none",
                   background: C.canvas,
@@ -361,7 +363,7 @@ export function MenuModal({
           {isPdf ? (
             <iframe
               src={src}
-              title="Menu PDF"
+              title={tr("Menu PDF")}
               style={{ width: "100%", height: "100%", border: "none", flex: 1 }}
             />
           ) : (
@@ -386,7 +388,7 @@ export function MenuModal({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={src}
-                alt="Menu"
+                alt={tr("Menu")}
                 draggable={false}
                 style={{
                   maxWidth: "100%",

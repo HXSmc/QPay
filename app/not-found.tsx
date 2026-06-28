@@ -2,10 +2,13 @@ import Link from "next/link";
 import { BrandHeader } from "./components/site/BrandHeader";
 import { LogoMark } from "./components/site/Logo";
 import { C, S, T, btn } from "./lib/theme";
+import { getServerLocale } from "./lib/i18n-server";
+import { t } from "./lib/i18n";
 
 export const metadata = { title: "Page not found · Nuqra" };
 
-export default function NotFound() {
+export default async function NotFound() {
+  const locale = await getServerLocale();
   return (
     <div style={{ minHeight: "100vh", background: C.canvas, color: C.text }}>
       <BrandHeader />
@@ -43,7 +46,7 @@ export default function NotFound() {
             margin: 0,
           }}
         >
-          Page not found
+          {t("Page not found", locale)}
         </h1>
         <p
           style={{
@@ -56,11 +59,13 @@ export default function NotFound() {
             marginBottom: S[6],
           }}
         >
-          The page you are looking for may have moved or no longer exists. Let us
-          get you back on track.
+          {t(
+            "The page you are looking for may have moved or no longer exists. Let us get you back on track.",
+            locale,
+          )}
         </p>
         <Link href="/" style={{ ...btn("primary", { size: "lg" }), textDecoration: "none" }}>
-          Back to home
+          {t("Back to home", locale)}
         </Link>
       </div>
     </div>
