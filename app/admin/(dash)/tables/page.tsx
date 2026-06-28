@@ -15,6 +15,7 @@ import { QrModal } from "../../../components/admin/QrModal";
 import { OrderModal } from "../../../components/admin/OrderModal";
 import { C, R, S, T, NUM, MONO, STATUS, badge, btn, card } from "../../../lib/theme";
 import { Alert, EmptyState, Skeleton, Spinner } from "../../../components/ui/Primitives";
+import { useT } from "../../../lib/i18n-client";
 
 const STATUS_BADGE: Record<TableStatus, "danger" | "warn" | "success" | "neutral"> = {
   unpaid: "danger",
@@ -31,6 +32,7 @@ const STATUS_LABEL: Record<TableStatus, string> = {
 };
 
 export default function TablesPage() {
+  const tr = useT();
   const [tables, setTables] = useState<LiveTable[]>([]);
   const [qrFor, setQrFor] = useState<LiveTable | null>(null);
   const [orderFor, setOrderFor] = useState<LiveTable | null>(null);
@@ -55,7 +57,7 @@ export default function TablesPage() {
   useEffect(() => {
     listTables()
       .then(setTables)
-      .catch(() => setError("Couldn't load your tables. Please refresh."))
+      .catch(() => setError(tr("Couldn't load your tables. Please refresh.")))
       .finally(() => setLoading(false));
     getSettings()
       .then(async (s) => {
@@ -83,7 +85,7 @@ export default function TablesPage() {
       const t = await createTable();
       setTables((prev) => [...prev, t]);
     } catch {
-      setError("Couldn't add a table. Please retry.");
+      setError(tr("Couldn't add a table. Please retry."));
     } finally {
       setBusy(false);
     }
@@ -95,7 +97,7 @@ export default function TablesPage() {
       const updated = await setTableItems(t.num, []);
       applyTable(updated);
     } catch {
-      setError(`Couldn't clear Table ${t.num}. Please retry.`);
+      setError(`${tr("Couldn't clear Table")} ${t.num}. ${tr("Please retry.")}`);
     }
   };
 
@@ -108,7 +110,7 @@ export default function TablesPage() {
     } catch {
       // Keep the row if the delete failed (e.g. session expired) rather than
       // dropping an unhandled rejection and lying about the table being gone.
-      setError(`Couldn't delete Table ${t.num}. Please retry.`);
+      setError(`${tr("Couldn't delete Table")} ${t.num}. ${tr("Please retry.")}`);
     }
   };
 
@@ -124,13 +126,13 @@ export default function TablesPage() {
       >
         <div>
           <div style={{ ...T.label, color: C.brand, marginBottom: S[1] }}>
-            Tables &amp; QR
+            {tr("Tables & QR")}
           </div>
           <h1 style={{ ...T.h1, margin: 0, color: C.text }}>
-            Tables &amp; QR codes
+            {tr("Tables & QR codes")}
           </h1>
           <p style={{ ...T.body, color: C.muted, margin: `${S[2]}px 0 0`, maxWidth: 460 }}>
-            Add tables, generate a scan-to-pay QR, then clear or delete when done.
+            {tr("Add tables, generate a scan-to-pay QR, then clear or delete when done.")}
           </p>
         </div>
         <button
@@ -140,7 +142,7 @@ export default function TablesPage() {
           style={btn("primary", { size: "sm", disabled: busy })}
         >
           {busy && <Spinner size={14} color="#fff" />}
-          + New table
+          {tr("+ New table")}
         </button>
       </div>
 
@@ -155,7 +157,7 @@ export default function TablesPage() {
         {(["unpaid", "partial", "cleared", "open"] as TableStatus[]).map((s) => (
           <span key={s} style={{ display: "flex", alignItems: "center", gap: S[1] + 2 }}>
             <span style={{ width: 9, height: 9, borderRadius: "50%", background: STATUS[STATUS_BADGE[s]].fg }} />
-            {STATUS_LABEL[s]}
+            {tr(STATUS_LABEL[s])}
           </span>
         ))}
       </div>
@@ -168,12 +170,12 @@ export default function TablesPage() {
         </div>
       ) : tables.length === 0 ? (
         <EmptyState
-          title="No tables yet"
-          body="Create your first table to generate a QR code and start taking scan-to-pay orders."
+          title={tr("No tables yet")}
+          body={tr("Create your first table to generate a QR code and start taking scan-to-pay orders.")}
           action={
             <button className="qp-cta-lift" onClick={addTable} disabled={busy} style={btn("primary", { size: "sm", disabled: busy })}>
               {busy && <Spinner size={14} color="#fff" />}
-              Create your first table
+              {tr("Create your first table")}
             </button>
           }
         />
@@ -191,18 +193,18 @@ export default function TablesPage() {
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ ...T.h3, ...NUM }}>Table {t.num}</span>
+                  <span style={{ ...T.h3, ...NUM }}>{tr("Table {n}").replace("{n}", t.num)}</span>
                   <span style={{ width: 10, height: 10, borderRadius: "50%", background: dot, display: "inline-block" }} />
                 </div>
                 <div style={{ ...T.h2, marginTop: S[3] - 2, ...MONO }}>
                   {t.amount}
                 </div>
                 <div style={{ marginTop: S[2], ...badge(STATUS_BADGE[t.status]) }}>
-                  {STATUS_LABEL[t.status]}
+                  {tr(STATUS_LABEL[t.status])}
                 </div>
                 {t.status === "partial" && (
                   <div style={{ ...T.caption, color: C.muted, marginTop: S[2] - 1, ...MONO }}>
-                    Paid {fmt(t.paid, currency)} of {fmt(billDue(t.items), currency)}
+                    {tr("Paid")} {fmt(t.paid, currency)} {tr("of")} {fmt(billDue(t.items), currency)}
                   </div>
                 )}
                 <button
@@ -226,7 +228,7 @@ export default function TablesPage() {
                     border: `1.5px solid ${C.border}`,
                   }}
                 >
-                  {t.items?.length ? `Order · ${t.items.length}` : "Add order"}
+                  {t.items?.length ? `${tr("Order")} · ${t.items.length}` : tr("Add order")}
                 </button>
                 {confirmDel === t.num ? (
                   <div style={{ display: "flex", gap: S[2], marginTop: S[2] }}>
@@ -235,14 +237,14 @@ export default function TablesPage() {
                       onClick={() => removeTable(t)}
                       style={{ ...btn("danger", { size: "sm" }), flex: 1 }}
                     >
-                      Confirm?
+                      {tr("Confirm?")}
                     </button>
                     <button
                       className="qp-cta-lift"
                       onClick={() => setConfirmDel(null)}
                       style={{ ...btn("secondary", { size: "sm" }), flex: 1 }}
                     >
-                      Cancel
+                      {tr("Cancel")}
                     </button>
                   </div>
                 ) : (
@@ -256,14 +258,14 @@ export default function TablesPage() {
                       aria-expanded={qrFor?.num === t.num}
                       style={{ ...btn("primary", { size: "sm" }), flex: 1 }}
                     >
-                      QR
+                      {tr("QR")}
                     </button>
                     <button
                       className="qp-cta-lift"
                       onClick={() => setConfirmDel(t.num)}
                       style={{ ...btn("danger", { size: "sm" }), flex: 1 }}
                     >
-                      Delete
+                      {tr("Delete")}
                     </button>
                   </div>
                 )}
@@ -273,7 +275,7 @@ export default function TablesPage() {
                     onClick={() => clearTable(t)}
                     style={{ ...btn("success", { size: "sm", full: true }), marginTop: S[2] }}
                   >
-                    Clear table
+                    {tr("Clear table")}
                   </button>
                 )}
               </div>

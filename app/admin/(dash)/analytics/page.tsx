@@ -6,11 +6,13 @@ import { getSettings, listTransactions } from "../../../lib/api";
 import type { Transaction } from "../../../lib/types";
 import { C, R, S, T, NUM, MONO, card } from "../../../lib/theme";
 import { Alert, EmptyState, Skeleton } from "../../../components/ui/Primitives";
+import { useT } from "../../../lib/i18n-client";
 
 const amountOf = (t: Transaction) =>
   parseFloat(t.amount.replace(/[^0-9.]/g, "")) || 0;
 
 export default function AnalyticsPage() {
+  const tr = useT();
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [currency, setCurrency] = useState<Currency>("USD");
   const [loading, setLoading] = useState(true);
@@ -49,15 +51,15 @@ export default function AnalyticsPage() {
   return (
     <div className="qp-page" style={{ padding: `${S[6]}px ${S[6] + 4}px` }}>
       <h1 style={{ ...T.h1, margin: 0, color: C.text }}>
-        Analytics
+        {tr("Analytics")}
       </h1>
       <p style={{ ...T.body, color: C.muted, margin: `${S[1] + 1}px 0 ${S[5]}px` }}>
-        Revenue and payment trends from your live ledger.
+        {tr("Revenue and payment trends from your live ledger.")}
       </p>
 
       {error && (
         <div style={{ marginBottom: S[4] }}>
-          <Alert kind="danger">Couldn&apos;t load analytics. Please refresh.</Alert>
+          <Alert kind="danger">{tr("Couldn't load analytics. Please refresh.")}</Alert>
         </div>
       )}
 
@@ -72,17 +74,17 @@ export default function AnalyticsPage() {
           : STATS.map((s) => (
               <div key={s.label} style={card({ pad: S[5], radius: R.lg })}>
                 {"notTracked" in s ? (
-                  <div style={{ ...T.h3, color: C.faint }}>Not tracked yet</div>
+                  <div style={{ ...T.h3, color: C.faint }}>{tr("Not tracked yet")}</div>
                 ) : (
                   <div style={{ ...T.h1, fontSize: 28, color: C.text, ...NUM }}>{s.value}</div>
                 )}
-                <div style={{ ...T.caption, color: C.muted, marginTop: S[1] }}>{s.label}</div>
+                <div style={{ ...T.caption, color: C.muted, marginTop: S[1] }}>{tr(s.label)}</div>
               </div>
             ))}
       </div>
 
       <div style={card({ pad: S[5], radius: R.lg })}>
-        <h3 style={{ ...T.h3, margin: `0 0 ${S[5]}px`, color: C.text }}>Revenue by payment method</h3>
+        <h3 style={{ ...T.h3, margin: `0 0 ${S[5]}px`, color: C.text }}>{tr("Revenue by payment method")}</h3>
         {loading ? (
           <div style={{ display: "flex", alignItems: "flex-end", gap: S[4], height: 200 }}>
             {[60, 90, 45, 75].map((h, i) => (
@@ -93,8 +95,8 @@ export default function AnalyticsPage() {
           </div>
         ) : methods.length === 0 ? (
           <EmptyState
-            title="No transactions yet"
-            body="As diners pay, this chart breaks revenue down by payment method."
+            title={tr("No transactions yet")}
+            body={tr("As diners pay, this chart breaks revenue down by payment method.")}
           />
         ) : (
           <div style={{ display: "flex", alignItems: "flex-end", gap: S[4], height: 200 }}>

@@ -11,6 +11,10 @@ import { ar as arCommon } from "./i18n/ar-common";
 import { ar as arMarketing } from "./i18n/ar-marketing";
 import { ar as arCustomer } from "./i18n/ar-customer";
 import { ar as arAdmin } from "./i18n/ar-admin";
+import { ar as arAdminDash } from "./i18n/ar-admin-dash";
+import { ar as arAdminOps } from "./i18n/ar-admin-ops";
+import { ar as arAdminTables } from "./i18n/ar-admin-tables";
+import { ar as arAdminSuper } from "./i18n/ar-admin-super";
 
 export type Locale = "en" | "ar";
 
@@ -21,6 +25,10 @@ const AR: Record<string, string> = {
   ...arMarketing,
   ...arCustomer,
   ...arAdmin,
+  ...arAdminDash,
+  ...arAdminOps,
+  ...arAdminTables,
+  ...arAdminSuper,
 };
 
 export function isLocale(v: string | undefined | null): v is Locale {

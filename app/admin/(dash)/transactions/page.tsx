@@ -6,8 +6,10 @@ import { downloadCsv, transactionsToCsv } from "../../../lib/csv";
 import type { Transaction } from "../../../lib/types";
 import { C, R, S, T, NUM, MONO, btn, card } from "../../../lib/theme";
 import { Alert, EmptyState, Skeleton } from "../../../components/ui/Primitives";
+import { useT } from "../../../lib/i18n-client";
 
 export default function TransactionsPage() {
+  const tr = useT();
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -33,13 +35,13 @@ export default function TransactionsPage() {
       >
         <div>
           <div style={{ ...T.label, color: C.brand, marginBottom: S[1] }}>
-            Ledger
+            {tr("Ledger")}
           </div>
           <h1 style={{ ...T.h1, margin: 0, color: C.text }}>
-            Transactions
+            {tr("Transactions")}
           </h1>
           <p style={{ ...T.body, color: C.muted, margin: `${S[2]}px 0 0` }}>
-            <span style={{ ...NUM }}>{txns.length}</span> payment{txns.length === 1 ? "" : "s"} recorded.
+            <span style={{ ...NUM }}>{txns.length}</span> {tr(txns.length === 1 ? "payment recorded." : "payments recorded.")}
           </p>
         </div>
         <button
@@ -48,13 +50,13 @@ export default function TransactionsPage() {
           disabled={loading}
           style={btn("primary", { size: "sm", disabled: loading })}
         >
-          Export CSV
+          {tr("Export CSV")}
         </button>
       </div>
 
       {error && (
         <div style={{ marginBottom: S[4] }}>
-          <Alert kind="danger">Couldn&apos;t load transactions. Please refresh.</Alert>
+          <Alert kind="danger">{tr("Couldn't load transactions. Please refresh.")}</Alert>
         </div>
       )}
 
@@ -72,10 +74,10 @@ export default function TransactionsPage() {
             minWidth: 420,
           }}
         >
-          <span>TIME</span>
-          <span>TABLE</span>
-          <span style={{ textAlign: "right" }}>AMOUNT</span>
-          <span style={{ textAlign: "right" }}>METHOD</span>
+          <span>{tr("TIME")}</span>
+          <span>{tr("TABLE")}</span>
+          <span style={{ textAlign: "end" }}>{tr("AMOUNT")}</span>
+          <span style={{ textAlign: "end" }}>{tr("METHOD")}</span>
         </div>
 
         {loading ? (
@@ -87,8 +89,8 @@ export default function TransactionsPage() {
         ) : txns.length === 0 ? (
           <div style={{ paddingTop: S[5] }}>
             <EmptyState
-              title="No transactions yet"
-              body="Once diners scan a table QR and pay, their payments show up here."
+              title={tr("No transactions yet")}
+              body={tr("Once diners scan a table QR and pay, their payments show up here.")}
             />
           </div>
         ) : (
@@ -106,8 +108,8 @@ export default function TransactionsPage() {
             >
               <span style={{ ...T.body, color: C.muted, ...NUM }}>{tx.time}</span>
               <span style={{ ...T.body, fontWeight: 700, ...NUM }}>#{tx.table}</span>
-              <span style={{ ...T.body, fontWeight: 700, textAlign: "right", ...MONO }}>{tx.amount}</span>
-              <span style={{ textAlign: "right" }}>
+              <span style={{ ...T.body, fontWeight: 700, textAlign: "end", ...MONO }}>{tx.amount}</span>
+              <span style={{ textAlign: "end" }}>
                 <span
                   style={{
                     ...T.caption,
@@ -130,7 +132,7 @@ export default function TransactionsPage() {
 
       {!loading && txns.length > 0 && (
         <p style={{ ...T.caption, color: C.faint, marginTop: S[3], textAlign: "center" }}>
-          On smaller screens, scroll the table sideways to see every column.
+          {tr("On smaller screens, scroll the table sideways to see every column.")}
         </p>
       )}
     </div>

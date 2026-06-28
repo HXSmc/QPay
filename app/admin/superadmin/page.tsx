@@ -16,9 +16,11 @@ import {
 import { C, R, S, T, STATUS, btn, card, field, badge } from "../../lib/theme";
 import { Alert, EmptyState, Skeleton, Spinner } from "../../components/ui/Primitives";
 import { LogoMark } from "../../components/site/Logo";
+import { useT } from "../../lib/i18n-client";
 
 export default function SuperadminPage() {
   const router = useRouter();
+  const tr = useT();
   const [me, setMe] = useState<Me | null>(null);
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -54,7 +56,7 @@ export default function SuperadminPage() {
     try {
       const res = await createAdmin(email.trim(), password);
       if (res.ok) {
-        setNotice(`Created admin ${res.account.email}.`);
+        setNotice(`${tr("Created admin")} ${res.account.email}.`);
         setEmail("");
         setPassword("");
         refresh();
@@ -62,7 +64,7 @@ export default function SuperadminPage() {
         setError(res.error);
       }
     } catch {
-      setError("Network error. Please retry.");
+      setError(`${tr("Network error.")} ${tr("Please retry.")}`);
     } finally {
       setBusy(false);
     }
@@ -72,11 +74,11 @@ export default function SuperadminPage() {
     setConfirmId(null);
     try {
       await deleteAdmin(a.id);
-      setNotice(`Deleted ${a.email}.`);
+      setNotice(`${tr("Deleted")} ${a.email}.`);
       setError("");
       refresh();
     } catch {
-      setError(`Couldn't delete ${a.email}. Please retry.`);
+      setError(`${tr("Couldn't delete")} ${a.email}. ${tr("Please retry.")}`);
     }
   };
 
@@ -88,7 +90,7 @@ export default function SuperadminPage() {
       const res = await renewAdmin(a.id);
       if (res.ok) {
         setNotice(
-          `Renewed ${a.email}. Now valid until ${new Date(
+          `${tr("Renewed")} ${a.email}. ${tr("Now valid until")} ${new Date(
             res.account.expiresAt ?? "",
           ).toLocaleDateString()}.`,
         );
@@ -97,7 +99,7 @@ export default function SuperadminPage() {
         setError(res.error);
       }
     } catch {
-      setError(`Couldn't renew ${a.email}. Please retry.`);
+      setError(`${tr("Couldn't renew")} ${a.email}. ${tr("Please retry.")}`);
     } finally {
       setRowBusy(null);
     }
@@ -132,14 +134,14 @@ export default function SuperadminPage() {
     try {
       const res = await updateAdmin(a.id, patch);
       if (res.ok) {
-        setNotice(`Updated ${res.account.email}.`);
+        setNotice(`${tr("Updated")} ${res.account.email}.`);
         cancelEdit();
         refresh();
       } else {
         setError(res.error);
       }
     } catch {
-      setError(`Couldn't update ${a.email}. Please retry.`);
+      setError(`${tr("Couldn't update")} ${a.email}. ${tr("Please retry.")}`);
     } finally {
       setRowBusy(null);
     }
@@ -175,7 +177,7 @@ export default function SuperadminPage() {
         <div style={{ display: "flex", alignItems: "center", gap: S[3] }}>
           <LogoMark size={30} onDark />
           <div>
-            <div style={{ ...T.h3, color: "#fff" }}>Nuqra · Super Admin</div>
+            <div style={{ ...T.h3, color: "#fff" }}>{tr("Nuqra · Super Admin")}</div>
             <div style={{ ...T.caption, color: C.faint }}>{me?.email ?? "."}</div>
           </div>
         </div>
@@ -184,20 +186,19 @@ export default function SuperadminPage() {
           className="qp-btn"
           style={{ ...btn("secondary", { size: "sm" }), background: C.inkSoft, color: "#fff", borderColor: "transparent" }}
         >
-          Sign out
+          {tr("Sign out")}
         </button>
       </div>
 
       <div style={{ maxWidth: 880, margin: "0 auto", padding: `${S[6]}px ${S[5]}px` }}>
-        <h1 style={{ ...T.h1, margin: `0 0 ${S[1]}px` }}>Admin accounts</h1>
+        <h1 style={{ ...T.h1, margin: `0 0 ${S[1]}px` }}>{tr("Admin accounts")}</h1>
         <p style={{ ...T.body, color: C.muted, margin: `0 0 ${S[5]}px` }}>
-          Issue credentials for restaurant admins. Each admin sees only their own
-          tables and receipts.
+          {tr("Issue credentials for restaurant admins. Each admin sees only their own tables and receipts.")}
         </p>
 
         {/* Create form */}
         <div style={{ ...card({ pad: S[5] }), marginBottom: S[5] }}>
-          <h2 style={{ ...T.h3, margin: `0 0 ${S[4]}px` }}>Create a new admin</h2>
+          <h2 style={{ ...T.h3, margin: `0 0 ${S[4]}px` }}>{tr("Create a new admin")}</h2>
           <form
             onSubmit={submit}
             className="qp-grid-2"
@@ -206,7 +207,7 @@ export default function SuperadminPage() {
             <input
               type="email"
               required
-              aria-label="New admin email"
+              aria-label={tr("New admin email")}
               placeholder="admin@restaurant.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -216,8 +217,8 @@ export default function SuperadminPage() {
               type="password"
               required
               minLength={8}
-              aria-label="New admin password"
-              placeholder="Password (min 8 chars)"
+              aria-label={tr("New admin password")}
+              placeholder={tr("Password (min 8 chars)")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={field()}
@@ -229,7 +230,7 @@ export default function SuperadminPage() {
               style={{ ...btn("primary", { disabled: busy }), whiteSpace: "nowrap" }}
             >
               {busy && <Spinner size={15} color="#fff" />}
-              {busy ? "Creating." : "Create admin"}
+              {busy ? tr("Creating.") : tr("Create admin")}
             </button>
           </form>
           {error && <div style={{ marginTop: S[3] }}><Alert kind="danger">{error}</Alert></div>}
@@ -239,7 +240,7 @@ export default function SuperadminPage() {
         {/* Admin list */}
         <div style={card({ pad: S[5] })}>
           <h2 style={{ ...T.h3, margin: `0 0 ${S[4]}px` }}>
-            {loaded ? `${admins.length} admin${admins.length === 1 ? "" : "s"}` : "Admins"}
+            {loaded ? `${admins.length} ${tr(admins.length === 1 ? "admin" : "admins")}` : tr("Admins")}
           </h2>
 
           {!loaded ? (
@@ -264,8 +265,8 @@ export default function SuperadminPage() {
                   <line x1="22" x2="16" y1="11" y2="11" />
                 </svg>
               }
-              title="No admins yet"
-              body="Create your first restaurant admin using the form above."
+              title={tr("No admins yet")}
+              body={tr("Create your first restaurant admin using the form above.")}
             />
           ) : (
             admins.map((a) => (
@@ -300,19 +301,19 @@ export default function SuperadminPage() {
                     >
                       {a.email}
                       <span style={badge(a.source === "demo" ? "info" : "neutral")}>
-                        {a.source === "demo" ? "Trial" : "Manual"}
+                        {a.source === "demo" ? tr("Trial") : tr("Manual")}
                       </span>
                       <span style={badge(a.active ? "success" : "danger")}>
-                        {a.active ? "Active" : "Expired"}
+                        {a.active ? tr("Active") : tr("Expired")}
                       </span>
                     </div>
                     <div style={{ ...T.caption, color: C.muted, marginTop: S[1] }}>
-                      Created {new Date(a.createdAt).toLocaleDateString()}
+                      {tr("Created")} {new Date(a.createdAt).toLocaleDateString()}
                       {a.expiresAt
-                        ? `, ${a.active ? "expires" : "expired"} ${new Date(
+                        ? `, ${a.active ? tr("expires") : tr("expired")} ${new Date(
                             a.expiresAt,
                           ).toLocaleDateString()}`
-                        : ", no expiry"}
+                        : `, ${tr("no expiry")}`}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: S[2], flexWrap: "wrap" }}>
@@ -322,7 +323,7 @@ export default function SuperadminPage() {
                       className="qp-btn"
                       style={btn("success", { size: "sm", disabled: rowBusy === a.id })}
                     >
-                      {rowBusy === a.id ? <Spinner size={14} color="#fff" /> : "Renew 30d"}
+                      {rowBusy === a.id ? <Spinner size={14} color="#fff" /> : tr("Renew 30d")}
                     </button>
                     <button
                       onClick={() =>
@@ -331,7 +332,7 @@ export default function SuperadminPage() {
                       className="qp-btn"
                       style={btn("secondary", { size: "sm" })}
                     >
-                      {editingId === a.id ? "Cancel" : "Edit"}
+                      {editingId === a.id ? tr("Cancel") : tr("Edit")}
                     </button>
                     {confirmId === a.id ? (
                       <>
@@ -340,14 +341,14 @@ export default function SuperadminPage() {
                           className="qp-btn"
                           style={{ ...btn("danger", { size: "sm" }), background: STATUS.danger.fg, color: "#fff", borderColor: "transparent" }}
                         >
-                          Confirm delete
+                          {tr("Confirm delete")}
                         </button>
                         <button
                           onClick={() => setConfirmId(null)}
                           className="qp-btn"
                           style={btn("ghost", { size: "sm" })}
                         >
-                          Keep
+                          {tr("Keep")}
                         </button>
                       </>
                     ) : (
@@ -356,7 +357,7 @@ export default function SuperadminPage() {
                         className="qp-btn"
                         style={btn("danger", { size: "sm" })}
                       >
-                        Delete
+                        {tr("Delete")}
                       </button>
                     )}
                   </div>
@@ -364,8 +365,7 @@ export default function SuperadminPage() {
                 {confirmId === a.id && (
                   <div style={{ marginTop: S[3] }}>
                     <Alert kind="warn">
-                      Delete {a.email}? Their tables and receipts are permanently
-                      removed. This cannot be undone.
+                      {tr("Delete")} {a.email}{tr("? Their tables and receipts are permanently removed. This cannot be undone.")}
                     </Alert>
                   </div>
                 )}
@@ -385,16 +385,16 @@ export default function SuperadminPage() {
                   >
                     <input
                       type="email"
-                      aria-label={`New email for ${a.email}`}
-                      placeholder="New email"
+                      aria-label={`${tr("New email for")} ${a.email}`}
+                      placeholder={tr("New email")}
                       value={editEmail}
                       onChange={(e) => setEditEmail(e.target.value)}
                       style={field()}
                     />
                     <input
                       type="password"
-                      aria-label={`New password for ${a.email}`}
-                      placeholder="New password (min 8, blank = unchanged)"
+                      aria-label={`${tr("New password for")} ${a.email}`}
+                      placeholder={tr("New password (min 8, blank = unchanged)")}
                       value={editPassword}
                       onChange={(e) => setEditPassword(e.target.value)}
                       style={field()}
@@ -406,7 +406,7 @@ export default function SuperadminPage() {
                       style={{ ...btn("primary", { disabled: rowBusy === a.id }), whiteSpace: "nowrap" }}
                     >
                       {rowBusy === a.id && <Spinner size={15} color="#fff" />}
-                      {rowBusy === a.id ? "Saving." : "Save"}
+                      {rowBusy === a.id ? tr("Saving.") : tr("Save")}
                     </button>
                   </div>
                 )}

@@ -6,30 +6,31 @@ import type { MenuMeta } from "../../../lib/types";
 import { C, R, S, T, SHADOW, btn } from "../../../lib/theme";
 import { Alert, EmptyState, Spinner } from "../../../components/ui/Primitives";
 import { MenuItemsEditor } from "../../../components/admin/MenuItemsEditor";
+import { useT } from "../../../lib/i18n-client";
 
 type Tab = "file" | "items";
 
 export default function MenuPage() {
+  const tr = useT();
   const [tab, setTab] = useState<Tab>("file");
 
   return (
     <div className="qp-page" style={{ padding: "30px 36px", maxWidth: 820 }}>
-      <h1 style={{ ...T.h1, margin: 0 }}>Menu</h1>
+      <h1 style={{ ...T.h1, margin: 0 }}>{tr("Menu")}</h1>
       <p style={{ ...T.body, color: C.muted, margin: "6px 0 20px" }}>
-        Upload a menu file diners can view, and optionally add orderable items so
-        they can order from their phone.
+        {tr("Upload a menu file diners can view, and optionally add orderable items so they can order from their phone.")}
       </p>
 
       <div
         role="tablist"
-        aria-label="Menu type"
+        aria-label={tr("Menu type")}
         style={{ display: "inline-flex", gap: 4, background: C.canvas, padding: 4, borderRadius: R.md, marginBottom: S[5] }}
       >
         <TabButton active={tab === "file"} onClick={() => setTab("file")}>
-          Menu file
+          {tr("Menu file")}
         </TabButton>
         <TabButton active={tab === "items"} onClick={() => setTab("items")}>
-          Order items
+          {tr("Order items")}
         </TabButton>
       </div>
 
@@ -72,6 +73,7 @@ function TabButton({
 }
 
 function FileTab() {
+  const tr = useT();
   const [meta, setMeta] = useState<MenuMeta | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -89,7 +91,7 @@ function FileTab() {
     try {
       setMeta(await uploadMenu(file));
     } catch {
-      setError("Upload failed. Use an image or PDF (max 20MB).");
+      setError(tr("Upload failed. Use an image or PDF (max 20MB)."));
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -125,11 +127,11 @@ function FileTab() {
           disabled={busy}
           style={btn("primary", { disabled: busy })}
         >
-          {busy ? <Spinner color="#fff" /> : meta ? "Replace menu" : "Upload menu"}
+          {busy ? <Spinner color="#fff" /> : meta ? tr("Replace menu") : tr("Upload menu")}
         </button>
         {meta && (
           <button onClick={remove} disabled={busy} style={btn("danger")}>
-            Remove
+            {tr("Remove")}
           </button>
         )}
       </div>
@@ -143,14 +145,14 @@ function FileTab() {
       {!meta ? (
         <div style={{ marginTop: S[5] }}>
           <EmptyState
-            title="No menu uploaded"
-            body="PNG, JPG, WebP, GIF, or PDF. Diners can view it before they pay."
+            title={tr("No menu uploaded")}
+            body={tr("PNG, JPG, WebP, GIF, or PDF. Diners can view it before they pay.")}
           />
         </div>
       ) : (
         <div style={{ marginTop: src ? 0 : S[5] }}>
           <div style={{ ...T.caption, color: C.muted, marginBottom: 10 }}>
-            {meta.originalName} · uploaded {new Date(meta.uploadedAt).toLocaleString()}
+            {meta.originalName} · {tr("uploaded")} {new Date(meta.uploadedAt).toLocaleString()}
           </div>
           <div
             style={{
@@ -161,10 +163,10 @@ function FileTab() {
             }}
           >
             {isPdf ? (
-              <iframe src={src!} title="Menu PDF" style={{ width: "100%", height: "60vh", border: "none" }} />
+              <iframe src={src!} title={tr("Menu PDF")} style={{ width: "100%", height: "60vh", border: "none" }} />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={src!} alt="Uploaded menu" style={{ width: "100%", display: "block" }} />
+              <img src={src!} alt={tr("Uploaded menu")} style={{ width: "100%", display: "block" }} />
             )}
           </div>
         </div>

@@ -6,6 +6,7 @@ import { fmt, type Currency } from "../../../lib/data";
 import { C, R, S, T, MONO, SHADOW, badge, btn } from "../../../lib/theme";
 import { EmptyState, Skeleton } from "../../../components/ui/Primitives";
 import type { Order, OrderStatus } from "../../../lib/types";
+import { useT } from "../../../lib/i18n-client";
 
 const POLL_MS = 3000;
 
@@ -17,6 +18,7 @@ const STATUS_BADGE: Record<OrderStatus, Parameters<typeof badge>[0]> = {
 };
 
 export default function OrdersPage() {
+  const tr = useT();
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [currency, setCurrency] = useState<Currency>("USD");
   const [activeOnly, setActiveOnly] = useState(true);
@@ -68,15 +70,15 @@ export default function OrdersPage() {
         }}
       >
         <div>
-          <h1 style={{ ...T.h1, margin: 0 }}>Orders</h1>
+          <h1 style={{ ...T.h1, margin: 0 }}>{tr("Orders")}</h1>
           <p style={{ ...T.body, color: C.muted, margin: "6px 0 0" }}>
-            Live orders diners placed from their phones, with kitchen notes.
+            {tr("Live orders diners placed from their phones, with kitchen notes.")}
           </p>
         </div>
         <div style={{ display: "inline-flex", gap: 4, background: C.canvas, padding: 4, borderRadius: R.md }}>
           {[
-            { k: true, label: "Active" },
-            { k: false, label: "All" },
+            { k: true, label: tr("Active") },
+            { k: false, label: tr("All") },
           ].map((t) => (
             <button
               key={String(t.k)}
@@ -108,8 +110,8 @@ export default function OrdersPage() {
         </div>
       ) : orders.length === 0 ? (
         <EmptyState
-          title={activeOnly ? "No active orders" : "No orders yet"}
-          body="When diners order from their phone, their orders appear here in real time. Add orderable items under Menu → Order items to enable this."
+          title={activeOnly ? tr("No active orders") : tr("No orders yet")}
+          body={tr("When diners order from their phone, their orders appear here in real time. Add orderable items under Menu → Order items to enable this.")}
         />
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(320px,1fr))", gap: S[4] }}>
@@ -123,6 +125,7 @@ export default function OrdersPage() {
 }
 
 function OrderCard({ order, currency, onAdvance }: { order: Order; currency: Currency; onAdvance: (o: Order, s: OrderStatus) => void }) {
+  const tr = useT();
   const time = new Date(order.createdAt).toLocaleTimeString("en-US", {
     hour: "numeric",
     minute: "2-digit",
@@ -141,8 +144,8 @@ function OrderCard({ order, currency, onAdvance }: { order: Order; currency: Cur
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ ...T.h3 }}>Table {order.tableNum}</div>
-        <span style={badge(STATUS_BADGE[order.status])}>{order.status}</span>
+        <div style={{ ...T.h3 }}>{tr("Table")} {order.tableNum}</div>
+        <span style={badge(STATUS_BADGE[order.status])}>{tr(order.status)}</span>
       </div>
       <div style={{ ...T.caption, color: C.faint }}>{time}</div>
 
@@ -185,17 +188,17 @@ function OrderCard({ order, currency, onAdvance }: { order: Order; currency: Cur
         <div style={{ display: "flex", gap: 6 }}>
           {order.status === "placed" && (
             <button onClick={() => onAdvance(order, "preparing")} style={btn("primary", { size: "sm" })}>
-              Start
+              {tr("Start")}
             </button>
           )}
           {order.status === "preparing" && (
             <button onClick={() => onAdvance(order, "served")} style={btn("success", { size: "sm" })}>
-              Served
+              {tr("Served")}
             </button>
           )}
           {(order.status === "placed" || order.status === "preparing") && (
             <button onClick={() => onAdvance(order, "cancelled")} style={btn("danger", { size: "sm" })}>
-              Cancel
+              {tr("Cancel")}
             </button>
           )}
         </div>

@@ -16,8 +16,10 @@ import { fmt, type Currency } from "../../lib/data";
 import { C, R, S, T, STATUS, MONO, btn, field } from "../../lib/theme";
 import { Alert, EmptyState, Skeleton, Spinner } from "../ui/Primitives";
 import type { MenuItem } from "../../lib/types";
+import { useT } from "../../lib/i18n-client";
 
 export function MenuItemsEditor() {
+  const tr = useT();
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [currency, setCurrency] = useState<Currency>("USD");
   const [error, setError] = useState("");
@@ -35,7 +37,7 @@ export function MenuItemsEditor() {
   const add = async () => {
     const price = parseFloat(form.price);
     if (!form.name.trim() || !(price >= 0)) {
-      setError("Enter a name and a valid price.");
+      setError(tr("Enter a name and a valid price."));
       return;
     }
     setAdding(true);
@@ -50,7 +52,7 @@ export function MenuItemsEditor() {
       setItems((cur) => [...(cur ?? []), created]);
       setForm({ name: "", price: "", category: "", description: "" });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not add item.");
+      setError(e instanceof Error ? e.message : tr("Could not add item."));
     } finally {
       setAdding(false);
     }
@@ -86,16 +88,16 @@ export function MenuItemsEditor() {
     <div>
       {/* Add form */}
       <div style={{ ...card(), padding: S[5] }}>
-        <div style={{ ...T.h3, marginBottom: S[3] }}>Add an item</div>
+        <div style={{ ...T.h3, marginBottom: S[3] }}>{tr("Add an item")}</div>
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: S[3] }}>
           <input
-            placeholder="Item name"
+            placeholder={tr("Item name")}
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             style={field()}
           />
           <input
-            placeholder="Price"
+            placeholder={tr("Price")}
             inputMode="decimal"
             value={form.price}
             onChange={(e) => setForm({ ...form, price: e.target.value })}
@@ -104,13 +106,13 @@ export function MenuItemsEditor() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: S[3], marginTop: S[3] }}>
           <input
-            placeholder="Category (optional)"
+            placeholder={tr("Category (optional)")}
             value={form.category}
             onChange={(e) => setForm({ ...form, category: e.target.value })}
             style={field()}
           />
           <input
-            placeholder="Description (optional)"
+            placeholder={tr("Description (optional)")}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             style={field()}
@@ -127,7 +129,7 @@ export function MenuItemsEditor() {
           disabled={adding}
           style={{ ...btn("primary", { disabled: adding }), marginTop: S[4] }}
         >
-          {adding ? <Spinner color="#fff" /> : "Add item"}
+          {adding ? <Spinner color="#fff" /> : tr("Add item")}
         </button>
       </div>
 
@@ -141,8 +143,8 @@ export function MenuItemsEditor() {
           </div>
         ) : items.length === 0 ? (
           <EmptyState
-            title="No orderable items yet"
-            body="Adding items is optional. When you add some, diners can order and leave notes (like ‘no cheese’) straight from their phone. Without items, they’ll still see your uploaded menu."
+            title={tr("No orderable items yet")}
+            body={tr("Adding items is optional. When you add some, diners can order and leave notes (like ‘no cheese’) straight from their phone. Without items, they’ll still see your uploaded menu.")}
           />
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>
@@ -173,25 +175,25 @@ export function MenuItemsEditor() {
                       </div>
                     )}
                   </div>
-                  <div style={{ ...T.h3, ...MONO, color: C.text, minWidth: 72, textAlign: "right" }}>
+                  <div style={{ ...T.h3, ...MONO, color: C.text, minWidth: 72, textAlign: "end" }}>
                     {fmt(it.price, currency)}
                   </div>
                   <button
                     onClick={() => toggle(it)}
-                    title={it.available ? "Available. Click to hide." : "Hidden. Click to show."}
+                    title={it.available ? tr("Available. Click to hide.") : tr("Hidden. Click to show.")}
                     style={{
                       ...btn("secondary", { size: "sm" }),
                       color: it.available ? STATUS.success.fg : C.muted,
                       borderColor: it.available ? STATUS.success.border : C.border,
                     }}
                   >
-                    {it.available ? "Available" : "Hidden"}
+                    {it.available ? tr("Available") : tr("Hidden")}
                   </button>
                   <button onClick={() => setEditId(it.id)} style={btn("secondary", { size: "sm" })}>
-                    Edit
+                    {tr("Edit")}
                   </button>
                   <button onClick={() => remove(it.id)} style={btn("danger", { size: "sm" })}>
-                    Delete
+                    {tr("Delete")}
                   </button>
                 </div>
               ),
@@ -221,6 +223,7 @@ function EditRow({
   onCancel: () => void;
   onSave: (id: string, patch: Partial<MenuItem>) => Promise<void>;
 }) {
+  const tr = useT();
   const [f, setF] = useState({
     name: item.name,
     price: String(item.price),
@@ -244,13 +247,13 @@ function EditRow({
           value={f.category}
           onChange={(e) => setF({ ...f, category: e.target.value })}
           style={field()}
-          placeholder="Category"
+          placeholder={tr("Category")}
         />
         <input
           value={f.description}
           onChange={(e) => setF({ ...f, description: e.target.value })}
           style={field()}
-          placeholder="Description"
+          placeholder={tr("Description")}
         />
       </div>
       <div style={{ display: "flex", gap: 8, marginTop: S[3] }}>
@@ -270,10 +273,10 @@ function EditRow({
           }}
           style={btn("primary", { size: "sm", disabled: busy })}
         >
-          {busy ? <Spinner color="#fff" /> : "Save"}
+          {busy ? <Spinner color="#fff" /> : tr("Save")}
         </button>
         <button onClick={onCancel} style={btn("secondary", { size: "sm" })}>
-          Cancel
+          {tr("Cancel")}
         </button>
       </div>
     </div>

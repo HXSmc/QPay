@@ -6,6 +6,7 @@ import { setTableItems } from "../../lib/api";
 import type { LiveTable, OrderItem } from "../../lib/types";
 import { C, R, S, T, NUM, MONO, STATUS, btn, field as fieldStyle } from "../../lib/theme";
 import { Alert, Modal, Spinner } from "../ui/Primitives";
+import { useT } from "../../lib/i18n-client";
 
 /**
  * Admin order editor rendered as a popup overlay via the shared <Modal>.
@@ -23,6 +24,7 @@ export function OrderModal({
   onClose: () => void;
   onSaved: (t: LiveTable) => void;
 }) {
+  const tr = useT();
   const [items, setItems] = useState<OrderItem[]>(
     (table.items ?? []).map((i) => ({ ...i })),
   );
@@ -46,9 +48,9 @@ export function OrderModal({
   const canAdd = trimmed.length > 0 && qty >= 1 && priceOk;
   const touched = trimmed.length > 0 || unit.trim() !== "";
   const validationMsg = !trimmed
-    ? "Enter an item name."
+    ? tr("Enter an item name.")
     : !priceOk
-      ? "Price can't be negative."
+      ? tr("Price can't be negative.")
       : "";
 
   const addLine = () => {
@@ -74,7 +76,7 @@ export function OrderModal({
       onSaved(updated);
       onClose();
     } catch {
-      setErr("Couldn't save the order. Please retry.");
+      setErr(tr("Couldn't save the order. Please retry."));
     } finally {
       setBusy(false);
     }
@@ -102,7 +104,7 @@ export function OrderModal({
   } as const;
 
   return (
-    <Modal onClose={onClose} ariaLabel={`Table ${table.num} order`} maxWidth={520}>
+    <Modal onClose={onClose} ariaLabel={tr("Table {n} order").replace("{n}", table.num)} maxWidth={520}>
       <div
         style={{
           display: "flex",
@@ -113,11 +115,11 @@ export function OrderModal({
         }}
       >
         <h3 style={{ ...T.h3, fontSize: 17, margin: 0 }}>
-          Table {table.num} order
+          {tr("Table {n} order").replace("{n}", table.num)}
         </h3>
         <button
           onClick={onClose}
-          aria-label="Close"
+          aria-label={tr("Close")}
           className="qp-cta-lift"
           style={{
             border: `1.5px solid ${C.border}`,
@@ -147,7 +149,7 @@ export function OrderModal({
                 ...T.caption,
               }}
             >
-              No items yet. Add the first line below.
+              {tr("No items yet. Add the first line below.")}
             </div>
           ) : (
             items.map((it, i) => (
@@ -188,7 +190,7 @@ export function OrderModal({
                   </span>
                   <button
                     onClick={() => removeLine(i)}
-                    aria-label="Remove"
+                    aria-label={tr("Remove")}
                     style={{
                       border: "none",
                       background: STATUS.danger.bg,
@@ -219,7 +221,7 @@ export function OrderModal({
               fontWeight: 800,
             }}
           >
-            <span>Subtotal</span>
+            <span>{tr("Subtotal")}</span>
             <span style={{ color: C.brand, ...MONO }}>{fmt(subtotal, currency)}</span>
           </div>
         )}
@@ -234,12 +236,12 @@ export function OrderModal({
           }}
         >
           <div style={{ ...T.caption, fontWeight: 700, color: C.muted, marginBottom: S[3] - 2 }}>
-            Add item
+            {tr("Add item")}
           </div>
           <input
             ref={nameRef}
-            aria-label="Item name"
-            placeholder="Item name"
+            aria-label={tr("Item name")}
+            placeholder={tr("Item name")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addLine()}
@@ -247,13 +249,13 @@ export function OrderModal({
           />
           <div style={{ display: "flex", alignItems: "center", gap: S[3] - 2, flexWrap: "wrap" }}>
             <div style={{ display: "flex", alignItems: "center", gap: S[2] }}>
-              <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity" style={stepBtn}>
+              <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label={tr("Decrease quantity")} style={stepBtn}>
                 −
               </button>
-              <span aria-label="Quantity" style={{ ...T.body, fontWeight: 800, minWidth: 18, textAlign: "center", ...NUM }}>
+              <span aria-label={tr("Quantity")} style={{ ...T.body, fontWeight: 800, minWidth: 18, textAlign: "center", ...NUM }}>
                 {qty}
               </span>
-              <button onClick={() => setQty((q) => q + 1)} aria-label="Increase quantity" style={stepBtn}>
+              <button onClick={() => setQty((q) => q + 1)} aria-label={tr("Increase quantity")} style={stepBtn}>
                 +
               </button>
             </div>
@@ -263,8 +265,8 @@ export function OrderModal({
                 type="number"
                 min="0"
                 step="0.01"
-                aria-label="Unit price"
-                placeholder="unit price"
+                aria-label={tr("Unit price")}
+                placeholder={tr("unit price")}
                 value={unit}
                 onChange={(e) => setUnit(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && addLine()}
@@ -276,7 +278,7 @@ export function OrderModal({
               disabled={!canAdd}
               style={{ ...btn("primary", { disabled: !canAdd }), padding: "10px 16px", fontSize: 14 }}
             >
-              Add
+              {tr("Add")}
             </button>
           </div>
           {touched && !canAdd && (
@@ -309,7 +311,7 @@ export function OrderModal({
             padding: "12px 16px",
           }}
         >
-          Clear table
+          {tr("Clear table")}
         </button>
         <button
           onClick={() => save(items)}
@@ -322,10 +324,10 @@ export function OrderModal({
         >
           {busy ? (
             <>
-              <Spinner size={15} color="#fff" /> Saving
+              <Spinner size={15} color="#fff" /> {tr("Saving")}
             </>
           ) : (
-            "Save order"
+            tr("Save order")
           )}
         </button>
       </div>

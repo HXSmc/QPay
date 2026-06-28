@@ -8,6 +8,7 @@ import { downloadCsv, transactionsToCsv } from "../../lib/csv";
 import type { LiveTable, TableStatus, Transaction } from "../../lib/types";
 import { C, R, S, T, NUM, MONO, STATUS, SHADOW, badge, btn, card } from "../../lib/theme";
 import { Alert, EmptyState, Skeleton } from "../../components/ui/Primitives";
+import { useT } from "../../lib/i18n-client";
 
 const STATUS_BADGE: Record<TableStatus, "danger" | "warn" | "success" | "neutral"> = {
   unpaid: "danger",
@@ -24,6 +25,7 @@ const STATUS_LABEL: Record<TableStatus, string> = {
 };
 
 export default function DashboardPage() {
+  const tr = useT();
   const [tables, setTables] = useState<LiveTable[]>([]);
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [me, setMe] = useState<Me | null>(null);
@@ -65,8 +67,8 @@ export default function DashboardPage() {
   // Real figures derived from the live ledger; tips and turn-time aren't tracked
   // by this prototype, so they're shown as unavailable rather than faked.
   const metrics = [
-    { value: fmt(revenue, currency), label: "Revenue (recent)", delta: `${txns.length} txns`, money: true as const },
-    { value: `${active} / ${tables.length}`, label: "Active tables", delta: "Live" },
+    { value: fmt(revenue, currency), label: "Revenue (recent)", delta: `${txns.length} ${tr("txns")}`, money: true as const },
+    { value: `${active} / ${tables.length}`, label: "Active tables", delta: tr("Live") },
     { label: "Tips collected", notTracked: true as const },
     { label: "Avg. turn time", notTracked: true as const },
   ];
@@ -86,12 +88,12 @@ export default function DashboardPage() {
       >
         <div>
           <div style={{ ...T.label, color: C.brand, marginBottom: S[1] }}>
-            Dashboard
+            {tr("Dashboard")}
           </div>
           <h1 style={{ ...T.h1, margin: 0, color: C.text }}>
             {me?.email
               ? me.email.split("@")[0].replace(/^./, (c) => c.toUpperCase())
-              : "Your restaurant"}
+              : tr("Your restaurant")}
           </h1>
           <div
             style={{
@@ -112,7 +114,7 @@ export default function DashboardPage() {
                 boxShadow: `0 0 0 3px ${STATUS.success.bg}`,
               }}
             />
-            Live, {now || "..."}
+            {tr("Live")}, {now || "..."}
           </div>
         </div>
         <div style={{ display: "flex", gap: S[2] + 2 }}>
@@ -121,14 +123,14 @@ export default function DashboardPage() {
             onClick={() => downloadCsv("nuqra-transactions.csv", transactionsToCsv(txns))}
             style={btn("secondary", { size: "sm" })}
           >
-            Export
+            {tr("Export")}
           </button>
           <Link
             href="/admin/tables"
             className="qp-cta-lift"
             style={{ ...btn("primary", { size: "sm" }), textDecoration: "none" }}
           >
-            + New table
+            {tr("+ New table")}
           </Link>
         </div>
       </header>
@@ -136,7 +138,7 @@ export default function DashboardPage() {
       {error && (
         <div style={{ marginBottom: S[5] }}>
           <Alert kind="danger">
-            Couldn&apos;t load your dashboard. Check your connection and refresh.
+            {tr("Couldn't load your dashboard. Check your connection and refresh.")}
           </Alert>
         </div>
       )}
@@ -200,7 +202,7 @@ export default function DashboardPage() {
                         </span>
                       )}
                       <span style={{ ...T.label, color: featured ? "#fff" : C.muted }}>
-                        {m.label}
+                        {tr(m.label)}
                       </span>
                     </div>
                     {tracked && m.delta && (
@@ -233,7 +235,7 @@ export default function DashboardPage() {
                         {m.value}
                       </div>
                     ) : (
-                      <div style={{ ...T.h2, color: C.faint }}>Not tracked yet</div>
+                      <div style={{ ...T.h2, color: C.faint }}>{tr("Not tracked yet")}</div>
                     )}
                   </div>
                 </div>
@@ -256,13 +258,13 @@ export default function DashboardPage() {
               marginBottom: S[5],
             }}
           >
-            <h2 style={{ ...T.h3, margin: 0, color: C.text }}>Live tables</h2>
+            <h2 style={{ ...T.h3, margin: 0, color: C.text }}>{tr("Live tables")}</h2>
             <Link
               href="/admin/tables"
               className="qp-nav"
               style={{ ...T.caption, fontWeight: 600, color: C.brand, textDecoration: "none" }}
             >
-              Manage
+              {tr("Manage")}
             </Link>
           </div>
           {loading ? (
@@ -273,11 +275,11 @@ export default function DashboardPage() {
             </div>
           ) : tables.length === 0 ? (
             <EmptyState
-              title="No tables yet"
-              body="Create your first table to start taking scan-to-pay orders."
+              title={tr("No tables yet")}
+              body={tr("Create your first table to start taking scan-to-pay orders.")}
               action={
                 <Link href="/admin/tables" className="qp-cta-lift" style={{ ...btn("primary", { size: "sm" }), textDecoration: "none" }}>
-                  Create your first table
+                  {tr("Create your first table")}
                 </Link>
               }
             />
@@ -308,7 +310,7 @@ export default function DashboardPage() {
                       {t.amount}
                     </div>
                     <div style={{ marginTop: S[2], ...badge(STATUS_BADGE[t.status]) }}>
-                      {STATUS_LABEL[t.status]}
+                      {tr(STATUS_LABEL[t.status])}
                     </div>
                   </Link>
                 );
@@ -328,13 +330,13 @@ export default function DashboardPage() {
               marginBottom: S[1] + 2,
             }}
           >
-            <h2 style={{ ...T.h3, margin: 0, color: C.text }}>Recent transactions</h2>
+            <h2 style={{ ...T.h3, margin: 0, color: C.text }}>{tr("Recent transactions")}</h2>
             <Link
               href="/admin/transactions"
               className="qp-nav"
               style={{ ...T.caption, fontWeight: 600, color: C.brand, textDecoration: "none" }}
             >
-              View all
+              {tr("View all")}
             </Link>
           </div>
           <div
@@ -349,10 +351,10 @@ export default function DashboardPage() {
               borderBottom: `1px solid ${C.border}`,
             }}
           >
-            <span>TIME</span>
-            <span>TABLE</span>
-            <span style={{ textAlign: "right" }}>AMOUNT</span>
-            <span style={{ textAlign: "right" }}>METHOD</span>
+            <span>{tr("TIME")}</span>
+            <span>{tr("TABLE")}</span>
+            <span style={{ textAlign: "end" }}>{tr("AMOUNT")}</span>
+            <span style={{ textAlign: "end" }}>{tr("METHOD")}</span>
           </div>
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
@@ -363,8 +365,8 @@ export default function DashboardPage() {
           ) : txns.length === 0 ? (
             <div style={{ paddingTop: S[4] }}>
               <EmptyState
-                title="No transactions yet"
-                body="Payments will appear here as diners pay their bills."
+                title={tr("No transactions yet")}
+                body={tr("Payments will appear here as diners pay their bills.")}
               />
             </div>
           ) : (
@@ -381,8 +383,8 @@ export default function DashboardPage() {
               >
                 <span style={{ ...T.caption, color: C.muted, ...NUM }}>{tx.time}</span>
                 <span style={{ ...T.caption, fontWeight: 700, ...NUM }}>#{tx.table}</span>
-                <span style={{ ...T.body, fontWeight: 700, textAlign: "right", ...MONO }}>{tx.amount}</span>
-                <span style={{ textAlign: "right" }}>
+                <span style={{ ...T.body, fontWeight: 700, textAlign: "end", ...MONO }}>{tx.amount}</span>
+                <span style={{ textAlign: "end" }}>
                   <span
                     style={{
                       ...T.caption,

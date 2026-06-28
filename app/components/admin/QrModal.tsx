@@ -5,6 +5,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { getAppBaseUrl } from "../../lib/url";
 import { C, R, S, T, btn } from "../../lib/theme";
 import { Modal } from "../ui/Primitives";
+import { useT } from "../../lib/i18n-client";
 
 /**
  * QR viewer popup. Renders inside the shared <Modal> overlay primitive.
@@ -22,6 +23,7 @@ export function QrModal({
   restaurantName?: string;
   onClose: () => void;
 }) {
+  const tr = useT();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [url, setUrl] = useState("");
 
@@ -64,7 +66,7 @@ export function QrModal({
   };
 
   return (
-    <Modal onClose={onClose} ariaLabel={`Table ${tableNum} QR code`} maxWidth={560}>
+    <Modal onClose={onClose} ariaLabel={tr("Table {n} QR code").replace("{n}", tableNum)} maxWidth={560}>
       <div style={{ padding: S[5] }}>
         <div
           style={{
@@ -74,10 +76,10 @@ export function QrModal({
             marginBottom: S[4],
           }}
         >
-          <h3 style={{ ...T.h3, fontSize: 18, margin: 0 }}>Table {tableNum} QR</h3>
+          <h3 style={{ ...T.h3, fontSize: 18, margin: 0 }}>{tr("Table {n} QR").replace("{n}", tableNum)}</h3>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label={tr("Close")}
             className="qp-cta-lift"
             style={{
               border: `1.5px solid ${C.border}`,
@@ -115,7 +117,7 @@ export function QrModal({
             }}
           >
             {url && (
-              <span role="img" aria-label={`Payment QR code for table ${tableNum}`}>
+              <span role="img" aria-label={tr("Payment QR code for table {n}").replace("{n}", tableNum)}>
                 <QRCodeSVG value={url} size={196} level="M" fgColor={C.ink} />
               </span>
             )}
@@ -131,7 +133,7 @@ export function QrModal({
             }}
           >
             <p style={{ ...T.caption, color: C.muted, margin: 0 }}>
-              Diners scan to open the bill for this table.
+              {tr("Diners scan to open the bill for this table.")}
             </p>
             <div
               style={{
@@ -152,14 +154,14 @@ export function QrModal({
                 onClick={downloadSvg}
                 style={{ ...btn("primary"), flex: "1 1 140px" }}
               >
-                Download SVG
+                {tr("Download SVG")}
               </button>
               <button
                 className="qp-cta-lift"
                 onClick={print}
                 style={{ ...btn("secondary"), flex: "1 1 140px" }}
               >
-                Print
+                {tr("Print")}
               </button>
             </div>
           </div>
