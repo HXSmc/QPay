@@ -1,7 +1,7 @@
-// Nuqra logo (Nuqra = a dot / point, Arabic). A burnt-ember tile holding a
-// concentric "coin / scan" mark: a solid dot (the nuqra) inside a thin ripple
-// ring — reads as a struck coin and as the tap-to-pay target in one ownable,
-// flat geometric mark. Linear-clean: no busy detail, legible down to 16px.
+// Nuqra logo (Nuqra = a struck coin / a dot, Arabic). A burnt-ember tile holding
+// a struck silver-white coin with the brand "N" struck into its face: coin =
+// money, N = the brand, fused into one ownable mark. A faint milled rim gives the
+// coin weight. Flat, legible down to 16px, reads on both light and dark surfaces.
 // Used in the marketing header, admin sidebar, login, and as the favicon
 // (app/icon.svg mirrors this geometry).
 
@@ -16,9 +16,8 @@ export function LogoMark({
   onDark?: boolean;
   radius?: number;
 }) {
-  const tile = `qp-tile-${size}-${onDark ? "d" : "l"}`;
-  // Ring sits brighter on dark surfaces so the mark holds its weight.
-  const ringOpacity = onDark ? 0.55 : 0.42;
+  void onDark; // mark is background-agnostic (ember tile reads on light + dark)
+  const tile = `qp-tile-${size}`;
   return (
     <svg
       width={size}
@@ -37,10 +36,19 @@ export function LogoMark({
       </defs>
       {/* ember tile */}
       <rect width="32" height="32" rx="8" fill={`url(#${tile})`} />
-      {/* ripple / scan ring */}
-      <circle cx="16" cy="16" r="9" stroke="#FFFFFF" strokeOpacity={ringOpacity} strokeWidth="1.3" fill="none" />
-      {/* the nuqra — struck coin / tap target */}
-      <circle cx="16" cy="16" r="4.4" fill="#FFFFFF" />
+      {/* struck coin */}
+      <circle cx="16" cy="16" r="8.6" fill="#FFFFFF" />
+      {/* milled rim */}
+      <circle cx="16" cy="16" r="6.4" stroke={C.brandDark} strokeOpacity="0.16" strokeWidth="0.9" fill="none" />
+      {/* N struck into the coin */}
+      <path
+        d="M11.6 20.4 V11.6 L20.4 20.4 V11.6"
+        stroke={C.brandDark}
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
     </svg>
   );
 }
