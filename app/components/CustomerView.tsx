@@ -8,6 +8,9 @@ import { MenuModal } from "./site/MenuModal";
 import { OrderModal } from "./site/OrderModal";
 import { Toast } from "./ui/Primitives";
 
+// Calm shared easing for inline reveals and state transitions.
+const EASE = "cubic-bezier(0.16,1,0.3,1)";
+
 const SPLIT_DEFS: { key: SplitMode; label: string }[] = [
   { key: "full", label: "Pay full" },
   { key: "equal", label: "Split equally" },
@@ -325,19 +328,6 @@ export function CustomerView({
         padding: "36px 16px",
       }}
     >
-      <MenuModal
-        open={menuOpen}
-        tableNum={tableNumber}
-        token={token}
-        onClose={() => setMenuOpen(false)}
-      />
-      <OrderModal
-        open={orderOpen}
-        token={token}
-        items={orderItems}
-        onClose={() => setOrderOpen(false)}
-        onPlaced={() => setOrderToast("Order sent to the kitchen")}
-      />
       {orderToast && (
         <Toast message={orderToast} kind="success" onDone={() => setOrderToast("")} />
       )}
@@ -418,11 +408,14 @@ export function CustomerView({
               }}
             >
               <span
+                aria-hidden="true"
                 style={{
                   width: 7,
                   height: 7,
                   borderRadius: "50%",
-                  background: "#4ADE80",
+                  background: "rgba(255,255,255,0.95)",
+                  boxShadow: "0 0 0 4px rgba(255,255,255,0.18)",
+                  flexShrink: 0,
                 }}
               />
               Bill is live
@@ -436,7 +429,11 @@ export function CustomerView({
             {/* View menu / order */}
             <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
               <button
-                onClick={() => setMenuOpen(true)}
+                onClick={() => {
+                  setOrderOpen(false);
+                  setMenuOpen((o) => !o);
+                }}
+                aria-expanded={menuOpen}
                 style={{
                   flex: 1,
                   display: "flex",
@@ -444,14 +441,15 @@ export function CustomerView({
                   justifyContent: "center",
                   gap: 8,
                   padding: "12px",
-                  background: "#EEF2FF",
+                  background: menuOpen ? "#fff" : "#EEF2FF",
                   color: BRAND,
-                  border: "1.5px solid #DBE3F4",
+                  border: "1.5px solid " + (menuOpen ? BRAND : "#DBE3F4"),
                   borderRadius: 13,
                   fontFamily: "inherit",
                   fontSize: 14.5,
                   fontWeight: 700,
                   cursor: "pointer",
+                  transition: "background 200ms " + EASE + ", border-color 200ms " + EASE,
                 }}
               >
                 <svg
@@ -472,12 +470,16 @@ export function CustomerView({
                   <line x1="7" x2="17" y1="12" y2="12" />
                   <line x1="7" x2="13" y1="16" y2="16" />
                 </svg>
-                View menu
+                {menuOpen ? "Hide menu" : "View menu"}
               </button>
               {canOrder && (
                 <button
                   className="qp-cta qp-press"
-                  onClick={() => setOrderOpen(true)}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setOrderOpen((o) => !o);
+                  }}
+                  aria-expanded={orderOpen}
                   style={{
                     flex: 1,
                     display: "flex",
@@ -510,10 +512,28 @@ export function CustomerView({
                     <circle cx="19" cy="21" r="1" />
                     <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
                   </svg>
-                  Order food
+                  {orderOpen ? "Close order" : "Order food"}
                 </button>
               )}
             </div>
+
+            {/* Inline menu viewer (progressive disclosure, no popup). */}
+            <MenuModal
+              open={menuOpen}
+              tableNum={tableNumber}
+              token={token}
+              onClose={() => setMenuOpen(false)}
+            />
+            {/* Inline ordering panel (progressive disclosure, no popup). */}
+            {canOrder && (
+              <OrderModal
+                open={orderOpen}
+                token={token}
+                items={orderItems}
+                onClose={() => setOrderOpen(false)}
+                onPlaced={() => setOrderToast("Order sent to the kitchen")}
+              />
+            )}
 
             {!hasOrder ? (
               <div
@@ -736,7 +756,7 @@ export function CustomerView({
                       }}
                     >
                       {result.cleared || remaining <= 0.001
-                        ? "Bill fully paid — thanks!"
+                        ? "Bill fully paid. Thanks!"
                         : `Payment received · ${fmt(remaining)} remaining`}
                     </div>
                   </div>
@@ -756,7 +776,7 @@ export function CustomerView({
                       fontSize: 16,
                     }}
                   >
-                    ✓ This bill is fully paid — thank you!
+                    ✓ This bill is fully paid. Thank you!
                   </div>
                 ) : (
                   <>
@@ -803,7 +823,7 @@ export function CustomerView({
                               borderRadius: 14,
                               cursor: "pointer",
                               textAlign: "center",
-                              transition: "all .15s",
+                              transition: "all 220ms " + EASE,
                               border: "1.5px solid " + (active ? BRAND : "#E2E8F0"),
                               background: active ? "#EEF2FF" : "#fff",
                               color: active ? BRAND : "#0B1221",
@@ -990,7 +1010,7 @@ export function CustomerView({
                                 borderRadius: 12,
                                 cursor: clickable ? "pointer" : "default",
                                 marginBottom: 7,
-                                transition: "all .15s",
+                                transition: "all 220ms " + EASE,
                                 border: "1.5px solid " + (sel ? BRAND : "#E2E8F0"),
                                 background: sel
                                   ? "#EEF2FF"
@@ -1175,7 +1195,7 @@ export function CustomerView({
                               textAlign: "center",
                               fontSize: 13,
                               fontWeight: 700,
-                              transition: "all .15s",
+                              transition: "all 220ms " + EASE,
                               border: "1.5px solid " + (active ? BRAND : "#E2E8F0"),
                               background: active ? "#EEF2FF" : "#fff",
                               color: active ? BRAND : "#475569",
@@ -1324,7 +1344,7 @@ export function CustomerView({
                         cursor: payDisabled ? "default" : "pointer",
                         opacity: payDisabled ? 0.55 : 1,
                         boxShadow: "0 10px 24px rgba(46,91,255,0.3)",
-                        transition: "all .15s",
+                        transition: "all 220ms " + EASE,
                       }}
                     >
                       {paying ? "Processing…" : payLabel}
@@ -1355,7 +1375,7 @@ export function CustomerView({
                         <rect width="18" height="11" x="3" y="11" rx="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
-                      Secured by QPay · 256-bit encryption
+                      Secured by Nuqra · 256-bit encryption
                     </div>
                   </>
                 )}

@@ -1,0 +1,188 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { submitLead, type LeadResult } from "../../lib/api";
+import { C, S, STATUS, T, btn, field } from "../../lib/theme";
+import { Alert, Spinner } from "../ui/Primitives";
+
+// Basic format check (local-part@domain.tld). Catches obvious typos before we
+// hit the network, without trying to be an RFC-complete validator.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Inline demo-request form (no popup, no overlay). It lives in the normal page
+// flow inside an expandable section. `open` only drives focus + reset; the
+// expand/collapse animation is owned by the parent section.
+export function DemoForm({ open }: { open: boolean }) {
+  const [sent, setSent] = useState(false);
+  const [result, setResult] = useState<LeadResult | null>(null);
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [restaurant, setRestaurant] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const firstInputRef = useRef<HTMLInputElement>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    if (!EMAIL_RE.test(email.trim())) {
+      setError("Please enter a valid work email (name@company.com).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await submitLead({ name, email, restaurant });
+      setResult(res);
+      setSent(true);
+    } catch {
+      setError("Couldn't send your request. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reset = () => {
+    setSent(false);
+    setResult(null);
+    setName("");
+    setEmail("");
+    setRestaurant("");
+    setError("");
+    setBusy(false);
+  };
+
+  // Focus the first field when the section is opened (and not already sent).
+  useEffect(() => {
+    if (open && !sent) firstInputRef.current?.focus();
+  }, [open, sent]);
+
+  if (sent) {
+    return (
+      <div aria-live="polite" aria-atomic="true">
+        <div
+          style={{
+            width: 54,
+            height: 54,
+            borderRadius: "50%",
+            background: STATUS.success.bg,
+            color: STATUS.success.fg,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 16,
+          }}
+        >
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M20 6 9 17l-4-4" />
+          </svg>
+        </div>
+        <h3 style={{ ...T.h1, margin: "0 0 8px" }}>
+          {result?.status === "exists" ? "Check your inbox" : "Your demo is ready"}
+        </h3>
+        <p style={{ ...T.body, color: C.muted, margin: "0 0 16px", maxWidth: 460 }}>
+          {result?.status === "exists" ? (
+            <>
+              Thanks{name ? `, ${name}` : ""}. This email already has a Nuqra
+              account, so we&apos;ve sent you a note on how to reach our sales
+              team to extend or upgrade.
+            </>
+          ) : (
+            <>
+              Thanks{name ? `, ${name}` : ""}. We&apos;ve emailed your trial
+              admin login to <strong>{email}</strong>. It&apos;s valid for 7
+              days. Check your inbox to sign in.
+            </>
+          )}
+        </p>
+        {result && !result.emailed && (
+          <div style={{ marginBottom: 18, maxWidth: 460 }}>
+            <Alert kind="warn">
+              Email delivery is still being set up. Contact sales if it
+              doesn&apos;t arrive.
+            </Alert>
+          </div>
+        )}
+        <button
+          className="qp-press"
+          onClick={reset}
+          style={{ ...btn("secondary", { size: "md" }) }}
+        >
+          Send another request
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} noValidate>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: S[3],
+        }}
+        className="qp-grid-2"
+      >
+        <input
+          required
+          ref={firstInputRef}
+          aria-label="Your name"
+          placeholder="Your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={field()}
+        />
+        <input
+          required
+          type="email"
+          aria-label="Work email"
+          placeholder="Work email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={field()}
+        />
+        <input
+          required
+          aria-label="Restaurant name"
+          placeholder="Restaurant name"
+          value={restaurant}
+          onChange={(e) => setRestaurant(e.target.value)}
+          style={{ ...field(), gridColumn: "1 / -1" }}
+        />
+      </div>
+      {error && (
+        <div style={{ marginTop: S[3] }}>
+          <Alert kind="danger">{error}</Alert>
+        </div>
+      )}
+      <button
+        type="submit"
+        disabled={busy}
+        className="qp-cta"
+        style={{
+          ...btn("primary", { size: "lg", disabled: busy }),
+          marginTop: S[4],
+          gap: 9,
+        }}
+      >
+        {busy ? (
+          <>
+            <Spinner size={16} color="#fff" /> Sending
+          </>
+        ) : (
+          "Request demo"
+        )}
+      </button>
+    </form>
+  );
+}

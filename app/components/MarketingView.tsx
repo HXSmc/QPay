@@ -1,12 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SITE } from "../lib/site";
 import { C, R, S, SHADOW, NUM, btn } from "../lib/theme";
-import { DemoModal } from "./site/DemoModal";
+import { DemoForm } from "./site/DemoForm";
 import { SalesDropdown } from "./site/SalesDropdown";
+
+const EASE = "cubic-bezier(0.16,1,0.3,1)";
 
 const SOLUTIONS = [
   {
@@ -109,15 +111,45 @@ export function MarketingView() {
   const router = useRouter();
   const [demoOpen, setDemoOpen] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
-  const salesWrapRef = useRef<HTMLDivElement>(null);
-  const scrollToSolutions = () =>
+  const [reduced, setReduced] = useState(false);
+
+  // Honor prefers-reduced-motion: scrolls jump instantly and inline panels
+  // appear without animating.
+  useEffect(() => {
+    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const apply = () => setReduced(m.matches);
+    apply();
+    m.addEventListener?.("change", apply);
+    return () => m.removeEventListener?.("change", apply);
+  }, []);
+
+  const scrollToId = (id: string) =>
     document
-      .getElementById("solutions")
-      ?.scrollIntoView({ behavior: "smooth" });
+      .getElementById(id)
+      ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+
+  const scrollToSolutions = () => scrollToId("solutions");
+
+  // Open the inline demo section and ease it into view (never a hard jump).
+  const openDemo = () => {
+    setDemoOpen(true);
+    requestAnimationFrame(() => scrollToId("demo"));
+  };
+
+  // Shared smooth expand/collapse for inline disclosures (GPU-friendly,
+  // collapses instantly under reduced-motion).
+  const expand = (open: boolean, max: number): CSSProperties => ({
+    overflow: "hidden",
+    maxHeight: open ? max : 0,
+    opacity: open ? 1 : 0,
+    transform: open ? "none" : "translateY(-6px)",
+    transition: reduced
+      ? "none"
+      : `max-height 320ms ${EASE}, opacity 240ms ${EASE}, transform 280ms ${EASE}`,
+  });
 
   return (
     <div style={{ background: C.surface }}>
-      <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />
       {/* HERO */}
       <div
         style={{
@@ -156,14 +188,22 @@ export function MarketingView() {
               }}
             >
               <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: "#16A34A",
-                  boxShadow: "0 0 0 3px rgba(22,163,74,0.18)",
-                }}
-              />
+                aria-hidden="true"
+                style={{ display: "inline-flex", color: C.brand }}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M20 6 9 17l-4-4" />
+                </svg>
+              </span>
               {SITE.heroBadge}
             </div>
             <h1
@@ -191,7 +231,7 @@ export function MarketingView() {
               }}
             >
               Diners scan, split, tip, and pay in under 30 seconds. No app, no
-              waiting for the check. QPay handles the rest.
+              waiting for the check. Nuqra handles the rest.
             </p>
             <div
               style={{
@@ -204,7 +244,7 @@ export function MarketingView() {
             >
               <button
                 className="qp-cta"
-                onClick={() => setDemoOpen(true)}
+                onClick={openDemo}
                 style={{
                   ...btn("primary", { size: "lg" }),
                   gap: 9,
@@ -282,7 +322,7 @@ export function MarketingView() {
                 height="18"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke="#16A34A"
+                stroke={C.brand}
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -458,7 +498,7 @@ export function MarketingView() {
               lineHeight: 1.55,
             }}
           >
-            Built for the rush. QPay removes the slowest part of the meal, the
+            Built for the rush. Nuqra removes the slowest part of the meal, the
             wait for the check.
           </p>
         </div>
@@ -621,6 +661,86 @@ export function MarketingView() {
         </div>
       </div>
 
+      {/* DEMO REQUEST (inline, replaces the old popup) */}
+      <div
+        id="demo"
+        className="qp-section"
+        style={{
+          maxWidth: 760,
+          margin: "0 auto",
+          padding: "8px 32px 64px",
+          scrollMarginTop: 80,
+        }}
+      >
+        <div
+          style={{
+            background: C.surface,
+            border: `1px solid ${C.border}`,
+            borderRadius: R.xl,
+            padding: S[6],
+            boxShadow: SHADOW.e1,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: S[4],
+            }}
+          >
+            <div style={{ maxWidth: 420 }}>
+              <h2
+                style={{
+                  fontSize: 26,
+                  fontWeight: 800,
+                  letterSpacing: "-0.02em",
+                  color: C.text,
+                  margin: 0,
+                }}
+              >
+                Get a free demo
+              </h2>
+              <p
+                style={{
+                  fontSize: 16,
+                  color: C.muted,
+                  margin: "8px 0 0",
+                  lineHeight: 1.55,
+                }}
+              >
+                See Nuqra live at your restaurant in 20 minutes. We&apos;ll email
+                your trial admin login on the spot.
+              </p>
+            </div>
+            <button
+              className="qp-cta"
+              onClick={() => (demoOpen ? setDemoOpen(false) : openDemo())}
+              aria-expanded={demoOpen}
+              aria-controls="demo-panel"
+              style={{
+                ...btn("primary", { size: "lg" }),
+                padding: "15px 26px",
+                borderRadius: R.md,
+              }}
+            >
+              {demoOpen ? "Hide form" : "Get a free demo"}
+            </button>
+          </div>
+          <div
+            id="demo-panel"
+            inert={!demoOpen}
+            aria-hidden={!demoOpen}
+            style={expand(demoOpen, 520)}
+          >
+            <div style={{ paddingTop: S[5] }}>
+              <DemoForm open={demoOpen} />
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* FOOTER CTA */}
       <div style={{ background: C.brandTint, borderTop: `1px solid ${C.border}` }}>
         <div
@@ -659,27 +779,36 @@ export function MarketingView() {
           <div
             style={{
               display: "flex",
-              gap: S[4],
-              justifyContent: "center",
+              flexDirection: "column",
               alignItems: "center",
-              flexWrap: "wrap",
+              gap: S[4],
             }}
           >
-            <button
-              className="qp-cta"
-              onClick={() => router.push("/admin/login")}
+            <div
               style={{
-                ...btn("primary", { size: "lg" }),
-                padding: "16px 30px",
-                borderRadius: R.md,
+                display: "flex",
+                gap: S[4],
+                justifyContent: "center",
+                alignItems: "center",
+                flexWrap: "wrap",
               }}
             >
-              Start free trial
-            </button>
-            <div ref={salesWrapRef} style={{ position: "relative" }}>
+              <button
+                className="qp-cta"
+                onClick={() => router.push("/admin/login")}
+                style={{
+                  ...btn("primary", { size: "lg" }),
+                  padding: "16px 30px",
+                  borderRadius: R.md,
+                }}
+              >
+                Start free trial
+              </button>
               <button
                 className="qp-press"
                 onClick={() => setSalesOpen((v) => !v)}
+                aria-expanded={salesOpen}
+                aria-controls="sales-panel"
                 style={{
                   ...btn("secondary", { size: "lg" }),
                   padding: "16px 30px",
@@ -689,12 +818,16 @@ export function MarketingView() {
               >
                 Talk to sales
               </button>
-              {salesOpen && (
-                <SalesDropdown
-                  onClose={() => setSalesOpen(false)}
-                  anchorRef={salesWrapRef}
-                />
-              )}
+            </div>
+            <div
+              id="sales-panel"
+              inert={!salesOpen}
+              aria-hidden={!salesOpen}
+              style={{ ...expand(salesOpen, 320), width: "100%", maxWidth: 340 }}
+            >
+              <div style={{ paddingTop: S[1] }}>
+                <SalesDropdown />
+              </div>
             </div>
           </div>
         </div>

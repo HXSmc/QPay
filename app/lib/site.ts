@@ -3,7 +3,7 @@
 // Edit here, not in the components.
 
 export const SITE = {
-  company: "QPay Inc.",
+  company: "Nuqra Inc.",
   /** Copyright year — a constant (not `new Date()`) so static prerender and
    *  client hydration always agree and it can't silently drift mid-year. */
   copyrightYear: 2026,
@@ -12,9 +12,9 @@ export const SITE = {
   /** Sales contact (also used for the tel: link + clipboard copy). */
   salesPhone: "+966566201233",
   /** Sales email — used in the "contact sales" demo email + sender reply-to. */
-  salesEmail: "sales@qpay.com",
+  salesEmail: "sales@nuqra.com",
   /** Dedicated contact for privacy / data requests. */
-  privacyEmail: "privacy@qpay.com",
+  privacyEmail: "privacy@nuqra.com",
   salesHours: "Sun–Thu · 9am–6pm",
   /** Hero social-proof badge. */
   heroBadge: "Trusted by 3,200+ restaurants",

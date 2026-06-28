@@ -3,7 +3,7 @@ import { BrandHeader } from "../components/site/BrandHeader";
 import { SITE } from "../lib/site";
 import { C, S, T } from "../lib/theme";
 
-export const metadata = { title: "Terms of service · QPay" };
+export const metadata = { title: "Terms of service · Nuqra" };
 
 export default function TermsPage() {
   return (
@@ -29,7 +29,7 @@ export default function TermsPage() {
         </p>
 
         <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, marginTop: 0 }}>
-          By using QPay you agree to use it lawfully for accepting restaurant
+          By using Nuqra you agree to use it lawfully for accepting restaurant
           payments. The service is provided as-is; this prototype demonstrates a
           scan-to-pay flow and is not a production payment processor.
         </p>

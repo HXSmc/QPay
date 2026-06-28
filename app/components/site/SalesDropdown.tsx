@@ -1,23 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { RefObject } from "react";
 import { SITE } from "../../lib/site";
 import { C, R, S, SHADOW, T, NUM, STATUS } from "../../lib/theme";
 
 const PHONE = SITE.salesPhone;
 
-export function SalesDropdown({
-  onClose,
-  anchorRef,
-}: {
-  onClose: () => void;
-  // Outside-click boundary that INCLUDES the trigger button, so clicking the
-  // trigger to close doesn't fire onClose (which would race with the trigger's
-  // own toggle and leave the dropdown stuck open).
-  anchorRef?: RefObject<HTMLElement | null>;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
+// Inline "talk to sales" disclosure. No floating/absolute panel and no overlay:
+// it renders as a normal in-flow card that the footer expands in place. Keeps
+// the copy-to-clipboard behavior.
+export function SalesDropdown() {
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "ok" | "fail">("idle");
 
@@ -26,22 +18,6 @@ export function SalesDropdown({
       if (copyTimer.current) clearTimeout(copyTimer.current);
     };
   }, []);
-
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      const boundary = anchorRef?.current ?? ref.current;
-      if (boundary && !boundary.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [onClose, anchorRef]);
 
   const copy = async () => {
     try {
@@ -59,19 +35,12 @@ export function SalesDropdown({
 
   return (
     <div
-      ref={ref}
       style={{
-        position: "absolute",
-        bottom: "calc(100% + 10px)",
-        left: "50%",
-        transform: "translateX(-50%)",
-        width: 268,
         background: C.surface,
         borderRadius: R.lg,
         border: `1px solid ${C.border}`,
-        boxShadow: SHADOW.e3,
+        boxShadow: SHADOW.e2,
         padding: S[4],
-        zIndex: 60,
         textAlign: "left",
       }}
     >

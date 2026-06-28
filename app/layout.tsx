@@ -8,12 +8,12 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-const SITE_TITLE = "QPay · QR Payments for Restaurants";
+const SITE_TITLE = "Nuqra · QR Payments for Restaurants";
 const SITE_DESCRIPTION =
   "Turn tables faster with QR payments. Diners scan, split, tip, and pay in under 30 seconds.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://qpay.com"),
+  metadataBase: new URL("https://nuqra.com"),
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
   openGraph: {

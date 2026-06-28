@@ -107,7 +107,7 @@ export default function DashboardPage() {
         <div style={{ display: "flex", gap: S[2] + 2 }}>
           <button
             className="qp-cta-lift"
-            onClick={() => downloadCsv("qpay-transactions.csv", transactionsToCsv(txns))}
+            onClick={() => downloadCsv("nuqra-transactions.csv", transactionsToCsv(txns))}
             style={btn("secondary", { size: "sm" })}
           >
             Export

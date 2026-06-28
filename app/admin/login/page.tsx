@@ -58,7 +58,7 @@ export default function LoginPage() {
       <div style={{ width: "100%", maxWidth: 400 }}>
         <Link
           href="/"
-          aria-label="QPay home"
+          aria-label="Nuqra home"
           style={{
             display: "flex",
             alignItems: "center",
@@ -73,7 +73,7 @@ export default function LoginPage() {
         <div style={{ ...cardBox }}>
           <h1 style={{ ...T.h2, margin: `0 0 ${S[1]}px` }}>Manager sign in</h1>
           <p style={{ ...T.body, color: C.muted, margin: `0 0 ${S[5]}px` }}>
-            Access the QPay admin dashboard.
+            Access the Nuqra admin dashboard.
           </p>
 
           <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: S[4] }}>

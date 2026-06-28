@@ -142,7 +142,7 @@ export function Sidebar() {
         }}
       >
         <LogoMark size={30} />
-        <span style={{ fontSize: 17, fontWeight: 800 }}>QPay</span>
+        <span style={{ fontSize: 17, fontWeight: 800 }}>Nuqra</span>
       </Link>
       <div
         className="qp-hide-mobile"

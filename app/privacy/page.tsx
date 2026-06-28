@@ -3,7 +3,7 @@ import { BrandHeader } from "../components/site/BrandHeader";
 import { SITE } from "../lib/site";
 import { C, S, T } from "../lib/theme";
 
-export const metadata = { title: "Privacy policy · QPay" };
+export const metadata = { title: "Privacy policy · Nuqra" };
 
 export default function PrivacyPage() {
   return (
@@ -29,7 +29,7 @@ export default function PrivacyPage() {
         </p>
 
         <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, marginTop: 0 }}>
-          QPay processes the minimum data needed to run scan-to-pay: table and
+          Nuqra processes the minimum data needed to run scan-to-pay: table and
           order details, payment records, and (for demo requests) the name,
           email, and restaurant you submit. We do not sell personal data.
         </p>

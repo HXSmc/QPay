@@ -1,4 +1,4 @@
-// Central design tokens — the single source of visual truth for QPay.
+// Central design tokens — the single source of visual truth for Nuqra.
 //
 // The app styles everything with inline objects (no Tailwind). Before this file
 // those objects were ad-hoc: 5 greys, ~12 radius values, ad-hoc shadows, no type

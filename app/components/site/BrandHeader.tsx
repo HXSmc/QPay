@@ -1,10 +1,25 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { C, R, S } from "../../lib/theme";
 import { Wordmark } from "./Logo";
 
+// Seamless sticky navbar: it sits transparent over the page at the top and,
+// only once the page scrolls, melts into a soft blurred surface (no hard 1px
+// border, no boxed bar). The logo/text color stays constant the whole time.
 export function BrandHeader() {
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <div
+    <header
       style={{
         position: "sticky",
         top: 0,
@@ -13,15 +28,20 @@ export function BrandHeader() {
         alignItems: "center",
         height: 60,
         padding: `0 ${S[5]}px`,
-        background: "rgba(255,255,255,0.85)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        borderBottom: `1px solid ${C.border}`,
+        // Transparent at rest, gentle blurred surface once scrolled. No border.
+        background: scrolled ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0)",
+        backdropFilter: scrolled ? "saturate(180%) blur(12px)" : "none",
+        WebkitBackdropFilter: scrolled ? "saturate(180%) blur(12px)" : "none",
+        boxShadow: scrolled
+          ? "0 6px 24px rgba(11,18,33,0.05)"
+          : "0 0 0 rgba(11,18,33,0)",
+        transition:
+          "background 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1)",
       }}
     >
       <Link
         href="/"
-        aria-label="QPay home"
+        aria-label="Nuqra home"
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -32,6 +52,6 @@ export function BrandHeader() {
       >
         <Wordmark />
       </Link>
-    </div>
+    </header>
   );
 }

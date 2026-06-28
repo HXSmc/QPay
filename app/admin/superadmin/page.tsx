@@ -175,7 +175,7 @@ export default function SuperadminPage() {
         <div style={{ display: "flex", alignItems: "center", gap: S[3] }}>
           <LogoMark size={30} onDark />
           <div>
-            <div style={{ ...T.h3, color: "#fff" }}>QPay · Super Admin</div>
+            <div style={{ ...T.h3, color: "#fff" }}>Nuqra · Super Admin</div>
             <div style={{ ...T.caption, color: C.faint }}>{me?.email ?? "."}</div>
           </div>
         </div>

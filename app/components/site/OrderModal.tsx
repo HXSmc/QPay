@@ -1,19 +1,38 @@
 "use client";
 
-// Consumer ordering modal (optional feature). Shown only when the restaurant has
+// Consumer ordering panel (optional feature). Shown only when the restaurant has
 // defined orderable items. Diners browse by category, set quantities, add a
 // free-text note per line ("burger no cheese"), see a running total, and place
 // the order — which lands in the admin's Orders inbox. Does not touch the
 // existing pay/split/tip flow.
+//
+// Inline progressive disclosure: this expands IN PLACE inside the customer card
+// flow, directly below the action buttons. No overlay, no backdrop, no
+// role="dialog". Smooth height + opacity reveal that collapses instantly under
+// prefers-reduced-motion.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { C, R, S, SHADOW, T, btn, field } from "../../lib/theme";
+import { C, R, S, T, btn, field } from "../../lib/theme";
 import { fmt } from "../../lib/data";
 import { placeOrder } from "../../lib/api";
 import { Alert, Spinner } from "../ui/Primitives";
 import type { MenuItem } from "../../lib/types";
 
 type Cart = Record<string, { qty: number; comment: string }>;
+
+const EASE = "cubic-bezier(0.16,1,0.3,1)";
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return reduced;
+}
 
 export function OrderModal({
   open,
@@ -31,9 +50,11 @@ export function OrderModal({
   const [cart, setCart] = useState<Cart>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const reduced = usePrefersReducedMotion();
 
-  // Reset only when the modal opens — NOT on every parent re-render. The parent
+  // Reset only when the panel OPENS — NOT on every parent re-render. The parent
   // (CustomerView) re-renders every 3s from its live poll and passes fresh
   // onClose/onPlaced closures; keying the reset on those would wipe the cart
   // mid-order. So reset depends on `open` alone.
@@ -42,8 +63,14 @@ export function OrderModal({
     setCart({});
     setError("");
     closeRef.current?.focus();
+    panelRef.current?.scrollIntoView({
+      behavior: reduced ? "auto" : "smooth",
+      block: "nearest",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Escape still closes the inline panel.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -61,8 +88,6 @@ export function OrderModal({
     }
     return [...map.entries()];
   }, [items]);
-
-  if (!open) return null;
 
   const setQty = (id: string, qty: number) =>
     setCart((c) => {
@@ -101,154 +126,151 @@ export function OrderModal({
 
   return (
     <div
-      onClick={onClose}
+      aria-hidden={!open}
+      inert={!open}
       style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        background: "rgba(11,18,33,0.55)",
-        display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        padding: 0,
+        display: "grid",
+        gridTemplateRows: open ? "1fr" : "0fr",
+        opacity: open ? 1 : 0,
+        transition: reduced
+          ? "none"
+          : `grid-template-rows 300ms ${EASE}, opacity 220ms ${EASE}`,
       }}
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Order food"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 460,
-          maxHeight: "92vh",
-          display: "flex",
-          flexDirection: "column",
-          background: C.surface,
-          borderRadius: `${R.xl}px ${R.xl}px 0 0`,
-          boxShadow: SHADOW.e3,
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
+      <div style={{ overflow: "hidden", minHeight: 0 }}>
         <div
+          ref={panelRef}
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "18px 20px",
-            borderBottom: `1px solid ${C.border}`,
+            marginTop: 14,
+            border: `1px solid ${C.border}`,
+            borderRadius: R.lg,
+            overflow: "hidden",
+            background: C.surface,
           }}
         >
-          <div>
-            <div style={{ ...T.h2 }}>Order food</div>
-            <div style={{ ...T.caption, color: C.muted, marginTop: 2 }}>
-              Add items and any notes for the kitchen.
-            </div>
-          </div>
-          <button
-            ref={closeRef}
-            onClick={onClose}
-            aria-label="Close"
+          {/* Header */}
+          <div
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: R.sm,
-              border: "none",
-              background: C.canvas,
-              color: C.muted,
-              cursor: "pointer",
-              fontSize: 18,
-              lineHeight: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "14px 16px",
+              borderBottom: `1px solid ${C.border}`,
             }}
           >
-            ×
-          </button>
-        </div>
-
-        {/* Items */}
-        <div style={{ flex: 1, overflow: "auto", padding: "8px 20px 16px" }}>
-          {groups.map(([cat, list]) => (
-            <div key={cat} style={{ marginTop: S[4] }}>
-              <div
-                style={{
-                  ...T.caption,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  color: C.faint,
-                  fontWeight: 800,
-                  marginBottom: S[2],
-                }}
-              >
-                {cat}
+            <div>
+              <div style={{ ...T.h3, color: C.text }}>Order food</div>
+              <div style={{ ...T.caption, color: C.muted, marginTop: 2 }}>
+                Add items and any notes for the kitchen.
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>
-                {list.map((it) => {
-                  const line = cart[it.id];
-                  const qty = line?.qty ?? 0;
-                  return (
-                    <div
-                      key={it.id}
-                      style={{
-                        border: `1px solid ${qty > 0 ? C.brand : C.border}`,
-                        borderRadius: R.md,
-                        padding: 14,
-                        background: qty > 0 ? C.brandTint : C.surface,
-                        transition: "border-color .15s, background .15s",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ ...T.h3, color: C.text }}>{it.name}</div>
-                          {it.description && (
-                            <div style={{ ...T.caption, color: C.muted, marginTop: 3 }}>
-                              {it.description}
+            </div>
+            <button
+              ref={closeRef}
+              onClick={onClose}
+              aria-label="Close order"
+              style={{
+                width: 30,
+                height: 30,
+                borderRadius: R.xs,
+                border: "none",
+                background: C.canvas,
+                color: C.muted,
+                cursor: "pointer",
+                fontSize: 18,
+                lineHeight: 1,
+                flexShrink: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
+
+          {/* Items */}
+          <div style={{ maxHeight: "48vh", overflow: "auto", padding: "4px 16px 12px" }}>
+            {groups.map(([cat, list]) => (
+              <div key={cat} style={{ marginTop: S[3] }}>
+                <div
+                  style={{
+                    ...T.caption,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: C.faint,
+                    fontWeight: 800,
+                    marginBottom: S[2],
+                  }}
+                >
+                  {cat}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>
+                  {list.map((it) => {
+                    const line = cart[it.id];
+                    const qty = line?.qty ?? 0;
+                    return (
+                      <div
+                        key={it.id}
+                        style={{
+                          border: `1px solid ${qty > 0 ? C.brand : C.border}`,
+                          borderRadius: R.md,
+                          padding: 14,
+                          background: qty > 0 ? C.brandTint : C.surface,
+                          transition: reduced
+                            ? "none"
+                            : `border-color 200ms ${EASE}, background 200ms ${EASE}`,
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ ...T.h3, color: C.text }}>{it.name}</div>
+                            {it.description && (
+                              <div style={{ ...T.caption, color: C.muted, marginTop: 3 }}>
+                                {it.description}
+                              </div>
+                            )}
+                            <div style={{ ...T.label, color: C.brand, marginTop: 6 }}>
+                              {fmt(it.price)}
                             </div>
-                          )}
-                          <div style={{ ...T.label, color: C.brand, marginTop: 6 }}>
-                            {fmt(it.price)}
                           </div>
+                          <Stepper qty={qty} onChange={(q) => setQty(it.id, q)} />
                         </div>
-                        <Stepper qty={qty} onChange={(q) => setQty(it.id, q)} />
+                        {qty > 0 && (
+                          <input
+                            value={line?.comment ?? ""}
+                            onChange={(e) => setComment(it.id, e.target.value)}
+                            placeholder="Add a note, e.g. no cheese"
+                            maxLength={160}
+                            style={{ ...field(), marginTop: 12, fontSize: 13.5 }}
+                          />
+                        )}
                       </div>
-                      {qty > 0 && (
-                        <input
-                          value={line?.comment ?? ""}
-                          onChange={(e) => setComment(it.id, e.target.value)}
-                          placeholder="Add a note, e.g. no cheese"
-                          maxLength={160}
-                          style={{ ...field(), marginTop: 12, fontSize: 13.5 }}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Footer */}
-        <div style={{ padding: "14px 20px 20px", borderTop: `1px solid ${C.border}` }}>
-          {error && (
-            <div style={{ marginBottom: 10 }}>
-              <Alert kind="danger">{error}</Alert>
-            </div>
-          )}
-          <button
-            className="qp-cta qp-press"
-            onClick={submit}
-            disabled={busy || count === 0}
-            style={{ ...btn("primary", { full: true, size: "lg", disabled: busy || count === 0 }) }}
-          >
-            {busy ? (
-              <Spinner color="#fff" />
-            ) : count === 0 ? (
-              "Choose items to order"
-            ) : (
-              `Place order · ${count} item${count === 1 ? "" : "s"} · ${fmt(total)}`
+          {/* Footer */}
+          <div style={{ padding: "14px 16px 16px", borderTop: `1px solid ${C.border}` }}>
+            {error && (
+              <div style={{ marginBottom: 10 }}>
+                <Alert kind="danger">{error}</Alert>
+              </div>
             )}
-          </button>
+            <button
+              className="qp-cta qp-press"
+              onClick={submit}
+              disabled={busy || count === 0}
+              style={{ ...btn("primary", { full: true, size: "lg", disabled: busy || count === 0 }) }}
+            >
+              {busy ? (
+                <Spinner color="#fff" />
+              ) : count === 0 ? (
+                "Choose items to order"
+              ) : (
+                `Place order, ${count} item${count === 1 ? "" : "s"}, ${fmt(total)}`
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

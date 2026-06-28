@@ -42,7 +42,7 @@ export default function TransactionsPage() {
         </div>
         <button
           className="qp-cta-lift"
-          onClick={() => downloadCsv("qpay-transactions.csv", transactionsToCsv(txns))}
+          onClick={() => downloadCsv("nuqra-transactions.csv", transactionsToCsv(txns))}
           disabled={loading}
           style={btn("primary", { size: "sm", disabled: loading })}
         >

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { billDue, fmt, STATUS_PALETTE } from "../../../lib/data";
 import {
   createTable,
@@ -170,8 +170,8 @@ export default function TablesPage() {
           {tables.map((t) => {
             const p = STATUS_PALETTE[t.status];
             return (
+              <Fragment key={t.num}>
               <div
-                key={t.num}
                 style={{
                   ...card({ pad: S[4], radius: R.md }),
                   background: t.status === "open" ? C.surfaceAlt : C.surface,
@@ -195,7 +195,11 @@ export default function TablesPage() {
                 )}
                 <button
                   className="qp-cta-lift"
-                  onClick={() => setOrderFor(t)}
+                  onClick={() => {
+                    setQrFor(null);
+                    setOrderFor((cur) => (cur?.num === t.num ? null : t));
+                  }}
+                  aria-expanded={orderFor?.num === t.num}
                   style={{
                     width: "100%",
                     marginTop: S[3] + 2,
@@ -233,7 +237,11 @@ export default function TablesPage() {
                   <div style={{ display: "flex", gap: S[2], marginTop: S[2] }}>
                     <button
                       className="qp-cta-lift"
-                      onClick={() => setQrFor(t)}
+                      onClick={() => {
+                        setOrderFor(null);
+                        setQrFor((cur) => (cur?.num === t.num ? null : t));
+                      }}
+                      aria-expanded={qrFor?.num === t.num}
                       style={{ ...btn("primary", { size: "sm" }), flex: 1 }}
                     >
                       QR
@@ -257,25 +265,28 @@ export default function TablesPage() {
                   </button>
                 )}
               </div>
+
+              {qrFor?.num === t.num && (
+                <QrModal
+                  key={`qr-${t.num}`}
+                  tableNum={t.num}
+                  token={t.token}
+                  restaurantName={restaurantName}
+                  onClose={() => setQrFor(null)}
+                />
+              )}
+              {orderFor?.num === t.num && (
+                <OrderModal
+                  key={`order-${t.num}`}
+                  table={orderFor}
+                  onClose={() => setOrderFor(null)}
+                  onSaved={applyTable}
+                />
+              )}
+              </Fragment>
             );
           })}
         </div>
-      )}
-
-      {qrFor && (
-        <QrModal
-          tableNum={qrFor.num}
-          token={qrFor.token}
-          restaurantName={restaurantName}
-          onClose={() => setQrFor(null)}
-        />
-      )}
-      {orderFor && (
-        <OrderModal
-          table={orderFor}
-          onClose={() => setOrderFor(null)}
-          onSaved={applyTable}
-        />
       )}
     </div>
   );

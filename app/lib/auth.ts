@@ -1,4 +1,4 @@
-// Real authentication primitives for QPay.
+// Real authentication primitives for Nuqra.
 //
 // Security-critical module. There are NO hardcoded login credentials here:
 // accounts live in the store (app/lib/store.ts) and passwords are stored only

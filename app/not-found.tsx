@@ -3,7 +3,7 @@ import { BrandHeader } from "./components/site/BrandHeader";
 import { LogoMark } from "./components/site/Logo";
 import { C, S, T, btn } from "./lib/theme";
 
-export const metadata = { title: "Page not found · QPay" };
+export const metadata = { title: "Page not found · Nuqra" };
 
 export default function NotFound() {
   return (

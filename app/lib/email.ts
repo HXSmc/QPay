@@ -9,7 +9,7 @@
 // Uses fetch (no SDK dep) so it runs unchanged in Node route handlers.
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
-const DEFAULT_FROM = "QPay <onboarding@resend.dev>";
+const DEFAULT_FROM = "Nuqra <onboarding@resend.dev>";
 
 export interface MailInput {
   to: string;
@@ -89,9 +89,9 @@ export async function sendTrialCredentials(opts: {
       (new Date(opts.expiresAt).getTime() - Date.now()) / 86_400_000,
     ),
   );
-  const subject = "Your QPay demo admin login";
+  const subject = "Your Nuqra demo admin login";
   const text = [
-    `Welcome to QPay${opts.restaurant ? `, ${opts.restaurant}` : ""}!`,
+    `Welcome to Nuqra${opts.restaurant ? `, ${opts.restaurant}` : ""}!`,
     ``,
     `Your trial admin account is ready. Sign in here:`,
     opts.loginUrl,
@@ -105,12 +105,12 @@ export async function sendTrialCredentials(opts: {
   const html = `
   <div style="font-family:'Plus Jakarta Sans',-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#0B1221">
     <div style="background:#2E5BFF;border-radius:16px 16px 0 0;padding:26px 28px">
-      <div style="color:#fff;font-size:20px;font-weight:800">QPay</div>
+      <div style="color:#fff;font-size:20px;font-weight:800">Nuqra</div>
     </div>
     <div style="border:1px solid #E2E8F0;border-top:none;border-radius:0 0 16px 16px;padding:28px">
       <h1 style="font-size:20px;margin:0 0 8px">Your trial admin is ready</h1>
       <p style="font-size:14.5px;color:#475569;line-height:1.6;margin:0 0 20px">
-        Welcome${opts.restaurant ? `, ${escapeHtml(opts.restaurant)}` : ""}! Use the credentials below to sign in to your QPay admin dashboard.
+        Welcome${opts.restaurant ? `, ${escapeHtml(opts.restaurant)}` : ""}! Use the credentials below to sign in to your Nuqra admin dashboard.
       </p>
       <table style="width:100%;border-collapse:collapse;margin:0 0 20px">
         <tr><td style="padding:8px 0;font-size:13px;color:#64748B;font-weight:600">Email</td>
@@ -118,7 +118,7 @@ export async function sendTrialCredentials(opts: {
         <tr><td style="padding:8px 0;font-size:13px;color:#64748B;font-weight:600;border-top:1px solid #F1F5F9">Password</td>
             <td style="padding:8px 0;font-size:14px;font-weight:700;text-align:right;border-top:1px solid #F1F5F9;font-family:ui-monospace,Menlo,monospace">${escapeHtml(opts.password)}</td></tr>
       </table>
-      <a href="${escapeHtml(opts.loginUrl)}" style="display:inline-block;background:#2E5BFF;color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px">Sign in to QPay</a>
+      <a href="${escapeHtml(opts.loginUrl)}" style="display:inline-block;background:#2E5BFF;color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px">Sign in to Nuqra</a>
       <p style="font-size:13px;color:#64748B;line-height:1.6;margin:22px 0 0">
         This trial account is valid until <strong>${escapeHtml(expires)}</strong> (${days} days). Need more time? Reply and our team can extend it.
       </p>
@@ -136,23 +136,23 @@ export async function sendContactSales(opts: {
   restaurant: string;
   salesEmail: string;
 }): Promise<MailResult> {
-  const subject = "About your QPay demo request";
+  const subject = "About your Nuqra demo request";
   const text = [
-    `Thanks for your interest in QPay${opts.restaurant ? `, ${opts.restaurant}` : ""}.`,
+    `Thanks for your interest in Nuqra${opts.restaurant ? `, ${opts.restaurant}` : ""}.`,
     ``,
-    `It looks like this email already has a QPay account, so we can't issue a new`,
+    `It looks like this email already has a Nuqra account, so we can't issue a new`,
     `trial automatically. To extend your trial or upgrade, please contact our`,
     `sales team at ${opts.salesEmail} and we'll take great care of you.`,
   ].join("\n");
   const html = `
   <div style="font-family:'Plus Jakarta Sans',-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#0B1221">
     <div style="background:#2E5BFF;border-radius:16px 16px 0 0;padding:26px 28px">
-      <div style="color:#fff;font-size:20px;font-weight:800">QPay</div>
+      <div style="color:#fff;font-size:20px;font-weight:800">Nuqra</div>
     </div>
     <div style="border:1px solid #E2E8F0;border-top:none;border-radius:0 0 16px 16px;padding:28px">
       <h1 style="font-size:20px;margin:0 0 8px">Let's talk about your account</h1>
       <p style="font-size:14.5px;color:#475569;line-height:1.6;margin:0 0 18px">
-        Thanks for your interest${opts.restaurant ? `, ${escapeHtml(opts.restaurant)}` : ""}! This email already has a QPay account, so we can't issue a new trial automatically.
+        Thanks for your interest${opts.restaurant ? `, ${escapeHtml(opts.restaurant)}` : ""}! This email already has a Nuqra account, so we can't issue a new trial automatically.
       </p>
       <p style="font-size:14.5px;color:#475569;line-height:1.6;margin:0 0 20px">
         To extend your trial or upgrade, please reach out to our sales team — we'll take great care of you.
