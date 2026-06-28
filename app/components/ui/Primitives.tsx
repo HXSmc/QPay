@@ -4,7 +4,8 @@
 // These fill the states the audit found missing everywhere: empty, loading,
 // error, and transient feedback. Inline-style approach preserved.
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { C, R, S, SHADOW, STATUS, T } from "../../lib/theme";
 
 /** Composed empty state: icon + heading + description + optional action. */
@@ -177,5 +178,93 @@ export function Toast({
       />
       {message}
     </div>
+  );
+}
+
+/**
+ * Accessible overlay modal (popup). Portals to <body>, dims + blurs the page,
+ * traps Escape, locks body scroll, restores focus on unmount, and respects
+ * reduced motion (entrance animation lives in globals.css). The parent controls
+ * mounting (render <Modal> when open, unmount to close); dismiss via Escape,
+ * backdrop click, or any child control that calls onClose.
+ */
+export function Modal({
+  onClose,
+  ariaLabel,
+  children,
+  maxWidth = 520,
+  fullScreen = false,
+  panelStyle,
+}: {
+  onClose: () => void;
+  ariaLabel: string;
+  children: React.ReactNode;
+  maxWidth?: number;
+  fullScreen?: boolean;
+  panelStyle?: React.CSSProperties;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const prevFocus = document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    panelRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+      prevFocus?.focus?.();
+    };
+  }, [onClose]);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="qp-modal-backdrop"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 300,
+        display: "grid",
+        placeItems: fullScreen ? "stretch" : "center",
+        padding: fullScreen ? 0 : S[4],
+        background: "rgba(13,15,19,0.55)",
+        backdropFilter: "blur(2px)",
+        WebkitBackdropFilter: "blur(2px)",
+        overflow: "auto",
+      }}
+    >
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={ariaLabel}
+        tabIndex={-1}
+        className="qp-modal-panel"
+        style={{
+          background: C.surface,
+          borderRadius: fullScreen ? 0 : R.lg,
+          width: "100%",
+          height: fullScreen ? "100%" : undefined,
+          maxWidth: fullScreen ? "none" : maxWidth,
+          maxHeight: fullScreen ? "none" : "calc(100dvh - 32px)",
+          overflow: "auto",
+          boxShadow: SHADOW.e3,
+          outline: "none",
+          ...panelStyle,
+        }}
+      >
+        {children}
+      </div>
+    </div>,
+    document.body,
   );
 }
