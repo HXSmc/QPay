@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { fmt } from "../../lib/data";
 import { setTableItems } from "../../lib/api";
 import type { LiveTable, OrderItem } from "../../lib/types";
-import { C, R, S, T, NUM, btn, card, field as fieldStyle } from "../../lib/theme";
+import { C, R, S, T, NUM, MONO, STATUS, btn, card, field as fieldStyle } from "../../lib/theme";
 import { Alert, Spinner } from "../ui/Primitives";
 
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
@@ -245,7 +245,7 @@ export function OrderModal({
                       <span style={{ ...T.body, fontWeight: 600 }}>{it.name}</span>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: S[3] }}>
-                      <span style={{ ...T.body, fontWeight: 700, ...NUM }}>
+                      <span style={{ ...T.body, fontWeight: 700, ...MONO }}>
                         {fmt(it.price)}
                       </span>
                       <button
@@ -253,8 +253,8 @@ export function OrderModal({
                         aria-label="Remove"
                         style={{
                           border: "none",
-                          background: "#FEF2F2",
-                          color: "#DC2626",
+                          background: STATUS.danger.bg,
+                          color: STATUS.danger.fg,
                           borderRadius: R.xs,
                           width: 26,
                           height: 26,
@@ -282,7 +282,7 @@ export function OrderModal({
                 }}
               >
                 <span>Subtotal</span>
-                <span style={{ color: C.brand, ...NUM }}>{fmt(subtotal)}</span>
+                <span style={{ color: C.brand, ...MONO }}>{fmt(subtotal)}</span>
               </div>
             )}
 

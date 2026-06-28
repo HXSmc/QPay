@@ -2,6 +2,7 @@ import { BrandHeader } from "../components/site/BrandHeader";
 import { CustomerView } from "../components/CustomerView";
 import { getPublicRestaurant, getTableByToken } from "../lib/store";
 import { DEFAULT_TAX_RATE } from "../lib/data";
+import { C } from "../lib/theme";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +34,8 @@ export default async function CustomerPage({
     <div
       style={{
         minHeight: "100vh",
-        background: "#F1F5F9",
-        color: "#0B1221",
+        background: C.canvas,
+        color: C.text,
         WebkitFontSmoothing: "antialiased",
       }}
     >

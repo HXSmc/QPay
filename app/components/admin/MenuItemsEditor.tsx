@@ -12,7 +12,7 @@ import {
   updateMenuItem,
 } from "../../lib/api";
 import { fmt } from "../../lib/data";
-import { C, R, S, T, btn, field } from "../../lib/theme";
+import { C, R, S, T, STATUS, MONO, btn, field } from "../../lib/theme";
 import { Alert, EmptyState, Skeleton, Spinner } from "../ui/Primitives";
 import type { MenuItem } from "../../lib/types";
 
@@ -170,16 +170,16 @@ export function MenuItemsEditor() {
                       </div>
                     )}
                   </div>
-                  <div style={{ ...T.label, color: C.text, minWidth: 64, textAlign: "right" }}>
+                  <div style={{ ...T.h3, ...MONO, color: C.text, minWidth: 72, textAlign: "right" }}>
                     {fmt(it.price)}
                   </div>
                   <button
                     onClick={() => toggle(it)}
-                    title={it.available ? "Available — click to hide" : "Hidden — click to show"}
+                    title={it.available ? "Available. Click to hide." : "Hidden. Click to show."}
                     style={{
-                      ...btn(it.available ? "secondary" : "secondary", { size: "sm" }),
-                      color: it.available ? STATUS_OK : C.muted,
-                      borderColor: it.available ? STATUS_OK_B : C.border,
+                      ...btn("secondary", { size: "sm" }),
+                      color: it.available ? STATUS.success.fg : C.muted,
+                      borderColor: it.available ? STATUS.success.border : C.border,
                     }}
                   >
                     {it.available ? "Available" : "Hidden"}
@@ -199,9 +199,6 @@ export function MenuItemsEditor() {
     </div>
   );
 }
-
-const STATUS_OK = "#15803D";
-const STATUS_OK_B = "#86EFAC";
 
 function card(opts: { pad?: number; radius?: number } = {}): React.CSSProperties {
   return {

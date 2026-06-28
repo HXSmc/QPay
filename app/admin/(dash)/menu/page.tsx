@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { deleteMenu, getMenu, uploadMenu } from "../../../lib/api";
 import type { MenuMeta } from "../../../lib/types";
-import { C, R, S, T, btn, field } from "../../../lib/theme";
+import { C, R, S, T, SHADOW, btn } from "../../../lib/theme";
 import { Alert, EmptyState, Spinner } from "../../../components/ui/Primitives";
 import { MenuItemsEditor } from "../../../components/admin/MenuItemsEditor";
 
@@ -62,7 +62,7 @@ function TabButton({
         fontWeight: 700,
         background: active ? C.surface : "transparent",
         color: active ? C.brand : C.muted,
-        boxShadow: active ? "0 1px 3px rgba(15,23,42,0.08)" : "none",
+        boxShadow: active ? SHADOW.e1 : "none",
         transition: "background .15s, color .15s",
       }}
     >

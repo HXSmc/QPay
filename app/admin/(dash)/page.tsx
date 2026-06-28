@@ -2,15 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  fmt,
-  METHOD_COLOR,
-  STATUS_PALETTE,
-} from "../../lib/data";
+import { fmt } from "../../lib/data";
 import { getMe, listTables, listTransactions, type Me } from "../../lib/api";
 import { downloadCsv, transactionsToCsv } from "../../lib/csv";
 import type { LiveTable, TableStatus, Transaction } from "../../lib/types";
-import { C, R, S, T, NUM, STATUS, badge, btn, card } from "../../lib/theme";
+import { C, R, S, T, NUM, MONO, STATUS, SHADOW, badge, btn, card } from "../../lib/theme";
 import { Alert, EmptyState, Skeleton } from "../../components/ui/Primitives";
 
 const STATUS_BADGE: Record<TableStatus, "danger" | "warn" | "success" | "neutral"> = {
@@ -18,6 +14,13 @@ const STATUS_BADGE: Record<TableStatus, "danger" | "warn" | "success" | "neutral
   partial: "warn",
   cleared: "success",
   open: "neutral",
+};
+
+const STATUS_LABEL: Record<TableStatus, string> = {
+  unpaid: "Unpaid",
+  partial: "Partial",
+  cleared: "Cleared",
+  open: "Open",
 };
 
 export default function DashboardPage() {
@@ -60,7 +63,7 @@ export default function DashboardPage() {
   // Real figures derived from the live ledger; tips and turn-time aren't tracked
   // by this prototype, so they're shown as unavailable rather than faked.
   const metrics = [
-    { value: fmt(revenue), label: "Revenue (recent)", delta: `${txns.length} txns` },
+    { value: fmt(revenue), label: "Revenue (recent)", delta: `${txns.length} txns`, money: true as const },
     { value: `${active} / ${tables.length}`, label: "Active tables", delta: "Live" },
     { label: "Tips collected", notTracked: true as const },
     { label: "Avg. turn time", notTracked: true as const },
@@ -68,15 +71,21 @@ export default function DashboardPage() {
 
   return (
     <div className="qp-page" style={{ padding: `${S[6]}px ${S[6] + 4}px` }}>
-      <div
+      {/* Header */}
+      <header
         style={{
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: S[4],
           marginBottom: S[6],
         }}
       >
         <div>
+          <div style={{ ...T.label, color: C.brand, marginBottom: S[1] }}>
+            Dashboard
+          </div>
           <h1 style={{ ...T.h1, margin: 0, color: C.text }}>
             {me?.email
               ? me.email.split("@")[0].replace(/^./, (c) => c.toUpperCase())
@@ -89,19 +98,19 @@ export default function DashboardPage() {
               gap: S[2],
               color: C.muted,
               ...T.caption,
-              marginTop: S[1] + 1,
+              marginTop: S[2],
             }}
           >
             <span
               style={{
                 width: 8,
                 height: 8,
-                borderRadius: "50%",
+                borderRadius: R.pill,
                 background: STATUS.success.fg,
-                boxShadow: "0 0 0 3px rgba(22,163,74,0.18)",
+                boxShadow: `0 0 0 3px ${STATUS.success.bg}`,
               }}
             />
-            Live · {now || "..."}
+            Live, {now || "..."}
           </div>
         </div>
         <div style={{ display: "flex", gap: S[2] + 2 }}>
@@ -120,7 +129,7 @@ export default function DashboardPage() {
             + New table
           </Link>
         </div>
-      </div>
+      </header>
 
       {error && (
         <div style={{ marginBottom: S[5] }}>
@@ -130,77 +139,127 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Metric cards */}
+      {/* Metric row - revenue featured */}
       <div
         className="qp-grid-4"
-        style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: S[4] + 2, marginBottom: S[6] }}
+        style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: S[4], marginBottom: S[6] }}
       >
         {loading
           ? Array.from({ length: 4 }).map((_, i) => (
               <div key={i} style={card({ pad: S[5], radius: R.lg })}>
-                <Skeleton h={40} w={40} radius={R.sm} />
-                <Skeleton h={30} w="60%" radius={R.xs} style={{ marginTop: S[4] }} />
-                <Skeleton h={14} w="80%" radius={R.xs} style={{ marginTop: S[2] }} />
+                <Skeleton h={14} w="55%" radius={R.xs} />
+                <Skeleton h={28} w="70%" radius={R.xs} style={{ marginTop: S[4] }} />
               </div>
             ))
-          : metrics.map((m) => (
-              <div key={m.label} style={card({ pad: S[5], radius: R.lg })}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          : metrics.map((m, i) => {
+              const featured = i === 0;
+              const tracked = !("notTracked" in m);
+              return (
+                <div
+                  key={m.label}
+                  style={{
+                    ...card({ pad: S[5], radius: R.lg }),
+                    ...(featured
+                      ? { background: C.ink, border: `1px solid ${C.inkSoft}`, boxShadow: SHADOW.e1 }
+                      : {}),
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    minHeight: 134,
+                  }}
+                >
                   <div
                     style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: R.sm,
-                      background: C.brandTint,
-                      color: C.brand,
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
+                      justifyContent: "space-between",
+                      gap: S[2],
                     }}
                   >
-                    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <line x1="12" x2="12" y1="2" y2="22" />
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
+                    <div style={{ display: "flex", alignItems: "center", gap: S[2] + 2 }}>
+                      {featured && (
+                        <span
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: R.sm,
+                            background: C.brand,
+                            color: "#fff",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" x2="12" y1="2" y2="22" />
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                          </svg>
+                        </span>
+                      )}
+                      <span style={{ ...T.label, color: featured ? "#fff" : C.muted }}>
+                        {m.label}
+                      </span>
+                    </div>
+                    {tracked && m.delta && (
+                      <span
+                        style={{
+                          ...T.caption,
+                          fontWeight: 700,
+                          color: featured ? "#fff" : C.brand,
+                          background: featured ? C.inkSoft : C.brandTint,
+                          padding: "4px 9px",
+                          borderRadius: R.pill,
+                          whiteSpace: "nowrap",
+                          ...NUM,
+                        }}
+                      >
+                        {m.delta}
+                      </span>
+                    )}
                   </div>
-                  {!("notTracked" in m) && (
-                    <span
-                      style={{
-                        ...T.caption,
-                        fontWeight: 700,
-                        color: STATUS.info.fg,
-                        background: STATUS.info.bg,
-                        padding: "4px 9px",
-                        borderRadius: R.xs,
-                        ...NUM,
-                      }}
-                    >
-                      {m.delta}
-                    </span>
-                  )}
+                  <div style={{ marginTop: S[4] }}>
+                    {tracked ? (
+                      <div
+                        style={{
+                          ...T.h1,
+                          fontSize: 31,
+                          color: featured ? "#fff" : C.text,
+                          ...("money" in m ? MONO : NUM),
+                        }}
+                      >
+                        {m.value}
+                      </div>
+                    ) : (
+                      <div style={{ ...T.h2, color: C.faint }}>Not tracked yet</div>
+                    )}
+                  </div>
                 </div>
-                {"notTracked" in m ? (
-                  <div style={{ ...T.caption, color: C.faint, marginTop: S[4] + 4 }}>
-                    Not tracked yet
-                  </div>
-                ) : (
-                  <div style={{ ...T.h1, fontSize: 31, marginTop: S[4], color: C.text, ...NUM }}>
-                    {m.value}
-                  </div>
-                )}
-                <div style={{ ...T.caption, color: C.muted, marginTop: S[1] }}>
-                  {m.label}
-                </div>
-              </div>
-            ))}
+              );
+            })}
       </div>
 
-      <div className="qp-grid-2" style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: S[4] + 2, alignItems: "start" }}>
+      <div
+        className="qp-grid-2"
+        style={{ display: "grid", gridTemplateColumns: "1.15fr 1fr", gap: S[4] + 2, alignItems: "start" }}
+      >
         {/* Live tables */}
-        <div style={card({ pad: S[5], radius: R.lg })}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: S[5] }}>
-            <h3 style={{ ...T.h3, margin: 0, color: C.text }}>Live tables</h3>
-            <Link href="/admin/tables" style={{ ...T.caption, color: C.brand, textDecoration: "none" }}>
+        <section style={card({ pad: S[5], radius: R.lg })}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: S[2],
+              marginBottom: S[5],
+            }}
+          >
+            <h2 style={{ ...T.h3, margin: 0, color: C.text }}>Live tables</h2>
+            <Link
+              href="/admin/tables"
+              className="qp-nav"
+              style={{ ...T.caption, fontWeight: 600, color: C.brand, textDecoration: "none" }}
+            >
               Manage
             </Link>
           </div>
@@ -223,43 +282,56 @@ export default function DashboardPage() {
           ) : (
             <div className="qp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: S[3] - 1 }}>
               {tables.map((t) => {
-                const p = STATUS_PALETTE[t.status];
+                const dot = STATUS[STATUS_BADGE[t.status]].fg;
                 return (
                   <Link
                     key={t.num}
                     href="/admin/tables"
+                    className="qp-press"
                     style={{
                       padding: S[3] + 1,
                       borderRadius: R.md,
                       border: `1px solid ${C.border}`,
                       background: t.status === "open" ? C.surfaceAlt : C.surface,
-                      borderLeft: "3px solid " + p.c,
+                      borderLeft: "3px solid " + dot,
                       textDecoration: "none",
                       color: C.text,
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <span style={{ ...T.caption, fontWeight: 800, ...NUM }}>T{t.num}</span>
-                      <span style={{ width: 9, height: 9, borderRadius: "50%", background: p.c, display: "inline-block" }} />
+                      <span style={{ width: 9, height: 9, borderRadius: R.pill, background: dot, display: "inline-block" }} />
                     </div>
-                    <div style={{ ...T.h3, marginTop: S[3] - 2, ...NUM }}>
+                    <div style={{ ...T.h3, marginTop: S[3] - 2, ...MONO }}>
                       {t.amount}
                     </div>
                     <div style={{ marginTop: S[2], ...badge(STATUS_BADGE[t.status]) }}>
-                      {p.label}
+                      {STATUS_LABEL[t.status]}
                     </div>
                   </Link>
                 );
               })}
             </div>
           )}
-        </div>
+        </section>
 
         {/* Recent transactions */}
-        <div style={card({ pad: S[5], radius: R.lg })}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: S[1] + 2 }}>
-            <h3 style={{ ...T.h3, margin: 0, color: C.text }}>Recent transactions</h3>
-            <Link href="/admin/transactions" style={{ ...T.caption, color: C.brand, textDecoration: "none" }}>
+        <section style={card({ pad: S[5], radius: R.lg })}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: S[2],
+              marginBottom: S[1] + 2,
+            }}
+          >
+            <h2 style={{ ...T.h3, margin: 0, color: C.text }}>Recent transactions</h2>
+            <Link
+              href="/admin/transactions"
+              className="qp-nav"
+              style={{ ...T.caption, fontWeight: 600, color: C.brand, textDecoration: "none" }}
+            >
               View all
             </Link>
           </div>
@@ -272,7 +344,7 @@ export default function DashboardPage() {
               fontWeight: 700,
               color: C.muted,
               letterSpacing: "0.04em",
-              borderBottom: `1px solid ${C.surfaceAlt}`,
+              borderBottom: `1px solid ${C.border}`,
             }}
           >
             <span>TIME</span>
@@ -282,7 +354,7 @@ export default function DashboardPage() {
           </div>
           {loading ? (
             Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} style={{ padding: "13px 0", borderBottom: `1px solid ${C.surfaceAlt}` }}>
+              <div key={i} style={{ padding: "13px 0", borderBottom: `1px solid ${C.border}` }}>
                 <Skeleton h={16} w="70%" radius={R.xs} />
               </div>
             ))
@@ -294,42 +366,40 @@ export default function DashboardPage() {
               />
             </div>
           ) : (
-            txns.slice(0, 6).map((tx, i) => {
-              const m = METHOD_COLOR[tx.method] || { c: C.muted, bg: C.canvas };
-              return (
-                <div
-                  key={i}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 0.6fr 0.9fr 1.1fr",
-                    alignItems: "center",
-                    padding: "13px 0",
-                    borderBottom: `1px solid ${C.surfaceAlt}`,
-                  }}
-                >
-                  <span style={{ ...T.caption, color: C.muted, ...NUM }}>{tx.time}</span>
-                  <span style={{ ...T.caption, fontWeight: 700, ...NUM }}>#{tx.table}</span>
-                  <span style={{ ...T.body, fontWeight: 700, textAlign: "right", ...NUM }}>{tx.amount}</span>
-                  <span style={{ textAlign: "right" }}>
-                    <span
-                      style={{
-                        ...T.caption,
-                        fontWeight: 700,
-                        padding: "4px 9px",
-                        borderRadius: R.xs,
-                        color: m.c,
-                        background: m.bg,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {tx.method}
-                    </span>
+            txns.slice(0, 6).map((tx, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 0.6fr 0.9fr 1.1fr",
+                  alignItems: "center",
+                  padding: "13px 0",
+                  borderBottom: `1px solid ${C.border}`,
+                }}
+              >
+                <span style={{ ...T.caption, color: C.muted, ...NUM }}>{tx.time}</span>
+                <span style={{ ...T.caption, fontWeight: 700, ...NUM }}>#{tx.table}</span>
+                <span style={{ ...T.body, fontWeight: 700, textAlign: "right", ...MONO }}>{tx.amount}</span>
+                <span style={{ textAlign: "right" }}>
+                  <span
+                    style={{
+                      ...T.caption,
+                      fontWeight: 600,
+                      padding: "4px 9px",
+                      borderRadius: R.pill,
+                      color: C.muted,
+                      background: C.surfaceAlt,
+                      border: `1px solid ${C.border}`,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {tx.method}
                   </span>
-                </div>
-              );
-            })
+                </span>
+              </div>
+            ))
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

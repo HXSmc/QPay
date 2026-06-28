@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getMe, getSettings, saveSettings } from "../../../lib/api";
-import { C, R, S, T, STATUS, card, field } from "../../../lib/theme";
+import { C, R, S, T, STATUS, SHADOW, btn, card, field } from "../../../lib/theme";
 import { Alert, Spinner, Toast } from "../../../components/ui/Primitives";
 
 function Toggle({
@@ -50,7 +50,7 @@ function Toggle({
           borderRadius: "50%",
           background: "#fff",
           transition: "left .15s",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+          boxShadow: SHADOW.e1,
         }}
       />
     </span>
@@ -182,22 +182,7 @@ export default function SettingsPage() {
           onClick={save}
           disabled={saving || loading}
           className="qp-cta"
-          style={{
-            marginTop: S[5],
-            display: "inline-flex",
-            alignItems: "center",
-            gap: S[2],
-            padding: "12px 22px",
-            background: C.brand,
-            color: "#fff",
-            border: "none",
-            borderRadius: R.md,
-            fontFamily: "inherit",
-            fontSize: 14.5,
-            fontWeight: 700,
-            cursor: saving || loading ? "default" : "pointer",
-            opacity: saving || loading ? 0.7 : 1,
-          }}
+          style={{ ...btn("primary", { size: "lg", disabled: saving || loading }), marginTop: S[5] }}
         >
           {saving && <Spinner size={15} color="#fff" />}
           {saving ? "Saving." : "Save changes"}

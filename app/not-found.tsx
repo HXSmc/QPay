@@ -7,7 +7,7 @@ export const metadata = { title: "Page not found · Nuqra" };
 
 export default function NotFound() {
   return (
-    <div style={{ minHeight: "100vh", background: C.surface, color: C.text }}>
+    <div style={{ minHeight: "100vh", background: C.canvas, color: C.text }}>
       <BrandHeader />
       <div
         style={{
@@ -24,18 +24,31 @@ export default function NotFound() {
         <p
           style={{
             ...T.label,
-            color: C.faint,
-            letterSpacing: "0.08em",
+            fontSize: 12.5,
+            fontWeight: 700,
+            color: C.brand,
+            letterSpacing: "0.12em",
             marginTop: S[5],
             marginBottom: S[2],
           }}
         >
           404
         </p>
-        <h1 style={{ ...T.h1, margin: 0 }}>Page not found</h1>
+        <h1
+          style={{
+            fontSize: 38,
+            fontWeight: 700,
+            letterSpacing: "-0.035em",
+            lineHeight: 1.08,
+            margin: 0,
+          }}
+        >
+          Page not found
+        </h1>
         <p
           style={{
             ...T.body,
+            fontSize: 16.5,
             lineHeight: 1.7,
             color: C.muted,
             maxWidth: 420,

@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { METHOD_COLOR } from "../../../lib/data";
 import { listTransactions } from "../../../lib/api";
 import { downloadCsv, transactionsToCsv } from "../../../lib/csv";
 import type { Transaction } from "../../../lib/types";
-import { C, R, S, T, NUM, btn, card } from "../../../lib/theme";
+import { C, R, S, T, NUM, MONO, btn, card } from "../../../lib/theme";
 import { Alert, EmptyState, Skeleton } from "../../../components/ui/Primitives";
 
 export default function TransactionsPage() {
@@ -33,11 +32,14 @@ export default function TransactionsPage() {
         }}
       >
         <div>
+          <div style={{ ...T.label, color: C.brand, marginBottom: S[1] }}>
+            Ledger
+          </div>
           <h1 style={{ ...T.h1, margin: 0, color: C.text }}>
             Transactions
           </h1>
-          <p style={{ ...T.body, color: C.muted, margin: `${S[1] + 1}px 0 0` }}>
-            {txns.length} payment{txns.length === 1 ? "" : "s"} recorded.
+          <p style={{ ...T.body, color: C.muted, margin: `${S[2]}px 0 0` }}>
+            <span style={{ ...NUM }}>{txns.length}</span> payment{txns.length === 1 ? "" : "s"} recorded.
           </p>
         </div>
         <button
@@ -66,7 +68,7 @@ export default function TransactionsPage() {
             fontWeight: 700,
             color: C.muted,
             letterSpacing: "0.04em",
-            borderBottom: `1px solid ${C.surfaceAlt}`,
+            borderBottom: `1px solid ${C.border}`,
             minWidth: 420,
           }}
         >
@@ -78,7 +80,7 @@ export default function TransactionsPage() {
 
         {loading ? (
           Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} style={{ padding: "14px 0", borderBottom: `1px solid ${C.surfaceAlt}`, minWidth: 420 }}>
+            <div key={i} style={{ padding: "14px 0", borderBottom: `1px solid ${C.border}`, minWidth: 420 }}>
               <Skeleton h={16} w="80%" radius={R.xs} />
             </div>
           ))
@@ -90,41 +92,39 @@ export default function TransactionsPage() {
             />
           </div>
         ) : (
-          txns.map((tx, i) => {
-            const m = METHOD_COLOR[tx.method] || { c: C.muted, bg: C.canvas };
-            return (
-              <div
-                key={i}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: colTemplate,
-                  alignItems: "center",
-                  padding: "14px 0",
-                  borderBottom: `1px solid ${C.surfaceAlt}`,
-                  minWidth: 420,
-                }}
-              >
-                <span style={{ ...T.body, color: C.muted, ...NUM }}>{tx.time}</span>
-                <span style={{ ...T.body, fontWeight: 700, ...NUM }}>#{tx.table}</span>
-                <span style={{ ...T.body, fontWeight: 700, textAlign: "right", ...NUM }}>{tx.amount}</span>
-                <span style={{ textAlign: "right" }}>
-                  <span
-                    style={{
-                      ...T.caption,
-                      fontWeight: 700,
-                      padding: "4px 9px",
-                      borderRadius: R.xs,
-                      color: m.c,
-                      background: m.bg,
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {tx.method}
-                  </span>
+          txns.map((tx, i) => (
+            <div
+              key={i}
+              style={{
+                display: "grid",
+                gridTemplateColumns: colTemplate,
+                alignItems: "center",
+                padding: "14px 0",
+                borderBottom: `1px solid ${C.border}`,
+                minWidth: 420,
+              }}
+            >
+              <span style={{ ...T.body, color: C.muted, ...NUM }}>{tx.time}</span>
+              <span style={{ ...T.body, fontWeight: 700, ...NUM }}>#{tx.table}</span>
+              <span style={{ ...T.body, fontWeight: 700, textAlign: "right", ...MONO }}>{tx.amount}</span>
+              <span style={{ textAlign: "right" }}>
+                <span
+                  style={{
+                    ...T.caption,
+                    fontWeight: 600,
+                    padding: "4px 9px",
+                    borderRadius: R.pill,
+                    color: C.muted,
+                    background: C.surfaceAlt,
+                    border: `1px solid ${C.border}`,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {tx.method}
                 </span>
-              </div>
-            );
-          })
+              </span>
+            </div>
+          ))
         )}
       </div>
 

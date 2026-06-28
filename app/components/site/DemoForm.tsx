@@ -56,6 +56,9 @@ export function DemoForm({ open }: { open: boolean }) {
     if (open && !sent) firstInputRef.current?.focus();
   }, [open, sent]);
 
+  // Shared label styling: sits ABOVE every field (no placeholder-as-label).
+  const labelStyle = { ...T.label, color: C.text, marginBottom: 6, display: "block" };
+
   if (sent) {
     return (
       <div aria-live="polite" aria-atomic="true">
@@ -86,7 +89,7 @@ export function DemoForm({ open }: { open: boolean }) {
             <path d="M20 6 9 17l-4-4" />
           </svg>
         </div>
-        <h3 style={{ ...T.h1, margin: "0 0 8px" }}>
+        <h3 style={{ ...T.h1, color: C.text, margin: "0 0 8px" }}>
           {result?.status === "exists" ? "Check your inbox" : "Your demo is ready"}
         </h3>
         <p style={{ ...T.body, color: C.muted, margin: "0 0 16px", maxWidth: 460 }}>
@@ -129,36 +132,51 @@ export function DemoForm({ open }: { open: boolean }) {
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
-          gap: S[3],
+          gap: S[4],
         }}
         className="qp-grid-2"
       >
-        <input
-          required
-          ref={firstInputRef}
-          aria-label="Your name"
-          placeholder="Your name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={field()}
-        />
-        <input
-          required
-          type="email"
-          aria-label="Work email"
-          placeholder="Work email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={field()}
-        />
-        <input
-          required
-          aria-label="Restaurant name"
-          placeholder="Restaurant name"
-          value={restaurant}
-          onChange={(e) => setRestaurant(e.target.value)}
-          style={{ ...field(), gridColumn: "1 / -1" }}
-        />
+        <div>
+          <label htmlFor="demo-name" style={labelStyle}>
+            Your name
+          </label>
+          <input
+            id="demo-name"
+            required
+            ref={firstInputRef}
+            aria-label="Your name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={field()}
+          />
+        </div>
+        <div>
+          <label htmlFor="demo-email" style={labelStyle}>
+            Work email
+          </label>
+          <input
+            id="demo-email"
+            required
+            type="email"
+            aria-label="Work email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={field()}
+          />
+        </div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label htmlFor="demo-restaurant" style={labelStyle}>
+            Restaurant name
+          </label>
+          <input
+            id="demo-restaurant"
+            required
+            aria-label="Restaurant name"
+            value={restaurant}
+            onChange={(e) => setRestaurant(e.target.value)}
+            style={field()}
+          />
+        </div>
       </div>
       {error && (
         <div style={{ marginTop: S[3] }}>
@@ -183,6 +201,16 @@ export function DemoForm({ open }: { open: boolean }) {
           "Request demo"
         )}
       </button>
+      <p
+        style={{
+          ...T.caption,
+          color: C.faint,
+          marginTop: S[3],
+          marginBottom: 0,
+        }}
+      >
+        7-day trial admin login, no card required.
+      </p>
     </form>
   );
 }

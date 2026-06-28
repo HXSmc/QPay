@@ -1,52 +1,57 @@
 // Central design tokens — the single source of visual truth for Nuqra.
 //
-// The app styles everything with inline objects (no Tailwind). Before this file
-// those objects were ad-hoc: 5 greys, ~12 radius values, ad-hoc shadows, no type
-// scale. This module consolidates them so every surface speaks one visual
-// language (Redesign-Preserve: brand blue + Plus Jakarta Sans kept). Pure data +
-// style helpers — no JSX — so both Server and Client Components can import it.
+// Ground-up "Slate & Ember" system (Linear-clean minimal): cool off-white canvas,
+// cool near-black ink, a single burnt-ember accent (the coin / the tap-to-pay
+// moment). Geist for everything, Geist Mono for ledger figures (--font-mono).
+// Cool neutral scaffolding + one warm accent = minimal structure, human warmth.
+// No Tailwind — everything is inline style objects; these tokens keep every
+// surface coherent. Export names are stable (C, STATUS, R, S, SHADOW, T, NUM,
+// MONO, btn, card, field, badge) so all importers keep compiling. Pure data +
+// helpers, no JSX.
 
 import type { CSSProperties } from "react";
 
 // --- Color -----------------------------------------------------------------
 export const C = {
-  brand: "#2E5BFF",
-  brandLight: "#5B7BFF",
-  brandDark: "#1E40FF",
-  brandTint: "#EEF2FF", // pale blue surface for active/hover/info chips
+  brand: "#C2410C", // burnt ember — the single accent (white text passes AA)
+  brandLight: "#E2592A",
+  brandDark: "#9A3412",
+  brandTint: "#FBEEE7", // pale ember surface for active/hover/quiet chips
 
-  // Text: exactly three weights of ink (was five competing greys).
-  text: "#0B1221", // primary
-  muted: "#475569", // secondary (passes AA on white & on #F8FAFC)
-  faint: "#94A3B8", // tertiary / disabled-ish
+  // Text: three cool inks (no competing greys).
+  text: "#0E1116", // primary (cool near-black)
+  muted: "#5B6470", // secondary (passes AA on canvas + surfaces)
+  faint: "#98A0AB", // tertiary / disabled-ish
 
-  // Borders & surfaces
-  border: "#E2E8F0",
-  borderStrong: "#CBD5E1",
+  // Borders & surfaces (cool neutrals)
+  border: "#E5E8EC",
+  borderStrong: "#D2D7DE",
   surface: "#FFFFFF",
-  surfaceAlt: "#F8FAFC",
-  canvas: "#F1F5F9",
-  ink: "#0B1221", // dark sections (sidebar, hero band)
-  inkSoft: "#161F33",
+  surfaceAlt: "#F1F3F6",
+  canvas: "#F6F7F9", // cool off-white page
+  ink: "#0D0F13", // dark sections (sidebar, hero band, coin tile)
+  inkSoft: "#1A1D23",
 } as const;
 
-// Status palette — each as {fg,bg,border} so badges/alerts are consistent.
+// Status palette — {fg,bg,border}. These are functional (not a second brand
+// accent): success green, warn amber, danger rose (hue-separated from the ember
+// brand), info/neutral slate. Used sparingly.
 export const STATUS = {
-  success: { fg: "#15803D", bg: "#F0FDF4", border: "#86EFAC" },
-  warn: { fg: "#B45309", bg: "#FFFBEB", border: "#FCD34D" },
-  danger: { fg: "#DC2626", bg: "#FEF2F2", border: "#FECACA" },
-  info: { fg: "#1E40FF", bg: "#EEF2FF", border: "#C7D4FF" }, // was #1D4ED8 on #DBEAFE (~3:1 fail) → AA now
-  neutral: { fg: "#475569", bg: "#F1F5F9", border: "#E2E8F0" },
+  success: { fg: "#15734F", bg: "#E7F4EE", border: "#B6DECB" },
+  warn: { fg: "#8A5A12", bg: "#FBF3E4", border: "#EBCF94" },
+  danger: { fg: "#C02B3A", bg: "#FCEBED", border: "#F0B8BF" },
+  info: { fg: "#3D4651", bg: "#EEF0F3", border: "#DCE0E6" }, // neutral slate, not a 2nd accent
+  neutral: { fg: "#5B6470", bg: "#EFF1F4", border: "#E5E8EC" },
 } as const;
 
-// --- Radius (one scale; all loose values map onto these) -------------------
+// --- Radius (one scale — soft, not pill; buttons use md) --------------------
 export const R = {
-  xs: 8,
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
-  pill: 999,
+  xs: 5,
+  sm: 8,
+  md: 10,
+  lg: 14,
+  xl: 20,
+  pill: 999, // reserved for small chips/badges + the live dot, not buttons
 } as const;
 
 // --- Space (8pt rhythm) ----------------------------------------------------
@@ -61,33 +66,39 @@ export const S = {
   8: 64,
 } as const;
 
-// --- Elevation (tinted, never pure black) ----------------------------------
+// --- Elevation (cool-tinted, subtle, never pure black) ----------------------
 export const SHADOW = {
-  e1: "0 1px 3px rgba(15,23,42,0.06)",
-  e2: "0 8px 24px rgba(11,18,33,0.08)",
-  e3: "0 24px 60px rgba(11,18,33,0.14)",
-  cta: "0 10px 24px rgba(46,91,255,0.30)",
-  ctaHover: "0 14px 30px rgba(46,91,255,0.40)",
+  e1: "0 1px 2px rgba(13,15,19,0.06)",
+  e2: "0 4px 16px rgba(13,15,19,0.06), 0 1px 3px rgba(13,15,19,0.04)",
+  e3: "0 20px 48px rgba(13,15,19,0.12)",
+  cta: "0 6px 16px rgba(194,65,12,0.22)",
+  ctaHover: "0 10px 24px rgba(194,65,12,0.30)",
 } as const;
 
-// --- Type scale ------------------------------------------------------------
+// --- Type scale (Geist display/body — Linear-clean) -------------------------
 export const T = {
-  display: { fontSize: 56, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.04 },
-  h1: { fontSize: 27, fontWeight: 800, letterSpacing: "-0.02em", lineHeight: 1.15 },
-  h2: { fontSize: 20, fontWeight: 800, letterSpacing: "-0.01em", lineHeight: 1.2 },
-  h3: { fontSize: 16, fontWeight: 700, letterSpacing: "-0.01em", lineHeight: 1.25 },
-  body: { fontSize: 14.5, fontWeight: 500, lineHeight: 1.55 },
-  label: { fontSize: 13, fontWeight: 700, letterSpacing: "0" },
-  caption: { fontSize: 12, fontWeight: 600, lineHeight: 1.4 },
+  display: { fontSize: 48, fontWeight: 600, letterSpacing: "-0.03em", lineHeight: 1.05 },
+  h1: { fontSize: 30, fontWeight: 600, letterSpacing: "-0.025em", lineHeight: 1.12 },
+  h2: { fontSize: 20, fontWeight: 600, letterSpacing: "-0.02em", lineHeight: 1.2 },
+  h3: { fontSize: 15.5, fontWeight: 600, letterSpacing: "-0.01em", lineHeight: 1.3 },
+  body: { fontSize: 15, fontWeight: 400, lineHeight: 1.6 },
+  label: { fontSize: 13, fontWeight: 600, letterSpacing: "0" },
+  caption: { fontSize: 12.5, fontWeight: 500, lineHeight: 1.45 },
 } as const satisfies Record<string, CSSProperties>;
 
-/** Tabular figures for money / counts — keeps columns from jittering. */
+/** Tabular figures (Geist) for inline counts. */
 export const NUM: CSSProperties = { fontVariantNumeric: "tabular-nums" };
 
+/** Monospace ledger figures — for money/totals/amounts (the "coin" feel). */
+export const MONO: CSSProperties = {
+  fontFamily: "var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
+  fontVariantNumeric: "tabular-nums",
+  letterSpacing: "-0.01em",
+};
+
 // --- Style helpers ---------------------------------------------------------
-// These return plain CSSProperties so callers spread them into inline `style`.
-// Hover/active live in globals.css via the `qp-*` class hooks (inline can't do
-// pseudo-classes); pair the class with these where motion is wanted.
+// Return plain CSSProperties to spread into inline `style`. Hover/active live in
+// globals.css via the `qp-*` class hooks (inline can't express pseudo-classes).
 
 export type BtnVariant = "primary" | "secondary" | "ghost" | "danger" | "success";
 
@@ -97,36 +108,36 @@ export function btn(
 ): CSSProperties {
   const { size = "md", full = false, disabled = false } = opts;
   const pad =
-    size === "lg" ? "15px 22px" : size === "sm" ? "8px 14px" : "11px 18px";
-  const fontSize = size === "lg" ? 16 : size === "sm" ? 13 : 14;
+    size === "lg" ? "14px 22px" : size === "sm" ? "8px 13px" : "10px 17px";
+  const fontSize = size === "lg" ? 15.5 : size === "sm" ? 13 : 14;
   const base: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
     padding: pad,
-    borderRadius: R.sm,
+    borderRadius: R.md, // soft, not pill — Linear-clean
     fontFamily: "inherit",
     fontSize,
-    fontWeight: 700,
+    fontWeight: 600,
     cursor: disabled ? "default" : "pointer",
     opacity: disabled ? 0.55 : 1,
     width: full ? "100%" : undefined,
-    transition: "transform .15s, box-shadow .15s, background .15s, border-color .15s",
-    border: "1.5px solid transparent",
+    transition: "transform .22s cubic-bezier(0.16,1,0.3,1), box-shadow .22s, background .22s, border-color .22s",
+    border: "1px solid transparent",
     lineHeight: 1,
   };
   switch (variant) {
     case "primary":
       return { ...base, background: C.brand, color: "#fff", boxShadow: SHADOW.cta };
     case "secondary":
-      return { ...base, background: C.surface, color: C.text, borderColor: C.border };
+      return { ...base, background: C.surface, color: C.text, borderColor: C.borderStrong };
     case "ghost":
       return { ...base, background: "transparent", color: C.brand, borderColor: "transparent" };
     case "danger":
       return { ...base, background: C.surface, color: STATUS.danger.fg, borderColor: STATUS.danger.border };
     case "success":
-      return { ...base, background: STATUS.success.fg, color: "#fff" };
+      return { ...base, background: C.brand, color: "#fff" };
   }
 }
 
@@ -145,10 +156,10 @@ export function field(): CSSProperties {
   return {
     width: "100%",
     padding: "11px 13px",
-    border: `1.5px solid ${C.border}`,
+    border: `1px solid ${C.borderStrong}`,
     borderRadius: R.sm,
     fontFamily: "inherit",
-    fontSize: 14.5,
+    fontSize: 15,
     color: C.text,
     background: C.surface,
     outline: "none",
@@ -163,8 +174,9 @@ export function badge(kind: keyof typeof STATUS): CSSProperties {
     alignItems: "center",
     gap: 5,
     fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: "0.02em",
+    fontWeight: 700,
+    letterSpacing: "0.03em",
+    textTransform: "uppercase",
     padding: "3px 9px",
     borderRadius: R.pill,
     color: s.fg,

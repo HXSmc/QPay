@@ -1,15 +1,48 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { billDue, BRAND, fmt, TIP_PCT } from "../lib/data";
+import { billDue, fmt, TIP_PCT } from "../lib/data";
 import { getPublicMenuItems, payTable, syncTable } from "../lib/api";
 import type { LiveTable, MenuItem, SplitMode, TipKey } from "../lib/types";
+import { C, R, S, SHADOW, T, MONO, STATUS } from "../lib/theme";
 import { MenuModal } from "./site/MenuModal";
 import { OrderModal } from "./site/OrderModal";
 import { Toast } from "./ui/Primitives";
 
 // Calm shared easing for inline reveals and state transitions.
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
+
+// Reduced-motion gate for any JS-driven motion (the live-indicator pulse).
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return reduced;
+}
+
+// Money cell: every monetary figure renders in the monospace "ledger" face.
+function Money({
+  value,
+  size = 15,
+  weight = 600,
+  color = C.text,
+}: {
+  value: number | string;
+  size?: number;
+  weight?: number;
+  color?: string;
+}) {
+  return (
+    <span style={{ ...MONO, fontSize: size, fontWeight: weight, color }}>
+      {typeof value === "number" ? fmt(value) : value}
+    </span>
+  );
+}
 
 const SPLIT_DEFS: { key: SplitMode; label: string }[] = [
   { key: "full", label: "Pay full" },
@@ -57,7 +90,7 @@ export function CustomerView({
     initialTable ?? {
       num: tableNumber,
       status: "open",
-      amount: "—",
+      amount: "0.00",
       items: [],
       paid: 0,
       paidQty: [],
@@ -284,13 +317,15 @@ export function CustomerView({
       ? "No items selected yet"
       : `${selectedUnits} item${selectedUnits === 1 ? "" : "s"} selected`;
 
+  const reduced = usePrefersReducedMotion();
+
   const stepperBtn = {
-    width: 32,
-    height: 32,
-    borderRadius: 9,
-    border: "1.5px solid #E2E8F0",
-    background: "#fff",
-    color: BRAND,
+    width: 34,
+    height: 34,
+    borderRadius: R.sm,
+    border: `1.5px solid ${C.border}`,
+    background: C.surface,
+    color: C.brand,
     fontFamily: "inherit",
     fontSize: 19,
     fontWeight: 700,
@@ -304,10 +339,10 @@ export function CustomerView({
   const miniBtn = {
     width: 28,
     height: 28,
-    borderRadius: 9,
-    border: "1.5px solid #CBD5E1",
-    background: "#fff",
-    color: BRAND,
+    borderRadius: R.xs,
+    border: `1.5px solid ${C.borderStrong}`,
+    background: C.surface,
+    color: C.brand,
     fontFamily: "inherit",
     fontSize: 17,
     fontWeight: 700,
@@ -318,61 +353,90 @@ export function CustomerView({
     lineHeight: 1,
   } as const;
 
+  // Shared section eyebrow (uppercase, muted for AA, generous tracking).
+  const sectionLabel = {
+    fontSize: 12,
+    fontWeight: 700,
+    color: C.muted,
+    letterSpacing: "0.09em",
+    textTransform: "uppercase" as const,
+  };
+
   return (
     <div
       style={{
         minHeight: "calc(100vh - 60px)",
-        background: "linear-gradient(160deg,#EEF2FF,#F8FAFC 40%)",
+        background: `radial-gradient(120% 80% at 50% 0%, ${C.surfaceAlt}, ${C.canvas} 60%)`,
         display: "flex",
         justifyContent: "center",
-        padding: "36px 16px",
+        padding: "40px 16px 56px",
       }}
     >
+      {/* Self-contained pulse for the live indicator dot (gated by JS below). */}
+      <style>{`@keyframes qpv-livepulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.45)}}`}</style>
+
       {orderToast && (
         <Toast message={orderToast} kind="success" onDone={() => setOrderToast("")} />
       )}
-      <div style={{ width: "100%", maxWidth: 404 }}>
+
+      <div style={{ width: "100%", maxWidth: 420 }}>
         <div
           style={{
-            background: "#fff",
-            borderRadius: 30,
+            background: C.surface,
+            borderRadius: R.xl,
             overflow: "hidden",
-            boxShadow: "0 24px 60px rgba(11,18,33,0.18)",
-            border: "1px solid #E2E8F0",
+            boxShadow: SHADOW.e3,
+            border: `1px solid ${C.border}`,
           }}
         >
-          {/* Header */}
+          {/* Header — dark ink band with a single ember accent */}
           <div
             style={{
-              padding: "24px 22px 22px",
-              background: "linear-gradient(135deg,#2E5BFF,#5B7BFF)",
+              position: "relative",
+              padding: `${S[5]}px ${S[5]}px ${S[5]}px`,
+              background: `linear-gradient(150deg, ${C.ink}, ${C.inkSoft})`,
               color: "#fff",
             }}
           >
+            {/* Ember hairline anchoring the band to the brand accent */}
+            <div
+              aria-hidden="true"
+              style={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 2,
+                background: C.brand,
+              }}
+            />
             <div
               style={{
                 display: "flex",
-                alignItems: "center",
+                alignItems: "flex-start",
                 justifyContent: "space-between",
+                gap: S[4],
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div
                   style={{
-                    fontSize: 13,
-                    opacity: 0.85,
-                    fontWeight: 600,
-                    letterSpacing: "0.02em",
+                    fontSize: 11,
+                    color: C.brandLight,
+                    fontWeight: 700,
+                    letterSpacing: "0.14em",
+                    textTransform: "uppercase",
                   }}
                 >
-                  YOU&apos;RE PAYING AT
+                  Your bill at
                 </div>
                 <div
                   style={{
-                    fontSize: 22,
-                    fontWeight: 800,
-                    marginTop: 3,
-                    letterSpacing: "-0.01em",
+                    ...T.h1,
+                    fontSize: 26,
+                    color: "#fff",
+                    marginTop: 6,
+                    overflowWrap: "break-word",
                   }}
                 >
                   {restaurant}
@@ -381,30 +445,43 @@ export function CustomerView({
               <div
                 style={{
                   textAlign: "center",
-                  background: "rgba(255,255,255,0.18)",
-                  borderRadius: 13,
-                  padding: "9px 13px",
+                  background: "rgba(255,255,255,0.05)",
+                  border: `1px solid ${C.brand}`,
+                  borderRadius: R.md,
+                  padding: "8px 14px",
+                  flexShrink: 0,
                 }}
               >
-                <div style={{ fontSize: 10, fontWeight: 600, opacity: 0.85 }}>
+                <div
+                  style={{
+                    fontSize: 9.5,
+                    fontWeight: 700,
+                    letterSpacing: "0.14em",
+                    color: C.brandLight,
+                  }}
+                >
                   TABLE
                 </div>
-                <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}>
+                <div style={{ ...MONO, fontSize: 24, fontWeight: 700, lineHeight: 1.05, color: "#fff" }}>
                   {tableNumber}
                 </div>
               </div>
             </div>
+
+            {/* Live indicator — calm ember pulse dot + label on the dark band */}
             <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 7,
-                marginTop: 16,
-                background: "rgba(255,255,255,0.16)",
-                padding: "6px 12px",
-                borderRadius: 999,
+                gap: 8,
+                marginTop: S[4],
+                background: "rgba(255,255,255,0.06)",
+                border: "1px solid rgba(255,255,255,0.14)",
+                padding: "6px 13px",
+                borderRadius: R.pill,
                 fontSize: 12.5,
                 fontWeight: 600,
+                color: "rgba(255,255,255,0.92)",
               }}
             >
               <span
@@ -413,27 +490,28 @@ export function CustomerView({
                   width: 7,
                   height: 7,
                   borderRadius: "50%",
-                  background: "rgba(255,255,255,0.95)",
-                  boxShadow: "0 0 0 4px rgba(255,255,255,0.18)",
+                  background: C.brand,
                   flexShrink: 0,
+                  animation: reduced ? undefined : "qpv-livepulse 2.4s ease-in-out infinite",
                 }}
               />
-              Bill is live
+              Live bill
               {otherGuests > 0
-                ? ` · ${otherGuests} other phone${otherGuests === 1 ? "" : "s"} paying`
+                ? `, ${otherGuests} other phone${otherGuests === 1 ? "" : "s"} paying`
                 : ""}
             </div>
           </div>
 
-          <div style={{ padding: "20px 22px 28px" }}>
-            {/* View menu / order */}
-            <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+          <div style={{ padding: `${S[5]}px ${S[5]}px ${S[6]}px` }}>
+            {/* View menu / order food */}
+            <div style={{ display: "flex", gap: S[2], marginBottom: S[4] }}>
               <button
                 onClick={() => {
                   setOrderOpen(false);
                   setMenuOpen((o) => !o);
                 }}
                 aria-expanded={menuOpen}
+                className="qp-press"
                 style={{
                   flex: 1,
                   display: "flex",
@@ -441,15 +519,15 @@ export function CustomerView({
                   justifyContent: "center",
                   gap: 8,
                   padding: "12px",
-                  background: menuOpen ? "#fff" : "#EEF2FF",
-                  color: BRAND,
-                  border: "1.5px solid " + (menuOpen ? BRAND : "#DBE3F4"),
-                  borderRadius: 13,
+                  background: menuOpen ? C.brandTint : C.surface,
+                  color: C.brand,
+                  border: `1.5px solid ${menuOpen ? C.brand : C.borderStrong}`,
+                  borderRadius: R.md,
                   fontFamily: "inherit",
-                  fontSize: 14.5,
+                  fontSize: 14,
                   fontWeight: 700,
                   cursor: "pointer",
-                  transition: "background 200ms " + EASE + ", border-color 200ms " + EASE,
+                  transition: `background 200ms ${EASE}, border-color 200ms ${EASE}`,
                 }}
               >
                 <svg
@@ -487,15 +565,15 @@ export function CustomerView({
                     justifyContent: "center",
                     gap: 8,
                     padding: "12px",
-                    background: BRAND,
+                    background: C.brand,
                     color: "#fff",
                     border: "1.5px solid transparent",
-                    borderRadius: 13,
+                    borderRadius: R.md,
                     fontFamily: "inherit",
-                    fontSize: 14.5,
+                    fontSize: 14,
                     fontWeight: 700,
                     cursor: "pointer",
-                    boxShadow: "0 10px 24px rgba(46,91,255,0.3)",
+                    boxShadow: SHADOW.cta,
                   }}
                 >
                   <svg
@@ -538,25 +616,25 @@ export function CustomerView({
             {!hasOrder ? (
               <div
                 style={{
-                  marginTop: 8,
-                  padding: "36px 20px",
+                  marginTop: S[2],
+                  padding: "40px 24px",
                   textAlign: "center",
-                  background: "#F8FAFC",
-                  border: "1px dashed #CBD5E1",
-                  borderRadius: 16,
+                  background: C.surfaceAlt,
+                  border: `1px dashed ${C.borderStrong}`,
+                  borderRadius: R.lg,
                 }}
               >
                 <div
                   style={{
-                    width: 46,
-                    height: 46,
-                    borderRadius: 13,
-                    background: "#EEF2FF",
-                    color: BRAND,
+                    width: 48,
+                    height: 48,
+                    borderRadius: R.md,
+                    background: C.brandTint,
+                    color: C.brand,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    margin: "0 auto 14px",
+                    margin: "0 auto 16px",
                   }}
                 >
                   <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -565,14 +643,15 @@ export function CustomerView({
                     <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
                   </svg>
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 800 }}>No items yet</div>
+                <div style={{ ...T.h2, color: C.text }}>No items yet</div>
                 <div
                   style={{
+                    ...T.body,
                     fontSize: 13.5,
-                    color: "#64748B",
-                    fontWeight: 500,
+                    color: C.muted,
                     marginTop: 6,
-                    lineHeight: 1.5,
+                    maxWidth: 280,
+                    marginInline: "auto",
                   }}
                 >
                   Your server is still adding items to this table. Your bill will
@@ -582,18 +661,7 @@ export function CustomerView({
             ) : (
               <>
                 {/* Order summary */}
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#64748B",
-                    letterSpacing: "0.06em",
-                    textTransform: "uppercase",
-                    marginBottom: 6,
-                  }}
-                >
-                  Order summary
-                </div>
+                <div style={{ ...sectionLabel, marginBottom: S[2] }}>Order summary</div>
                 {items.map((it) => (
                   <div
                     key={it.name}
@@ -602,19 +670,20 @@ export function CustomerView({
                       alignItems: "center",
                       justifyContent: "space-between",
                       padding: "11px 0",
-                      borderBottom: "1px solid #F1F5F9",
+                      borderBottom: `1px solid ${C.border}`,
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <span
                         style={{
-                          minWidth: 24,
-                          height: 24,
+                          ...MONO,
+                          minWidth: 26,
+                          height: 26,
                           padding: "0 6px",
-                          borderRadius: 7,
-                          background: "#EEF2FF",
-                          color: BRAND,
-                          fontSize: 12.5,
+                          borderRadius: R.xs,
+                          background: C.brandTint,
+                          color: C.brand,
+                          fontSize: 13,
                           fontWeight: 700,
                           display: "flex",
                           alignItems: "center",
@@ -623,46 +692,44 @@ export function CustomerView({
                       >
                         {it.qty}
                       </span>
-                      <span style={{ fontSize: 15, fontWeight: 600 }}>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>
                         {it.name}
                       </span>
                     </div>
-                    <span style={{ fontSize: 15, fontWeight: 700 }}>
-                      {fmt(it.price)}
-                    </span>
+                    <Money value={it.price} size={15} weight={600} />
                   </div>
                 ))}
 
                 {/* Totals + shared paid/remaining */}
                 <div
                   style={{
-                    marginTop: 14,
-                    padding: "14px 16px",
-                    background: "#F8FAFC",
-                    borderRadius: 14,
+                    marginTop: S[4],
+                    padding: "16px 18px",
+                    background: C.surfaceAlt,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: R.lg,
                   }}
                 >
                   {[
-                    ["Subtotal", fmt(subtotal)],
-                    [`Tax (${taxRate}%)`, fmt(tax)],
+                    ["Subtotal", subtotal],
+                    [`Tax (${taxRate}%)`, tax],
                   ].map(([label, val]) => (
                     <div
-                      key={label}
+                      key={String(label)}
                       style={{
                         display: "flex",
                         justifyContent: "space-between",
+                        alignItems: "baseline",
                         fontSize: 14,
-                        color: "#475569",
+                        color: C.muted,
                         padding: "3px 0",
                       }}
                     >
                       <span>{label}</span>
-                      <span style={{ fontWeight: 600, color: "#0B1221" }}>
-                        {val}
-                      </span>
+                      <Money value={val as number} size={14} weight={600} />
                     </div>
                   ))}
-                  <div style={{ borderTop: "1px dashed #CBD5E1", margin: "9px 0" }} />
+                  <div style={{ borderTop: `1px dashed ${C.borderStrong}`, margin: "11px 0" }} />
                   <div
                     style={{
                       display: "flex",
@@ -670,10 +737,8 @@ export function CustomerView({
                       alignItems: "baseline",
                     }}
                   >
-                    <span style={{ fontSize: 16, fontWeight: 800 }}>Total</span>
-                    <span style={{ fontSize: 22, fontWeight: 800, color: BRAND }}>
-                      {fmt(due)}
-                    </span>
+                    <span style={{ ...T.h3, fontSize: 16, color: C.text }}>Total</span>
+                    <Money value={due} size={24} weight={700} color={C.brand} />
                   </div>
                   {paid > 0 && (
                     <>
@@ -681,28 +746,34 @@ export function CustomerView({
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          alignItems: "baseline",
                           fontSize: 13.5,
-                          fontWeight: 700,
-                          color: "#047857",
-                          marginTop: 8,
+                          fontWeight: 600,
+                          color: STATUS.success.fg,
+                          marginTop: 10,
                         }}
                       >
                         <span>Paid so far</span>
-                        <span>−{fmt(paid)}</span>
+                        <Money value={"-" + fmt(paid)} size={13.5} weight={700} color={STATUS.success.fg} />
                       </div>
                       <div
                         style={{
                           display: "flex",
                           justifyContent: "space-between",
+                          alignItems: "baseline",
                           fontSize: 15,
-                          fontWeight: 800,
-                          marginTop: 2,
+                          fontWeight: 700,
+                          color: C.text,
+                          marginTop: 3,
                         }}
                       >
                         <span>{fullyPaid ? "Settled" : "Remaining"}</span>
-                        <span style={{ color: fullyPaid ? "#047857" : "#0B1221" }}>
-                          {fmt(remaining)}
-                        </span>
+                        <Money
+                          value={remaining}
+                          size={16}
+                          weight={700}
+                          color={fullyPaid ? STATUS.success.fg : C.text}
+                        />
                       </div>
                     </>
                   )}
@@ -715,12 +786,11 @@ export function CustomerView({
                     aria-live="polite"
                     aria-atomic="true"
                     style={{
-                      marginTop: 24,
+                      marginTop: S[5],
                       padding: "16px 18px",
-                      borderRadius: 16,
-                      border:
-                        "1px solid " + (result.cleared ? "#86EFAC" : "#FCD34D"),
-                      background: result.cleared ? "#F0FDF4" : "#FFFBEB",
+                      borderRadius: R.lg,
+                      border: `1px solid ${result.cleared ? STATUS.success.border : STATUS.warn.border}`,
+                      background: result.cleared ? STATUS.success.bg : STATUS.warn.bg,
                     }}
                   >
                     <div
@@ -729,8 +799,8 @@ export function CustomerView({
                         alignItems: "center",
                         gap: 9,
                         fontSize: 15,
-                        fontWeight: 800,
-                        color: result.cleared ? "#047857" : "#B45309",
+                        fontWeight: 700,
+                        color: result.cleared ? STATUS.success.fg : STATUS.warn.fg,
                       }}
                     >
                       <svg
@@ -745,19 +815,22 @@ export function CustomerView({
                       >
                         <path d="M20 6 9 17l-4-4" />
                       </svg>
-                      Paid {fmt(result.paid)}
+                      <span>Paid </span>
+                      <Money
+                        value={result.paid}
+                        size={15}
+                        weight={700}
+                        color={result.cleared ? STATUS.success.fg : STATUS.warn.fg}
+                      />
                     </div>
-                    <div
-                      style={{
-                        fontSize: 13.5,
-                        fontWeight: 600,
-                        color: "#475569",
-                        marginTop: 6,
-                      }}
-                    >
-                      {result.cleared || remaining <= 0.001
-                        ? "Bill fully paid. Thanks!"
-                        : `Payment received · ${fmt(remaining)} remaining`}
+                    <div style={{ fontSize: 13.5, fontWeight: 500, color: C.muted, marginTop: 6 }}>
+                      {result.cleared || remaining <= 0.001 ? (
+                        "Bill fully paid. Thanks!"
+                      ) : (
+                        <>
+                          Payment received, <Money value={remaining} size={13.5} weight={600} color={C.muted} /> remaining
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -765,45 +838,29 @@ export function CustomerView({
                 {fullyPaid ? (
                   <div
                     style={{
-                      marginTop: 22,
-                      padding: "20px 18px",
+                      marginTop: S[5],
+                      padding: "22px 18px",
                       textAlign: "center",
-                      background: "#F0FDF4",
-                      border: "1px solid #86EFAC",
-                      borderRadius: 16,
-                      color: "#047857",
-                      fontWeight: 800,
+                      background: STATUS.success.bg,
+                      border: `1px solid ${STATUS.success.border}`,
+                      borderRadius: R.lg,
+                      color: STATUS.success.fg,
+                      fontWeight: 700,
                       fontSize: 16,
                     }}
                   >
-                    ✓ This bill is fully paid. Thank you!
+                    This bill is fully paid. Thank you.
                   </div>
                 ) : (
                   <>
                     {/* Split selector */}
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "#64748B",
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        margin: "24px 0 10px",
-                      }}
-                    >
+                    <div style={{ ...sectionLabel, margin: `${S[5]}px 0 ${S[3]}px` }}>
                       How do you want to pay?
                     </div>
-                    <div style={{ display: "flex", gap: 9 }}>
+                    <div style={{ display: "flex", gap: S[2] }}>
                       {SPLIT_DEFS.map((o) => {
                         const active = split === o.key;
-                        const sub =
-                          o.key === "full"
-                            ? fmt(remaining)
-                            : o.key === "equal"
-                              ? fmt(perPerson) + " ea"
-                              : selectedCount
-                                ? fmt(itemPrincipal)
-                                : "Choose";
+                        const subColor = active ? C.brand : C.muted;
                         return (
                           <div
                             key={o.key}
@@ -820,27 +877,28 @@ export function CustomerView({
                             style={{
                               flex: 1,
                               padding: "13px 8px",
-                              borderRadius: 14,
+                              borderRadius: R.md,
                               cursor: "pointer",
                               textAlign: "center",
-                              transition: "all 220ms " + EASE,
-                              border: "1.5px solid " + (active ? BRAND : "#E2E8F0"),
-                              background: active ? "#EEF2FF" : "#fff",
-                              color: active ? BRAND : "#0B1221",
+                              transition: `all 220ms ${EASE}`,
+                              border: `1.5px solid ${active ? C.brand : C.border}`,
+                              background: active ? C.brandTint : C.surface,
+                              color: active ? C.brand : C.text,
                             }}
                           >
-                            <div style={{ fontSize: 13.5, fontWeight: 700 }}>
-                              {o.label}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 12,
-                                fontWeight: 600,
-                                marginTop: 4,
-                                color: active ? BRAND : "#64748B",
-                              }}
-                            >
-                              {sub}
+                            <div style={{ fontSize: 13.5, fontWeight: 700 }}>{o.label}</div>
+                            <div style={{ marginTop: 4, fontSize: 12, fontWeight: 600 }}>
+                              {o.key === "full" ? (
+                                <Money value={remaining} size={12} weight={600} color={subColor} />
+                              ) : o.key === "equal" ? (
+                                <>
+                                  <Money value={perPerson} size={12} weight={600} color={subColor} /> ea
+                                </>
+                              ) : selectedCount ? (
+                                <Money value={itemPrincipal} size={12} weight={600} color={subColor} />
+                              ) : (
+                                <span style={{ color: subColor }}>Choose</span>
+                              )}
                             </div>
                           </div>
                         );
@@ -851,10 +909,11 @@ export function CustomerView({
                     {split === "equal" && (
                       <div
                         style={{
-                          marginTop: 11,
+                          marginTop: S[3],
                           padding: "6px 16px 14px",
-                          background: "#F8FAFC",
-                          borderRadius: 14,
+                          background: C.surfaceAlt,
+                          border: `1px solid ${C.border}`,
+                          borderRadius: R.lg,
                         }}
                       >
                         <div
@@ -862,33 +921,26 @@ export function CustomerView({
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "space-between",
-                            padding: "10px 0",
-                            borderBottom: "1px solid #EEF1F6",
+                            padding: "12px 0",
+                            borderBottom: `1px solid ${C.border}`,
                           }}
                         >
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 700 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
                               People at the table
                             </div>
-                            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>
+                            <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
                               Total guests sharing the bill
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                            <button onClick={atTableDec} style={stepperBtn}>
+                            <button onClick={atTableDec} aria-label="Fewer people" style={stepperBtn}>
                               −
                             </button>
-                            <span
-                              style={{
-                                fontSize: 17,
-                                fontWeight: 800,
-                                minWidth: 20,
-                                textAlign: "center",
-                              }}
-                            >
+                            <span style={{ ...MONO, fontSize: 17, fontWeight: 700, minWidth: 22, textAlign: "center", color: C.text }}>
                               {peopleAtTable}
                             </span>
-                            <button onClick={atTableInc} style={stepperBtn}>
+                            <button onClick={atTableInc} aria-label="More people" style={stepperBtn}>
                               +
                             </button>
                           </div>
@@ -898,32 +950,25 @@ export function CustomerView({
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "space-between",
-                            padding: "10px 0",
+                            padding: "12px 0",
                           }}
                         >
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 700 }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
                               You&apos;re paying for
                             </div>
-                            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>
+                            <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
                               Cover yourself or a few friends
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
-                            <button onClick={payingDec} style={stepperBtn}>
+                            <button onClick={payingDec} aria-label="Pay for fewer" style={stepperBtn}>
                               −
                             </button>
-                            <span
-                              style={{
-                                fontSize: 17,
-                                fontWeight: 800,
-                                minWidth: 20,
-                                textAlign: "center",
-                              }}
-                            >
+                            <span style={{ ...MONO, fontSize: 17, fontWeight: 700, minWidth: 22, textAlign: "center", color: C.text }}>
                               {clampedPaying}
                             </span>
-                            <button onClick={payingInc} style={stepperBtn}>
+                            <button onClick={payingInc} aria-label="Pay for more" style={stepperBtn}>
                               +
                             </button>
                           </div>
@@ -935,35 +980,25 @@ export function CustomerView({
                             alignItems: "baseline",
                             marginTop: 8,
                             paddingTop: 12,
-                            borderTop: "1px dashed #CBD5E1",
+                            borderTop: `1px dashed ${C.borderStrong}`,
                           }}
                         >
                           <div>
-                            <div style={{ fontSize: 15, fontWeight: 800 }}>You pay</div>
-                            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>
-                              {equalNote} · capped at remaining
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>You pay</div>
+                            <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
+                              {equalNote}, capped at remaining
                             </div>
                           </div>
-                          <span style={{ fontSize: 21, fontWeight: 800, color: BRAND }}>
-                            {fmt(equalPrincipal)}
-                          </span>
+                          <Money value={equalPrincipal} size={21} weight={700} color={C.brand} />
                         </div>
                       </div>
                     )}
 
                     {/* Pay per item */}
                     {split === "item" && (
-                      <div style={{ marginTop: 11 }}>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            fontWeight: 600,
-                            color: "#64748B",
-                            marginBottom: 9,
-                          }}
-                        >
-                          Tap the items you&apos;re paying for · paid &amp; held
-                          items lock for everyone
+                      <div style={{ marginTop: S[3] }}>
+                        <div style={{ fontSize: 12, fontWeight: 500, color: C.muted, marginBottom: S[2] }}>
+                          Tap the items you&apos;re paying for. Paid &amp; held items lock for everyone.
                         </div>
                         {items.map((it, i) => {
                           const q = selectedQty[i] ?? 0;
@@ -975,10 +1010,10 @@ export function CustomerView({
                           const isMulti = it.qty > 1;
                           const sel = q > 0;
                           const clickable = !isMulti && !noneLeft;
-                          const badge = itemPaid
-                            ? { t: "Paid", c: "#047857", b: "#F0FDF4" }
+                          const lineBadge = itemPaid
+                            ? { t: "Paid", s: STATUS.success }
                             : noneLeft && heldOther > 0
-                              ? { t: "Held", c: "#B45309", b: "#FFFBEB" }
+                              ? { t: "Held", s: STATUS.warn }
                               : null;
                           return (
                             <div
@@ -1007,16 +1042,16 @@ export function CustomerView({
                                 alignItems: "center",
                                 gap: 12,
                                 padding: "11px 13px",
-                                borderRadius: 12,
+                                borderRadius: R.md,
                                 cursor: clickable ? "pointer" : "default",
                                 marginBottom: 7,
-                                transition: "all 220ms " + EASE,
-                                border: "1.5px solid " + (sel ? BRAND : "#E2E8F0"),
+                                transition: `all 220ms ${EASE}`,
+                                border: `1.5px solid ${sel ? C.brand : C.border}`,
                                 background: sel
-                                  ? "#EEF2FF"
+                                  ? C.brandTint
                                   : noneLeft
-                                    ? "#F8FAFC"
-                                    : "#fff",
+                                    ? C.surfaceAlt
+                                    : C.surface,
                                 opacity: noneLeft && !sel ? 0.65 : 1,
                               }}
                             >
@@ -1025,19 +1060,13 @@ export function CustomerView({
                                   style={{
                                     width: 22,
                                     height: 22,
-                                    borderRadius: 7,
+                                    borderRadius: R.xs,
                                     flexShrink: 0,
                                     display: "flex",
                                     alignItems: "center",
                                     justifyContent: "center",
-                                    border:
-                                      "1.5px solid " +
-                                      (sel ? BRAND : itemPaid ? "#047857" : "#CBD5E1"),
-                                    background: sel
-                                      ? BRAND
-                                      : itemPaid
-                                        ? "#047857"
-                                        : "#fff",
+                                    border: `1.5px solid ${sel ? C.brand : itemPaid ? C.brand : C.borderStrong}`,
+                                    background: sel ? C.brand : itemPaid ? C.brand : C.surface,
                                   }}
                                 >
                                   {(sel || itemPaid) && (
@@ -1064,18 +1093,12 @@ export function CustomerView({
                                       setQty(i, q - 1);
                                     }}
                                     disabled={q <= 0}
+                                    aria-label="Remove one"
                                     style={{ ...miniBtn, opacity: q <= 0 ? 0.4 : 1 }}
                                   >
                                     −
                                   </button>
-                                  <span
-                                    style={{
-                                      fontSize: 13,
-                                      fontWeight: 800,
-                                      minWidth: 46,
-                                      textAlign: "center",
-                                    }}
-                                  >
+                                  <span style={{ ...MONO, fontSize: 13, fontWeight: 700, minWidth: 46, textAlign: "center", color: C.text }}>
                                     {q} / {avail}
                                   </span>
                                   <button
@@ -1084,47 +1107,47 @@ export function CustomerView({
                                       setQty(i, q + 1);
                                     }}
                                     disabled={q >= avail}
+                                    aria-label="Add one"
                                     style={{ ...miniBtn, opacity: q >= avail ? 0.4 : 1 }}
                                   >
                                     +
                                   </button>
                                 </div>
                               )}
-                              <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 14.5, fontWeight: 600 }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 14.5, fontWeight: 600, color: C.text }}>
                                   {it.name}
                                 </div>
-                                <div
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#64748B",
-                                    fontWeight: 500,
-                                  }}
-                                >
+                                <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
                                   {isMulti
-                                    ? `×${it.qty} · ${fmt(unitPrice(i))} each`
+                                    ? `${it.qty} at ${fmt(unitPrice(i))} each`
                                     : fmt(it.price)}
-                                  {paidU > 0 ? ` · ${paidU} paid` : ""}
-                                  {heldOther > 0 ? ` · ${heldOther} held` : ""}
+                                  {paidU > 0 ? `, ${paidU} paid` : ""}
+                                  {heldOther > 0 ? `, ${heldOther} held` : ""}
                                 </div>
                               </div>
-                              {badge ? (
+                              {lineBadge ? (
                                 <span
                                   style={{
-                                    fontSize: 11.5,
-                                    fontWeight: 800,
-                                    color: badge.c,
-                                    background: badge.b,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    letterSpacing: "0.03em",
+                                    textTransform: "uppercase",
+                                    color: lineBadge.s.fg,
+                                    background: lineBadge.s.bg,
+                                    border: `1px solid ${lineBadge.s.border}`,
                                     padding: "3px 8px",
-                                    borderRadius: 7,
+                                    borderRadius: R.pill,
                                   }}
                                 >
-                                  {badge.t}
+                                  {lineBadge.t}
                                 </span>
                               ) : (
-                                <span style={{ fontSize: 14, fontWeight: 700 }}>
-                                  {fmt(isMulti ? unitPrice(i) * Math.max(q, 0) : it.price)}
-                                </span>
+                                <Money
+                                  value={isMulti ? unitPrice(i) * Math.max(q, 0) : it.price}
+                                  size={14}
+                                  weight={700}
+                                />
                               )}
                             </div>
                           );
@@ -1136,36 +1159,24 @@ export function CustomerView({
                             alignItems: "baseline",
                             marginTop: 6,
                             padding: "12px 14px",
-                            background: "#F8FAFC",
-                            borderRadius: 12,
+                            background: C.surfaceAlt,
+                            border: `1px solid ${C.border}`,
+                            borderRadius: R.md,
                           }}
                         >
                           <div>
-                            <div style={{ fontSize: 15, fontWeight: 800 }}>You pay</div>
-                            <div style={{ fontSize: 12, color: "#64748B", fontWeight: 500 }}>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>You pay</div>
+                            <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
                               {itemNote}
                             </div>
                           </div>
-                          <span style={{ fontSize: 21, fontWeight: 800, color: BRAND }}>
-                            {fmt(itemPrincipal)}
-                          </span>
+                          <Money value={itemPrincipal} size={21} weight={700} color={C.brand} />
                         </div>
                       </div>
                     )}
 
                     {/* Tip */}
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 700,
-                        color: "#64748B",
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        margin: "24px 0 10px",
-                      }}
-                    >
-                      Add a tip
-                    </div>
+                    <div style={{ ...sectionLabel, margin: `${S[5]}px 0 ${S[3]}px` }}>Add a tip</div>
                     <div
                       style={{
                         display: "grid",
@@ -1190,15 +1201,15 @@ export function CustomerView({
                             }}
                             style={{
                               padding: "13px 0",
-                              borderRadius: 12,
+                              borderRadius: R.md,
                               cursor: "pointer",
                               textAlign: "center",
                               fontSize: 13,
                               fontWeight: 700,
-                              transition: "all 220ms " + EASE,
-                              border: "1.5px solid " + (active ? BRAND : "#E2E8F0"),
-                              background: active ? "#EEF2FF" : "#fff",
-                              color: active ? BRAND : "#475569",
+                              transition: `all 220ms ${EASE}`,
+                              border: `1.5px solid ${active ? C.brand : C.border}`,
+                              background: active ? C.brandTint : C.surface,
+                              color: active ? C.brand : C.muted,
                             }}
                           >
                             {o.label}
@@ -1212,14 +1223,14 @@ export function CustomerView({
                           display: "flex",
                           alignItems: "center",
                           gap: 10,
-                          marginTop: 11,
+                          marginTop: S[3],
                           padding: "11px 14px",
-                          border: "1.5px solid #2E5BFF",
-                          borderRadius: 12,
-                          background: "#EEF2FF",
+                          border: `1.5px solid ${C.brand}`,
+                          borderRadius: R.md,
+                          background: C.brandTint,
                         }}
                       >
-                        <span style={{ fontSize: 17, fontWeight: 800, color: BRAND }}>
+                        <span style={{ ...MONO, fontSize: 17, fontWeight: 700, color: C.brand }}>
                           $
                         </span>
                         <input
@@ -1232,34 +1243,28 @@ export function CustomerView({
                           }}
                           placeholder="0.00"
                           style={{
+                            ...MONO,
                             border: "none",
                             background: "transparent",
                             outline: "none",
-                            fontFamily: "inherit",
                             fontSize: 17,
                             fontWeight: 700,
                             width: "100%",
-                            color: "#0B1221",
+                            color: C.text,
                           }}
                         />
-                        <span
-                          style={{
-                            fontSize: 12.5,
-                            fontWeight: 600,
-                            color: "#64748B",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: C.muted, whiteSpace: "nowrap" }}>
                           custom tip
                         </span>
                       </div>
                     )}
 
                     {/* Apple / Google pay */}
-                    <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+                    <div style={{ display: "flex", gap: S[2], marginTop: S[5] }}>
                       <button
                         onClick={() => handlePay("Apple Pay")}
                         disabled={payDisabled}
+                        className="qp-press"
                         style={{
                           flex: 1,
                           display: "flex",
@@ -1267,10 +1272,10 @@ export function CustomerView({
                           justifyContent: "center",
                           gap: 8,
                           padding: 13,
-                          background: "#000",
+                          background: C.ink,
                           color: "#fff",
                           border: "none",
-                          borderRadius: 13,
+                          borderRadius: R.md,
                           fontFamily: "inherit",
                           fontSize: 14.5,
                           fontWeight: 700,
@@ -1286,6 +1291,7 @@ export function CustomerView({
                       <button
                         onClick={() => handlePay("Google Pay")}
                         disabled={payDisabled}
+                        className="qp-press"
                         style={{
                           flex: 1,
                           display: "flex",
@@ -1293,10 +1299,10 @@ export function CustomerView({
                           justifyContent: "center",
                           gap: 8,
                           padding: 13,
-                          background: "#fff",
-                          color: "#0B1221",
-                          border: "1.5px solid #E2E8F0",
-                          borderRadius: 13,
+                          background: C.surface,
+                          color: C.text,
+                          border: `1.5px solid ${C.borderStrong}`,
+                          borderRadius: R.md,
                           fontFamily: "inherit",
                           fontSize: 14.5,
                           fontWeight: 700,
@@ -1330,24 +1336,36 @@ export function CustomerView({
                       onClick={() => handlePay("Card")}
                       disabled={payDisabled}
                       className="qp-cta-lift"
+                      aria-label={payLabel}
                       style={{
                         width: "100%",
-                        marginTop: 11,
+                        marginTop: S[2],
                         padding: 17,
-                        background: BRAND,
+                        background: C.brand,
                         color: "#fff",
                         border: "none",
-                        borderRadius: 15,
+                        borderRadius: R.md,
                         fontFamily: "inherit",
                         fontSize: 17,
-                        fontWeight: 800,
+                        fontWeight: 700,
                         cursor: payDisabled ? "default" : "pointer",
                         opacity: payDisabled ? 0.55 : 1,
-                        boxShadow: "0 10px 24px rgba(46,91,255,0.3)",
-                        transition: "all 220ms " + EASE,
+                        boxShadow: SHADOW.cta,
+                        transition: `all 220ms ${EASE}`,
                       }}
                     >
-                      {paying ? "Processing…" : payLabel}
+                      {paying ? (
+                        "Processing."
+                      ) : fullyPaid ? (
+                        "Bill fully paid"
+                      ) : split === "item" && selectedCount === 0 ? (
+                        "Select items to pay"
+                      ) : (
+                        <span style={{ display: "inline-flex", alignItems: "baseline", gap: 6 }}>
+                          Pay <Money value={payAmount} size={17} weight={700} color="#fff" />
+                          {payNote}
+                        </span>
+                      )}
                     </button>
                     <div
                       style={{
@@ -1355,8 +1373,8 @@ export function CustomerView({
                         alignItems: "center",
                         justifyContent: "center",
                         gap: 7,
-                        marginTop: 14,
-                        color: "#64748B",
+                        marginTop: S[3],
+                        color: C.muted,
                         fontSize: 12,
                         fontWeight: 600,
                       }}
@@ -1375,7 +1393,7 @@ export function CustomerView({
                         <rect width="18" height="11" x="3" y="11" rx="2" />
                         <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                       </svg>
-                      Secured by Nuqra · 256-bit encryption
+                      Secured by Nuqra, 256-bit encryption
                     </div>
                   </>
                 )}

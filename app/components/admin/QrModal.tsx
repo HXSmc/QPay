@@ -102,7 +102,7 @@ export function QrModal({
     if (!w) return;
     w.document.write(`<!doctype html><html><head><title>Nuqra Table ${tableNum}</title>
       <style>body{font-family:system-ui,sans-serif;text-align:center;padding:40px}
-      h1{font-size:20px;margin:0 0 4px}p{color:#475569;margin:0 0 24px}</style></head>
+      h1{font-size:20px;margin:0 0 4px}p{color:${C.muted};margin:0 0 24px}</style></head>
       <body><h1>${restaurantName}</h1><p>Scan to pay · Table ${tableNum}</p>${s}
       <script>window.onload=function(){window.print();}<\/script></body></html>`);
     w.document.close();
@@ -183,7 +183,7 @@ export function QrModal({
             >
               {url && (
                 <span role="img" aria-label={`Payment QR code for table ${tableNum}`}>
-                  <QRCodeSVG value={url} size={196} level="M" fgColor="#0B1221" />
+                  <QRCodeSVG value={url} size={196} level="M" fgColor={C.ink} />
                 </span>
               )}
             </div>

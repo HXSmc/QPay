@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { BRAND } from "../../lib/data";
 import { getMe, logout, type Me } from "../../lib/api";
 import { LogoMark } from "../site/Logo";
+import { C, R, S, SHADOW, T } from "../../lib/theme";
 
 const NAV = [
   {
@@ -118,96 +118,121 @@ export function Sidebar() {
     <div
       className="qp-sidebar"
       style={{
-        width: 236,
+        width: 244,
         flexShrink: 0,
-        background: "#0B1221",
+        background: C.ink,
         color: "#fff",
-        padding: "24px 16px",
+        padding: `${S[5]}px ${S[3]}px ${S[4]}px`,
         display: "flex",
         flexDirection: "column",
+        gap: S[2],
         minHeight: "100vh",
         position: "sticky",
         top: 0,
       }}
     >
+      {/* Brand */}
       <Link
         href="/"
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
-          padding: "0 8px 22px",
+          gap: S[2] + 2,
+          padding: `0 ${S[2]}px ${S[4]}px`,
           textDecoration: "none",
           color: "#fff",
         }}
       >
-        <LogoMark size={30} />
-        <span style={{ fontSize: 17, fontWeight: 800 }}>Nuqra</span>
+        <LogoMark size={30} onDark />
+        <span style={{ ...T.h2, fontWeight: 700 }}>Nuqra</span>
       </Link>
+
+      {/* Section label */}
       <div
         className="qp-hide-mobile"
         style={{
-          fontSize: 11,
+          ...T.caption,
           fontWeight: 700,
-          letterSpacing: "0.08em",
-          color: "#94A3B8",
-          padding: "14px 12px 8px",
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          color: C.faint,
+          padding: `0 ${S[3]}px ${S[1]}px`,
         }}
       >
-        MANAGE
+        Manage
       </div>
 
-      {NAV.map((item) => {
-        const active =
-          item.href === "/admin"
-            ? pathname === "/admin"
-            : pathname.startsWith(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={active ? undefined : "qp-nav"}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 11,
-              padding: "11px 12px",
-              borderRadius: 11,
-              fontSize: 14.5,
-              fontWeight: 600,
-              marginBottom: 3,
-              textDecoration: "none",
-              background: active ? BRAND : "transparent",
-              color: active ? "#fff" : "#94A3B8",
-            }}
-          >
-            {item.icon}
-            {item.label}
-          </Link>
-        );
-      })}
+      {/* Primary navigation */}
+      <nav
+        aria-label="Admin"
+        style={{ display: "flex", flexDirection: "column", gap: 2 }}
+      >
+        {NAV.map((item) => {
+          const active =
+            item.href === "/admin"
+              ? pathname === "/admin"
+              : pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={active ? undefined : "qp-nav"}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: S[3] - 1,
+                padding: `${S[2] + 1}px ${S[3]}px`,
+                borderRadius: R.md,
+                fontSize: 14,
+                fontWeight: 600,
+                letterSpacing: "-0.01em",
+                textDecoration: "none",
+                background: active ? C.brand : "transparent",
+                color: active ? "#fff" : C.faint,
+                boxShadow: active ? SHADOW.cta : undefined,
+              }}
+            >
+              <span
+                aria-hidden="true"
+                style={{
+                  display: "inline-flex",
+                  opacity: active ? 1 : 0.9,
+                  flexShrink: 0,
+                }}
+              >
+                {item.icon}
+              </span>
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
 
+      {/* Account */}
       <div
         style={{
           marginTop: "auto",
           display: "flex",
           alignItems: "center",
-          gap: 10,
-          padding: "11px 8px",
-          borderTop: "1px solid #1E293B",
+          gap: S[2] + 2,
+          padding: `${S[3]}px ${S[2]}px 0`,
+          borderTop: `1px solid ${C.inkSoft}`,
         }}
       >
         <div
           style={{
             width: 34,
             height: 34,
-            borderRadius: "50%",
-            background: BRAND,
+            borderRadius: R.pill,
+            background: C.brand,
+            color: "#fff",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontWeight: 700,
             fontSize: 13,
+            flexShrink: 0,
           }}
         >
           {initials}
@@ -217,14 +242,15 @@ export function Sidebar() {
             style={{
               fontSize: 13.5,
               fontWeight: 600,
+              color: "#fff",
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
             }}
           >
-            {me?.email ?? "…"}
+            {me?.email ?? "..."}
           </div>
-          <div style={{ fontSize: 12, color: "#94A3B8" }}>
+          <div style={{ ...T.caption, color: C.faint }}>
             {me?.role === "super" ? "Super Admin" : "Administrator"}
           </div>
         </div>
@@ -232,17 +258,19 @@ export function Sidebar() {
           onClick={signOut}
           title="Sign out"
           aria-label="Sign out"
+          className="qp-press"
           style={{
             border: "none",
-            background: "#161F33",
-            color: "#94A3B8",
-            borderRadius: 9,
+            background: C.inkSoft,
+            color: C.faint,
+            borderRadius: R.sm,
             width: 32,
             height: 32,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            flexShrink: 0,
           }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

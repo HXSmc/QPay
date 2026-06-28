@@ -1,4 +1,5 @@
 import { Sidebar } from "../../components/admin/Sidebar";
+import { C } from "../../lib/theme";
 
 export default function AdminDashLayout({
   children,
@@ -10,8 +11,8 @@ export default function AdminDashLayout({
       className="qp-admin-shell"
       style={{
         display: "flex",
-        background: "#F8FAFC",
-        color: "#0B1221",
+        background: C.canvas,
+        color: C.text,
         minHeight: "100vh",
         WebkitFontSmoothing: "antialiased",
       }}

@@ -1,11 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
+// Geist for everything (the Linear-clean signature), Geist Mono for ledger
+// figures (the "coin" feel, via --font-mono).
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
+});
+const mono = Geist_Mono({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  display: "swap",
+  variable: "--font-mono",
 });
 
 const SITE_TITLE = "Nuqra · QR Payments for Restaurants";
@@ -40,7 +48,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={jakarta.className}>
+      <body
+        className={`${geist.className} ${mono.variable}`}
+        style={{ background: "#F6F7F9", color: "#0E1116" }}
+      >
         {/* Single top-level landmark so every route exposes a <main> region
             (WCAG 1.3.1 / landmark-one-main) for assistive-tech navigation. */}
         <main>{children}</main>

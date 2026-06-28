@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { fmt } from "../../../lib/data";
 import { listTransactions } from "../../../lib/api";
 import type { Transaction } from "../../../lib/types";
-import { C, R, S, T, NUM, card } from "../../../lib/theme";
+import { C, R, S, T, NUM, MONO, card } from "../../../lib/theme";
 import { Alert, EmptyState, Skeleton } from "../../../components/ui/Primitives";
 
 const amountOf = (t: Transaction) =>
@@ -27,9 +27,9 @@ export default function AnalyticsPage() {
   const avg = count ? revenue / count : 0;
 
   const STATS = [
-    { label: "Revenue (recent)", value: fmt(revenue) },
+    { label: "Revenue (recent)", value: fmt(revenue), money: true as const },
     { label: "Transactions", value: String(count) },
-    { label: "Avg. ticket", value: fmt(avg) },
+    { label: "Avg. ticket", value: fmt(avg), money: true as const },
     { label: "Tips rate", notTracked: true as const },
   ];
 

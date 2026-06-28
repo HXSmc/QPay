@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listOrders, setOrderStatus } from "../../../lib/api";
 import { fmt } from "../../../lib/data";
-import { C, R, S, T, badge, btn } from "../../../lib/theme";
+import { C, R, S, T, MONO, SHADOW, badge, btn } from "../../../lib/theme";
 import { EmptyState, Skeleton } from "../../../components/ui/Primitives";
 import type { Order, OrderStatus } from "../../../lib/types";
 
@@ -86,7 +86,7 @@ export default function OrdersPage() {
                 fontWeight: 700,
                 background: activeOnly === t.k ? C.surface : "transparent",
                 color: activeOnly === t.k ? C.brand : C.muted,
-                boxShadow: activeOnly === t.k ? "0 1px 3px rgba(15,23,42,0.08)" : "none",
+                boxShadow: activeOnly === t.k ? SHADOW.e1 : "none",
               }}
             >
               {t.label}
@@ -176,7 +176,7 @@ function OrderCard({ order, onAdvance }: { order: Order; onAdvance: (o: Order, s
           paddingTop: S[3],
         }}
       >
-        <span style={{ ...T.label, color: C.text }}>{fmt(order.total)}</span>
+        <span style={{ ...T.h3, ...MONO, color: C.text }}>{fmt(order.total)}</span>
         <div style={{ display: "flex", gap: 6 }}>
           {order.status === "placed" && (
             <button onClick={() => onAdvance(order, "preparing")} style={btn("primary", { size: "sm" })}>

@@ -26,10 +26,10 @@ export function EmptyState({
         flexDirection: "column",
         alignItems: "center",
         textAlign: "center",
-        gap: S[2],
-        padding: "44px 24px",
-        border: `1.5px dashed ${C.borderStrong}`,
-        borderRadius: R.md,
+        gap: S[3],
+        padding: `${S[7]}px ${S[5]}px`,
+        border: `1px dashed ${C.borderStrong}`,
+        borderRadius: R.lg,
         color: C.muted,
         background: C.surfaceAlt,
       }}
@@ -37,26 +37,27 @@ export function EmptyState({
       {icon && (
         <div
           style={{
-            width: 46,
-            height: 46,
+            width: 48,
+            height: 48,
             borderRadius: R.md,
             background: C.brandTint,
             color: C.brand,
             display: "grid",
             placeItems: "center",
+            boxShadow: SHADOW.e1,
           }}
         >
           {icon}
         </div>
       )}
       <div style={{ ...T.h3, color: C.text }}>{title}</div>
-      {body && <div style={{ ...T.body, maxWidth: 360 }}>{body}</div>}
+      {body && <div style={{ ...T.body, maxWidth: 360, color: C.muted }}>{body}</div>}
       {action && <div style={{ marginTop: S[2] }}>{action}</div>}
     </div>
   );
 }
 
-/** Skeleton block — shape-matching loading placeholder (shimmer via globals). */
+/** Skeleton block - shape-matching loading placeholder (shimmer via globals). */
 export function Skeleton({
   h = 16,
   w = "100%",
@@ -97,7 +98,7 @@ export function Spinner({ size = 16, color = "currentColor" }: { size?: number; 
   );
 }
 
-/** Inline alert — error/success/warn/info, replaces bare red text + alert(). */
+/** Inline alert - error/success/warn/info, replaces bare red text + alert(). */
 export function Alert({
   kind = "danger",
   children,
@@ -115,8 +116,8 @@ export function Alert({
         color: s.fg,
         background: s.bg,
         border: `1px solid ${s.border}`,
-        borderRadius: R.sm,
-        padding: "9px 12px",
+        borderRadius: R.md,
+        padding: `${S[2]}px ${S[3]}px`,
       }}
     >
       {children}
@@ -149,13 +150,13 @@ export function Toast({
       style={{
         position: "fixed",
         left: "50%",
-        bottom: 24,
+        bottom: S[5],
         transform: "translateX(-50%)",
         zIndex: 200,
         display: "flex",
         alignItems: "center",
-        gap: 8,
-        padding: "12px 18px",
+        gap: S[2],
+        padding: `${S[3]}px ${S[4]}px`,
         borderRadius: R.md,
         background: C.ink,
         color: "#fff",
@@ -169,7 +170,7 @@ export function Toast({
         style={{
           width: 8,
           height: 8,
-          borderRadius: "50%",
+          borderRadius: R.pill,
           background: s.border,
           flexShrink: 0,
         }}

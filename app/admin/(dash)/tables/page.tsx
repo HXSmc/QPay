@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useRef, useState } from "react";
-import { billDue, fmt, STATUS_PALETTE } from "../../../lib/data";
+import { billDue, fmt } from "../../../lib/data";
 import {
   createTable,
   deleteTable,
@@ -13,7 +13,7 @@ import {
 import type { LiveTable, TableStatus } from "../../../lib/types";
 import { QrModal } from "../../../components/admin/QrModal";
 import { OrderModal } from "../../../components/admin/OrderModal";
-import { C, R, S, T, NUM, badge, btn, card } from "../../../lib/theme";
+import { C, R, S, T, NUM, MONO, STATUS, badge, btn, card } from "../../../lib/theme";
 import { Alert, EmptyState, Skeleton, Spinner } from "../../../components/ui/Primitives";
 
 const STATUS_BADGE: Record<TableStatus, "danger" | "warn" | "success" | "neutral"> = {
@@ -21,6 +21,13 @@ const STATUS_BADGE: Record<TableStatus, "danger" | "warn" | "success" | "neutral
   partial: "warn",
   cleared: "success",
   open: "neutral",
+};
+
+const STATUS_LABEL: Record<TableStatus, string> = {
+  unpaid: "Unpaid",
+  partial: "Partial",
+  cleared: "Cleared",
+  open: "Open",
 };
 
 export default function TablesPage() {
@@ -114,10 +121,13 @@ export default function TablesPage() {
         }}
       >
         <div>
+          <div style={{ ...T.label, color: C.brand, marginBottom: S[1] }}>
+            Tables &amp; QR
+          </div>
           <h1 style={{ ...T.h1, margin: 0, color: C.text }}>
             Tables &amp; QR codes
           </h1>
-          <p style={{ ...T.body, color: C.muted, margin: `${S[1] + 1}px 0 0` }}>
+          <p style={{ ...T.body, color: C.muted, margin: `${S[2]}px 0 0`, maxWidth: 460 }}>
             Add tables, generate a scan-to-pay QR, then clear or delete when done.
           </p>
         </div>
@@ -139,11 +149,11 @@ export default function TablesPage() {
       )}
 
       {/* legend */}
-      <div style={{ display: "flex", gap: S[4], marginBottom: S[4] + 2, ...T.caption, color: C.muted }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: S[4], marginBottom: S[5], ...T.caption, color: C.muted }}>
         {(["unpaid", "partial", "cleared", "open"] as TableStatus[]).map((s) => (
           <span key={s} style={{ display: "flex", alignItems: "center", gap: S[1] + 2 }}>
-            <span style={{ width: 9, height: 9, borderRadius: "50%", background: STATUS_PALETTE[s].c }} />
-            {STATUS_PALETTE[s].label}
+            <span style={{ width: 9, height: 9, borderRadius: "50%", background: STATUS[STATUS_BADGE[s]].fg }} />
+            {STATUS_LABEL[s]}
           </span>
         ))}
       </div>
@@ -168,28 +178,28 @@ export default function TablesPage() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: S[3] + 2 }}>
           {tables.map((t) => {
-            const p = STATUS_PALETTE[t.status];
+            const dot = STATUS[STATUS_BADGE[t.status]].fg;
             return (
               <Fragment key={t.num}>
               <div
                 style={{
                   ...card({ pad: S[4], radius: R.md }),
                   background: t.status === "open" ? C.surfaceAlt : C.surface,
-                  borderLeft: "3px solid " + p.c,
+                  borderLeft: "3px solid " + dot,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ ...T.h3, ...NUM }}>Table {t.num}</span>
-                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: p.c, display: "inline-block" }} />
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: dot, display: "inline-block" }} />
                 </div>
-                <div style={{ ...T.h2, marginTop: S[3] - 2, ...NUM }}>
+                <div style={{ ...T.h2, marginTop: S[3] - 2, ...MONO }}>
                   {t.amount}
                 </div>
                 <div style={{ marginTop: S[2], ...badge(STATUS_BADGE[t.status]) }}>
-                  {p.label}
+                  {STATUS_LABEL[t.status]}
                 </div>
                 {t.status === "partial" && (
-                  <div style={{ ...T.caption, color: C.muted, marginTop: S[2] - 1, ...NUM }}>
+                  <div style={{ ...T.caption, color: C.muted, marginTop: S[2] - 1, ...MONO }}>
                     Paid {fmt(t.paid)} of {fmt(billDue(t.items))}
                   </div>
                 )}

@@ -40,13 +40,13 @@ export default function LoginPage() {
     }
   };
 
-  const labelStyle = { ...T.label, color: C.muted, display: "block" } as const;
+  const labelStyle = { ...T.label, color: C.text, display: "block" } as const;
 
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(160deg,#EEF2FF,#F8FAFC 45%)",
+        background: C.canvas,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -55,7 +55,7 @@ export default function LoginPage() {
         color: C.text,
       }}
     >
-      <div style={{ width: "100%", maxWidth: 400 }}>
+      <div style={{ width: "100%", maxWidth: 392 }}>
         <Link
           href="/"
           aria-label="Nuqra home"
@@ -71,7 +71,27 @@ export default function LoginPage() {
         </Link>
 
         <div style={{ ...cardBox }}>
-          <h1 style={{ ...T.h2, margin: `0 0 ${S[1]}px` }}>Manager sign in</h1>
+          <span
+            aria-hidden="true"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 40,
+              height: 40,
+              borderRadius: R.md,
+              background: C.brandTint,
+              color: C.brand,
+              marginBottom: S[4],
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+          </span>
+
+          <h1 style={{ ...T.h1, margin: `0 0 ${S[1]}px` }}>Manager sign in</h1>
           <p style={{ ...T.body, color: C.muted, margin: `0 0 ${S[5]}px` }}>
             Access the Nuqra admin dashboard.
           </p>
@@ -155,29 +175,30 @@ export default function LoginPage() {
               type="submit"
               disabled={busy}
               className="qp-cta"
-              style={{ ...btn("primary", { full: true, disabled: busy }), marginTop: S[1], fontSize: 16, padding: 14 }}
+              style={{ ...btn("primary", { full: true, disabled: busy }), marginTop: S[1], fontSize: 15.5, padding: 13 }}
             >
               {busy && <Spinner size={16} color="#fff" />}
               {busy ? "Signing in." : "Sign in"}
             </button>
           </form>
+        </div>
 
-          <div
-            style={{
-              marginTop: S[5],
-              display: "flex",
-              alignItems: "center",
-              gap: S[2],
-              ...T.caption,
-              color: C.muted,
-            }}
-          >
-            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-            </svg>
-            Accounts are issued by your administrator.
-          </div>
+        <div
+          style={{
+            marginTop: S[4],
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: S[2],
+            ...T.caption,
+            color: C.muted,
+          }}
+        >
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
+          Accounts are issued by your administrator.
         </div>
       </div>
     </div>
@@ -186,8 +207,8 @@ export default function LoginPage() {
 
 const cardBox: React.CSSProperties = {
   background: C.surface,
-  borderRadius: R.xl,
+  borderRadius: R.lg,
   padding: S[6],
   border: `1px solid ${C.border}`,
-  boxShadow: SHADOW.e3,
+  boxShadow: SHADOW.e2,
 };
