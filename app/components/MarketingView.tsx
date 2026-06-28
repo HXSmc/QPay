@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { SITE } from "../lib/site";
 import { C, R, S, SHADOW, T, MONO, btn, card } from "../lib/theme";
 import { SalesDropdown } from "./site/SalesDropdown";
+import { DemoPopup } from "./site/DemoPopup";
 
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
 
 const SOLUTIONS = [
   {
-    title: "Pay at table",
-    body: "Scan the code, see the live bill, and pay instantly. No app download, no account.",
+    title: "Pay at the table",
+    body: "Guests scan, see the live bill, and pay in seconds. The table clears itself, so you never lose a turn waiting on a server to run the check.",
     icon: (
       <svg
         width="26"
@@ -41,7 +42,7 @@ const SOLUTIONS = [
   },
   {
     title: "Split any bill",
-    body: "Split evenly, by item, or by custom amount. Everyone pays their share from their own phone.",
+    body: "Even, by item, or custom. Each guest pays their share from their own phone, so there is no table math and no counting errors at the till.",
     icon: (
       <svg
         width="22"
@@ -63,7 +64,7 @@ const SOLUTIONS = [
   },
   {
     title: "Digital receipts",
-    body: "Itemized receipts land instantly by email or SMS. Paperless and audit-ready.",
+    body: "Itemized receipts land instantly by email or SMS. Paperless, audit-ready, and no reprints at the counter.",
     icon: (
       <svg
         width="22"
@@ -84,7 +85,7 @@ const SOLUTIONS = [
   },
   {
     title: "Live analytics",
-    body: "Track revenue, tips, and table turnover in real time from one manager dashboard.",
+    body: "Track revenue, tips, and table turnover in real time, so you can staff the next rush before it hits.",
     icon: (
       <svg
         width="22"
@@ -105,6 +106,27 @@ const SOLUTIONS = [
 ];
 
 const METRICS = SITE.metrics;
+
+// Objection-handling: the real questions an operator asks before switching.
+// Honest, specific where we can be, non-committal where we should not overclaim.
+const FAQ = [
+  {
+    q: "Do diners need an app?",
+    a: "No. They scan a QR and pay in their browser. Nothing to download, and their phone never leaves their hand.",
+  },
+  {
+    q: "New hardware to buy?",
+    a: "None. Nuqra runs alongside your current POS workflow. If you can print a QR code, you are ready to take payments.",
+  },
+  {
+    q: "How long is setup?",
+    a: "About an afternoon. Most teams print their codes and take their first table-side payment the same day.",
+  },
+  {
+    q: "Is it secure?",
+    a: "Payments are encrypted, and diners never hand a card or phone to staff. Everyone pays from their own device.",
+  },
+];
 
 export function MarketingView() {
   const router = useRouter();
@@ -284,8 +306,8 @@ export function MarketingView() {
                 maxWidth: 560,
               }}
             >
-              Turn tables faster with{" "}
-              <span style={{ color: C.brand }}>QR payments</span>
+              Turn tables faster.{" "}
+              <span style={{ color: C.brand }}>Get paid before they leave.</span>
             </h1>
             <p
               style={{
@@ -297,7 +319,7 @@ export function MarketingView() {
               }}
             >
               Diners scan, split, tip, and pay in under 30 seconds. No app, no
-              waiting for the check.
+              waiting on the check.
             </p>
             <div
               style={{
@@ -371,6 +393,17 @@ export function MarketingView() {
                 </svg>
               </button>
             </div>
+            {/* Risk-reversal microline - genuine, matches the /demo free trial. */}
+            <p
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: C.muted,
+                margin: "18px 0 0",
+              }}
+            >
+              {SITE.heroBadge}
+            </p>
           </div>
 
           {/* Framed device - renders the REAL live bill preview, not a faux UI. */}
@@ -856,7 +889,7 @@ export function MarketingView() {
                 lineHeight: 1.55,
               }}
             >
-              Real numbers from restaurants running Nuqra through a full service.
+              What faster table-side checkout adds up to over a full service.
             </p>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
               <span
@@ -948,6 +981,71 @@ export function MarketingView() {
         </div>
       </div>
 
+      {/* OBJECTIONS - a hairline definition list (a layout not used above). */}
+      <div
+        className="qp-section"
+        style={{
+          maxWidth: 1120,
+          margin: "0 auto",
+          padding: "0 32px 32px",
+        }}
+      >
+        <div style={{ maxWidth: 620, marginBottom: 28 }}>
+          <div style={eyebrow}>Before you switch</div>
+          <h2
+            style={{
+              fontSize: 36,
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
+              lineHeight: 1.1,
+              color: C.text,
+              margin: "14px 0 0",
+              textWrap: "balance",
+            }}
+          >
+            Less to change than you think.
+          </h2>
+        </div>
+        <dl style={{ margin: 0 }}>
+          {FAQ.map((item) => (
+            <div
+              key={item.q}
+              className="qp-grid-2"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "0.78fr 1.22fr",
+                gap: S[6],
+                padding: "26px 0",
+                borderTop: `1px solid ${C.border}`,
+              }}
+            >
+              <dt
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  letterSpacing: "-0.01em",
+                  color: C.text,
+                  margin: 0,
+                }}
+              >
+                {item.q}
+              </dt>
+              <dd
+                style={{
+                  margin: 0,
+                  fontSize: 16,
+                  color: C.muted,
+                  lineHeight: 1.6,
+                  maxWidth: 540,
+                }}
+              >
+                {item.a}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
       {/* FOOTER CTA */}
       <div style={{ background: C.brandTint, borderTop: `1px solid ${C.border}` }}>
         <div
@@ -981,8 +1079,8 @@ export function MarketingView() {
               lineHeight: 1.55,
             }}
           >
-            Join thousands of restaurants getting paid faster. Setup takes one
-            afternoon.
+            Get paid before they leave the table. Setup takes one afternoon,
+            and your first trial login lands in your inbox on the spot.
           </p>
           <div
             style={{
@@ -1049,6 +1147,8 @@ export function MarketingView() {
           </Link>
         </div>
       </div>
+
+      <DemoPopup />
     </div>
   );
 }

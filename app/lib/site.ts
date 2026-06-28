@@ -15,13 +15,13 @@ export const SITE = {
   salesEmail: "sales@nuqra.com",
   /** Dedicated contact for privacy / data requests. */
   privacyEmail: "privacy@nuqra.com",
-  salesHours: "Sun–Thu · 9am–6pm",
-  /** Hero social-proof badge. */
-  heroBadge: "Trusted by 3,200+ restaurants",
-  /** Compliance/trust line under the hero. */
-  trustLine: "PCI-DSS Level 1 · 256-bit encryption · SOC 2 Type II",
-  /** Short footer compliance claim. */
-  footerClaim: "PCI-DSS Level 1 Certified",
+  salesHours: "Sun-Thu · 9am-6pm",
+  /** Hero risk-reversal microline (honest, matches the /demo free trial). */
+  heroBadge: "7-day free trial · No card · Live in minutes",
+  /** Honest capability line (no unverifiable certifications). */
+  trustLine: "No app for diners · Works with your POS · Encrypted payments",
+  /** Short footer reassurance. */
+  footerClaim: "7-day free trial · Cancel anytime",
   /** ROI metrics band. */
   metrics: [
     { value: "15", unit: "min", label: "saved per table" },
