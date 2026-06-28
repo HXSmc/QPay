@@ -929,9 +929,6 @@ export function CustomerView({
                             <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
                               People at the table
                             </div>
-                            <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
-                              Total guests sharing the bill
-                            </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 13 }}>
                             <button onClick={atTableDec} aria-label="Fewer people" style={stepperBtn}>
@@ -956,9 +953,6 @@ export function CustomerView({
                           <div>
                             <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
                               You&apos;re paying for
-                            </div>
-                            <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
-                              Cover yourself or a few friends
                             </div>
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 13 }}>

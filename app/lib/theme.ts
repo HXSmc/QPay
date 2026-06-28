@@ -71,8 +71,8 @@ export const SHADOW = {
   e1: "0 1px 2px rgba(13,15,19,0.06)",
   e2: "0 4px 16px rgba(13,15,19,0.06), 0 1px 3px rgba(13,15,19,0.04)",
   e3: "0 20px 48px rgba(13,15,19,0.12)",
-  cta: "0 6px 16px rgba(194,65,12,0.22)",
-  ctaHover: "0 10px 24px rgba(194,65,12,0.30)",
+  cta: "0 2px 6px rgba(13,15,19,0.10)",
+  ctaHover: "0 8px 20px rgba(13,15,19,0.16)",
 } as const;
 
 // --- Type scale (Geist display/body — Linear-clean) -------------------------

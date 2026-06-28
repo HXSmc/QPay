@@ -54,9 +54,12 @@ body {
 
 /* Hover effects — inline styles can't express :hover, so these mirror the
    prototype's `style-hover` attributes. !important overrides the inline base. */
+/* Hover = neutral gray-out + subtle lift. No neon glow. The primary CTA dims
+   slightly on hover instead of glowing. */
 .qp-cta:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px rgba(194, 65, 12, 0.30) !important;
+  box-shadow: 0 8px 20px rgba(13, 15, 19, 0.16) !important;
+  filter: brightness(0.96);
 }
 
 .qp-cta-lift:hover {
@@ -68,8 +71,8 @@ body {
 }
 
 .qp-solution:hover {
-  border-color: #C2410C !important;
-  box-shadow: 0 12px 28px rgba(194, 65, 12, 0.10) !important;
+  border-color: #C2C8D0 !important;
+  box-shadow: 0 10px 24px rgba(13, 15, 19, 0.10) !important;
   transform: translateY(-2px);
 }
 

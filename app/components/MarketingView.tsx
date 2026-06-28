@@ -271,49 +271,6 @@ export function MarketingView() {
           }}
         >
           <div>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: S[2],
-                padding: "7px 14px 7px 10px",
-                background: C.surface,
-                border: `1px solid ${C.border}`,
-                borderRadius: R.pill,
-                fontSize: 13,
-                fontWeight: 600,
-                color: C.muted,
-                boxShadow: SHADOW.e1,
-              }}
-            >
-              <span
-                aria-hidden="true"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 20,
-                  height: 20,
-                  borderRadius: R.pill,
-                  background: C.brandTint,
-                  color: C.brand,
-                }}
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M20 6 9 17l-4-4" />
-                </svg>
-              </span>
-              {SITE.heroBadge}
-            </div>
             <h1
               className="qp-hero-title"
               style={{
@@ -425,18 +382,6 @@ export function MarketingView() {
               justifyContent: "center",
             }}
           >
-            <div
-              aria-hidden="true"
-              style={{
-                position: "absolute",
-                width: 320,
-                height: 320,
-                borderRadius: "50%",
-                background: C.brand,
-                opacity: 0.1,
-                filter: "blur(60px)",
-              }}
-            />
             {billPreview}
           </div>
         </div>
@@ -652,7 +597,6 @@ export function MarketingView() {
                 borderRadius: "50%",
                 border: `1px solid ${C.brand}`,
                 opacity: 0.35,
-                boxShadow: `0 0 0 28px rgba(194,65,12,0.10), inset 0 0 60px rgba(194,65,12,0.12)`,
               }}
             />
             <div
@@ -886,7 +830,6 @@ export function MarketingView() {
               borderRadius: "50%",
               border: `1px solid ${C.brand}`,
               opacity: 0.22,
-              boxShadow: "0 0 0 40px rgba(194,65,12,0.06)",
             }}
           />
 
