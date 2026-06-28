@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { billDue, BRAND, fmt, STATUS_PALETTE } from "../../../lib/data";
+import { billDue, fmt, STATUS_PALETTE } from "../../../lib/data";
 import {
   createTable,
   deleteTable,
@@ -13,6 +13,15 @@ import {
 import type { LiveTable, TableStatus } from "../../../lib/types";
 import { QrModal } from "../../../components/admin/QrModal";
 import { OrderModal } from "../../../components/admin/OrderModal";
+import { C, R, S, T, NUM, badge, btn, card } from "../../../lib/theme";
+import { Alert, EmptyState, Skeleton, Spinner } from "../../../components/ui/Primitives";
+
+const STATUS_BADGE: Record<TableStatus, "danger" | "warn" | "success" | "neutral"> = {
+  unpaid: "danger",
+  partial: "warn",
+  cleared: "success",
+  open: "neutral",
+};
 
 export default function TablesPage() {
   const [tables, setTables] = useState<LiveTable[]>([]);
@@ -20,6 +29,10 @@ export default function TablesPage() {
   const [orderFor, setOrderFor] = useState<LiveTable | null>(null);
   const [busy, setBusy] = useState(false);
   const [restaurantName, setRestaurantName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  // Which table is awaiting a delete confirmation (inline, no browser dialog).
+  const [confirmDel, setConfirmDel] = useState<string | null>(null);
 
   const applyTable = (t: LiveTable) =>
     setTables((prev) => prev.map((x) => (x.num === t.num ? t : x)));
@@ -32,7 +45,10 @@ export default function TablesPage() {
   }, [orderFor]);
 
   useEffect(() => {
-    listTables().then(setTables).catch(() => {});
+    listTables()
+      .then(setTables)
+      .catch(() => setError("Couldn't load your tables. Please refresh."))
+      .finally(() => setLoading(false));
     getSettings()
       .then(async (s) => {
         if (s.name) return setRestaurantName(s.name);
@@ -42,7 +58,7 @@ export default function TablesPage() {
       .catch(() => {});
 
     // Live refresh: poll the owner-scoped table list so payment state (e.g. a
-    // customer fully paying → "cleared" + the Clear button) appears without a
+    // customer fully paying -> "cleared" + the Clear button) appears without a
     // manual page refresh. Pauses when the tab is hidden or an order is open.
     const id = setInterval(() => {
       if (document.hidden || orderOpenRef.current) return;
@@ -53,191 +69,198 @@ export default function TablesPage() {
 
   const addTable = async () => {
     setBusy(true);
+    setError("");
     try {
       const t = await createTable();
       setTables((prev) => [...prev, t]);
     } catch {
-      alert("Couldn't add a table. Please retry.");
+      setError("Couldn't add a table. Please retry.");
     } finally {
       setBusy(false);
     }
   };
 
   const clearTable = async (t: LiveTable) => {
+    setError("");
     try {
       const updated = await setTableItems(t.num, []);
       applyTable(updated);
     } catch {
-      alert(`Couldn't clear Table ${t.num}. Please retry.`);
+      setError(`Couldn't clear Table ${t.num}. Please retry.`);
     }
   };
 
   const removeTable = async (t: LiveTable) => {
-    if (!confirm(`Delete Table ${t.num}? This can't be undone.`)) return;
+    setConfirmDel(null);
+    setError("");
     try {
       await deleteTable(t.num);
       setTables((prev) => prev.filter((x) => x.num !== t.num));
     } catch {
       // Keep the row if the delete failed (e.g. session expired) rather than
       // dropping an unhandled rejection and lying about the table being gone.
-      alert(`Couldn't delete Table ${t.num}. Please retry.`);
+      setError(`Couldn't delete Table ${t.num}. Please retry.`);
     }
   };
 
-  const smallBtn = {
-    flex: 1,
-    padding: "7px 0",
-    borderRadius: 9,
-    fontFamily: "inherit",
-    fontSize: 12,
-    fontWeight: 700,
-    cursor: "pointer",
-  } as const;
-
   return (
-    <div className="qp-page" style={{ padding: "30px 36px" }}>
+    <div className="qp-page" style={{ padding: `${S[6]}px ${S[6] + 4}px` }}>
       <div
         style={{
           display: "flex",
           alignItems: "flex-end",
           justifyContent: "space-between",
-          marginBottom: 24,
+          marginBottom: S[5],
         }}
       >
         <div>
-          <h1 style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
+          <h1 style={{ ...T.h1, margin: 0, color: C.text }}>
             Tables &amp; QR codes
           </h1>
-          <p style={{ fontSize: 14, color: "#64748B", margin: "5px 0 0", fontWeight: 600 }}>
+          <p style={{ ...T.body, color: C.muted, margin: `${S[1] + 1}px 0 0` }}>
             Add tables, generate a scan-to-pay QR, then clear or delete when done.
           </p>
         </div>
         <button
+          className="qp-cta-lift"
           onClick={addTable}
           disabled={busy}
-          style={{
-            padding: "10px 16px",
-            background: BRAND,
-            border: "none",
-            borderRadius: 11,
-            fontFamily: "inherit",
-            fontSize: 13.5,
-            fontWeight: 700,
-            color: "#fff",
-            cursor: busy ? "default" : "pointer",
-            opacity: busy ? 0.7 : 1,
-          }}
+          style={btn("primary", { size: "sm", disabled: busy })}
         >
+          {busy && <Spinner size={14} color="#fff" />}
           + New table
         </button>
       </div>
 
+      {error && (
+        <div style={{ marginBottom: S[4] }}>
+          <Alert kind="danger">{error}</Alert>
+        </div>
+      )}
+
       {/* legend */}
-      <div style={{ display: "flex", gap: 16, marginBottom: 18, fontSize: 12.5, fontWeight: 600, color: "#64748B" }}>
+      <div style={{ display: "flex", gap: S[4], marginBottom: S[4] + 2, ...T.caption, color: C.muted }}>
         {(["unpaid", "partial", "cleared", "open"] as TableStatus[]).map((s) => (
-          <span key={s} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span key={s} style={{ display: "flex", alignItems: "center", gap: S[1] + 2 }}>
             <span style={{ width: 9, height: 9, borderRadius: "50%", background: STATUS_PALETTE[s].c }} />
             {STATUS_PALETTE[s].label}
           </span>
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 14 }}>
-        {tables.map((t) => {
-          const p = STATUS_PALETTE[t.status];
-          return (
-            <div
-              key={t.num}
-              style={{
-                padding: 16,
-                borderRadius: 16,
-                border: "1px solid #E2E8F0",
-                background: t.status === "open" ? "#F8FAFC" : "#fff",
-                borderLeft: "3px solid " + p.c,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 15, fontWeight: 800 }}>Table {t.num}</span>
-                <span style={{ width: 10, height: 10, borderRadius: "50%", background: p.c, display: "inline-block" }} />
-              </div>
-              <div style={{ fontSize: 20, fontWeight: 800, marginTop: 10, letterSpacing: "-0.01em" }}>
-                {t.amount}
-              </div>
+      {loading ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: S[3] + 2 }}>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} h={196} radius={R.md} />
+          ))}
+        </div>
+      ) : tables.length === 0 ? (
+        <EmptyState
+          title="No tables yet"
+          body="Create your first table to generate a QR code and start taking scan-to-pay orders."
+          action={
+            <button className="qp-cta-lift" onClick={addTable} disabled={busy} style={btn("primary", { size: "sm", disabled: busy })}>
+              {busy && <Spinner size={14} color="#fff" />}
+              Create your first table
+            </button>
+          }
+        />
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: S[3] + 2 }}>
+          {tables.map((t) => {
+            const p = STATUS_PALETTE[t.status];
+            return (
               <div
+                key={t.num}
                 style={{
-                  display: "inline-block",
-                  marginTop: 8,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  padding: "3px 8px",
-                  borderRadius: 6,
-                  color: p.c,
-                  background: p.bg,
+                  ...card({ pad: S[4], radius: R.md }),
+                  background: t.status === "open" ? C.surfaceAlt : C.surface,
+                  borderLeft: "3px solid " + p.c,
                 }}
               >
-                {p.label}
-              </div>
-              {t.status === "partial" && (
-                <div style={{ fontSize: 11.5, fontWeight: 600, color: "#64748B", marginTop: 7 }}>
-                  Paid {fmt(t.paid)} of {fmt(billDue(t.items))}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ ...T.h3, ...NUM }}>Table {t.num}</span>
+                  <span style={{ width: 10, height: 10, borderRadius: "50%", background: p.c, display: "inline-block" }} />
                 </div>
-              )}
-              <button
-                onClick={() => setOrderFor(t)}
-                style={{
-                  width: "100%",
-                  marginTop: 14,
-                  padding: "8px 0",
-                  borderRadius: 9,
-                  fontFamily: "inherit",
-                  fontSize: 12.5,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  background: "#EEF2FF",
-                  color: BRAND,
-                  border: "1.5px solid #DBE3F4",
-                }}
-              >
-                {t.items?.length ? `Order · ${t.items.length}` : "Add order"}
-              </button>
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <div style={{ ...T.h2, marginTop: S[3] - 2, ...NUM }}>
+                  {t.amount}
+                </div>
+                <div style={{ marginTop: S[2], ...badge(STATUS_BADGE[t.status]) }}>
+                  {p.label}
+                </div>
+                {t.status === "partial" && (
+                  <div style={{ ...T.caption, color: C.muted, marginTop: S[2] - 1, ...NUM }}>
+                    Paid {fmt(t.paid)} of {fmt(billDue(t.items))}
+                  </div>
+                )}
                 <button
-                  onClick={() => setQrFor(t)}
-                  style={{ ...smallBtn, background: BRAND, color: "#fff", border: "none" }}
-                >
-                  QR
-                </button>
-                <button
-                  onClick={() => removeTable(t)}
-                  style={{ ...smallBtn, background: "#fff", color: "#DC2626", border: "1.5px solid #FECACA" }}
-                >
-                  Delete
-                </button>
-              </div>
-              {t.status === "cleared" && (
-                <button
-                  onClick={() => clearTable(t)}
+                  className="qp-cta-lift"
+                  onClick={() => setOrderFor(t)}
                   style={{
                     width: "100%",
-                    marginTop: 8,
+                    marginTop: S[3] + 2,
                     padding: "8px 0",
-                    borderRadius: 9,
+                    borderRadius: R.sm,
                     fontFamily: "inherit",
                     fontSize: 12.5,
                     fontWeight: 700,
                     cursor: "pointer",
-                    background: "#15803D",
-                    color: "#fff",
-                    border: "none",
+                    background: C.brandTint,
+                    color: C.brand,
+                    border: `1.5px solid ${C.border}`,
                   }}
                 >
-                  Clear table
+                  {t.items?.length ? `Order · ${t.items.length}` : "Add order"}
                 </button>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {confirmDel === t.num ? (
+                  <div style={{ display: "flex", gap: S[2], marginTop: S[2] }}>
+                    <button
+                      className="qp-cta-lift"
+                      onClick={() => removeTable(t)}
+                      style={{ ...btn("danger", { size: "sm" }), flex: 1 }}
+                    >
+                      Confirm?
+                    </button>
+                    <button
+                      className="qp-cta-lift"
+                      onClick={() => setConfirmDel(null)}
+                      style={{ ...btn("secondary", { size: "sm" }), flex: 1 }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", gap: S[2], marginTop: S[2] }}>
+                    <button
+                      className="qp-cta-lift"
+                      onClick={() => setQrFor(t)}
+                      style={{ ...btn("primary", { size: "sm" }), flex: 1 }}
+                    >
+                      QR
+                    </button>
+                    <button
+                      className="qp-cta-lift"
+                      onClick={() => setConfirmDel(t.num)}
+                      style={{ ...btn("danger", { size: "sm" }), flex: 1 }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                )}
+                {t.status === "cleared" && (
+                  <button
+                    className="qp-cta-lift"
+                    onClick={() => clearTable(t)}
+                    style={{ ...btn("success", { size: "sm", full: true }), marginTop: S[2] }}
+                  >
+                    Clear table
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {qrFor && (
         <QrModal

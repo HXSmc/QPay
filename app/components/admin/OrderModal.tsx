@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BRAND, fmt } from "../../lib/data";
+import { fmt } from "../../lib/data";
 import { setTableItems } from "../../lib/api";
 import type { LiveTable, OrderItem } from "../../lib/types";
+import { C, R, S, T, NUM, btn, field as fieldStyle } from "../../lib/theme";
+import { Alert, Spinner } from "../ui/Primitives";
 
 export function OrderModal({
   table,
@@ -35,12 +37,24 @@ export function OrderModal({
 
   const subtotal = items.reduce((a, it) => a + it.price, 0);
 
+  // Inline validation for the add-line row.
+  const trimmed = name.trim();
+  const u = Number(unit);
+  const priceOk = unit.trim() === "" || (Number.isFinite(u) && u >= 0);
+  const canAdd = trimmed.length > 0 && qty >= 1 && priceOk;
+  const touched = trimmed.length > 0 || unit.trim() !== "";
+  const validationMsg = !trimmed
+    ? "Enter an item name."
+    : !priceOk
+      ? "Price can't be negative."
+      : "";
+
   const addLine = () => {
-    const u = Number(unit);
-    if (!name.trim() || qty < 1 || !(u >= 0)) return;
+    const v = Number(unit);
+    if (!name.trim() || qty < 1 || !(v >= 0)) return;
     setItems((prev) => [
       ...prev,
-      { name: name.trim(), qty, price: +(u * qty).toFixed(2) },
+      { name: name.trim(), qty, price: +(v * qty).toFixed(2) },
     ]);
     setName("");
     setQty(1);
@@ -65,23 +79,19 @@ export function OrderModal({
   };
 
   const field = {
+    ...fieldStyle(),
     padding: "10px 12px",
-    border: "1.5px solid #E2E8F0",
-    borderRadius: 10,
-    fontFamily: "inherit",
+    borderRadius: R.sm,
     fontSize: 14,
-    outline: "none",
-    color: "#0B1221",
-    background: "#fff",
   } as const;
 
   const stepBtn = {
     width: 30,
     height: 30,
-    borderRadius: 8,
-    border: "1.5px solid #E2E8F0",
-    background: "#fff",
-    color: BRAND,
+    borderRadius: R.xs,
+    border: `1.5px solid ${C.border}`,
+    background: C.surface,
+    color: C.brand,
     fontFamily: "inherit",
     fontSize: 17,
     fontWeight: 700,
@@ -100,7 +110,7 @@ export function OrderModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        padding: S[4],
       }}
     >
       <div
@@ -112,8 +122,8 @@ export function OrderModal({
           width: "100%",
           maxWidth: 440,
           maxHeight: "88vh",
-          background: "#fff",
-          borderRadius: 22,
+          background: C.surface,
+          borderRadius: R.xl,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -125,11 +135,11 @@ export function OrderModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "18px 20px",
-            borderBottom: "1px solid #E2E8F0",
+            padding: `${S[4] + 2}px ${S[5] - 4}px`,
+            borderBottom: `1px solid ${C.border}`,
           }}
         >
-          <h3 id="order-title" style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>
+          <h3 id="order-title" style={{ ...T.h3, fontSize: 17, margin: 0 }}>
             Table {table.num} order
           </h3>
           <button
@@ -137,12 +147,12 @@ export function OrderModal({
             aria-label="Close"
             style={{
               border: "none",
-              background: "#F1F5F9",
-              borderRadius: 9,
+              background: C.canvas,
+              borderRadius: R.xs,
               width: 32,
               height: 32,
               cursor: "pointer",
-              color: "#475569",
+              color: C.muted,
               fontSize: 18,
               lineHeight: 1,
             }}
@@ -151,19 +161,18 @@ export function OrderModal({
           </button>
         </div>
 
-        <div style={{ padding: 20, overflow: "auto" }}>
+        <div style={{ padding: S[5] - 4, overflow: "auto" }}>
           {/* current lines */}
           {items.length === 0 ? (
             <div
               style={{
-                padding: "20px 0",
+                padding: `${S[5] - 4}px 0`,
                 textAlign: "center",
-                color: "#64748B",
-                fontSize: 13.5,
-                fontWeight: 600,
+                color: C.muted,
+                ...T.caption,
               }}
             >
-              No items yet — add the first line below.
+              No items yet. Add the first line below.
             </div>
           ) : (
             items.map((it, i) => (
@@ -173,32 +182,33 @@ export function OrderModal({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  padding: "10px 0",
-                  borderBottom: "1px solid #F1F5F9",
+                  padding: `${S[3] - 2}px 0`,
+                  borderBottom: `1px solid ${C.surfaceAlt}`,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: S[3] - 2 }}>
                   <span
                     style={{
                       minWidth: 24,
                       height: 24,
                       padding: "0 6px",
-                      borderRadius: 7,
-                      background: "#EEF2FF",
-                      color: BRAND,
-                      fontSize: 12.5,
+                      borderRadius: R.xs - 1,
+                      background: C.brandTint,
+                      color: C.brand,
+                      ...T.caption,
                       fontWeight: 700,
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
+                      ...NUM,
                     }}
                   >
                     {it.qty}
                   </span>
-                  <span style={{ fontSize: 14.5, fontWeight: 600 }}>{it.name}</span>
+                  <span style={{ ...T.body, fontWeight: 600 }}>{it.name}</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: S[3] }}>
+                  <span style={{ ...T.body, fontWeight: 700, ...NUM }}>
                     {fmt(it.price)}
                   </span>
                   <button
@@ -208,7 +218,7 @@ export function OrderModal({
                       border: "none",
                       background: "#FEF2F2",
                       color: "#DC2626",
-                      borderRadius: 8,
+                      borderRadius: R.xs,
                       width: 26,
                       height: 26,
                       cursor: "pointer",
@@ -228,26 +238,26 @@ export function OrderModal({
               style={{
                 display: "flex",
                 justifyContent: "space-between",
-                padding: "12px 0 4px",
-                fontSize: 14.5,
+                padding: `${S[3]}px 0 ${S[1]}px`,
+                ...T.body,
                 fontWeight: 800,
               }}
             >
               <span>Subtotal</span>
-              <span style={{ color: BRAND }}>{fmt(subtotal)}</span>
+              <span style={{ color: C.brand, ...NUM }}>{fmt(subtotal)}</span>
             </div>
           )}
 
           {/* add line */}
           <div
             style={{
-              marginTop: 14,
-              padding: 14,
-              background: "#F8FAFC",
-              borderRadius: 14,
+              marginTop: S[4] - 2,
+              padding: S[4] - 2,
+              background: C.surfaceAlt,
+              borderRadius: R.md,
             }}
           >
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: "#64748B", marginBottom: 10 }}>
+            <div style={{ ...T.caption, fontWeight: 700, color: C.muted, marginBottom: S[3] - 2 }}>
               Add item
             </div>
             <input
@@ -257,22 +267,22 @@ export function OrderModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addLine()}
-              style={{ ...field, width: "100%", marginBottom: 10 }}
+              style={{ ...field, width: "100%", marginBottom: S[3] - 2 }}
             />
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: S[3] - 2 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: S[2] }}>
                 <button onClick={() => setQty((q) => Math.max(1, q - 1))} aria-label="Decrease quantity" style={stepBtn}>
                   −
                 </button>
-                <span aria-label="Quantity" style={{ fontSize: 15, fontWeight: 800, minWidth: 18, textAlign: "center" }}>
+                <span aria-label="Quantity" style={{ ...T.body, fontWeight: 800, minWidth: 18, textAlign: "center", ...NUM }}>
                   {qty}
                 </span>
                 <button onClick={() => setQty((q) => q + 1)} aria-label="Increase quantity" style={stepBtn}>
                   +
                 </button>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#64748B" }}>$</span>
+              <div style={{ display: "flex", alignItems: "center", gap: S[1] + 2, flex: 1 }}>
+                <span style={{ ...T.body, fontWeight: 700, color: C.muted }}>$</span>
                 <input
                   type="number"
                   min="0"
@@ -287,59 +297,40 @@ export function OrderModal({
               </div>
               <button
                 onClick={addLine}
-                style={{
-                  padding: "10px 16px",
-                  background: BRAND,
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 10,
-                  fontFamily: "inherit",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
+                disabled={!canAdd}
+                style={{ ...btn("primary", { disabled: !canAdd }), padding: "10px 16px", fontSize: 14 }}
               >
                 Add
               </button>
             </div>
+            {touched && !canAdd && (
+              <div style={{ marginTop: S[3] - 2 }}>
+                <Alert kind="warn">{validationMsg}</Alert>
+              </div>
+            )}
           </div>
         </div>
 
         {/* footer */}
         {err && (
-          <div
-            style={{
-              padding: "10px 20px 0",
-              color: "#DC2626",
-              fontSize: 13,
-              fontWeight: 600,
-            }}
-          >
-            {err}
+          <div style={{ padding: `${S[3] - 2}px ${S[5] - 4}px 0` }}>
+            <Alert kind="danger">{err}</Alert>
           </div>
         )}
         <div
           style={{
             display: "flex",
-            gap: 10,
-            padding: "16px 20px",
-            borderTop: "1px solid #E2E8F0",
+            gap: S[2] + 2,
+            padding: `${S[4]}px ${S[5] - 4}px`,
+            borderTop: `1px solid ${C.border}`,
           }}
         >
           <button
             onClick={() => save([])}
             disabled={busy || (table.items?.length ?? 0) === 0}
             style={{
+              ...btn("danger", { disabled: busy || (table.items?.length ?? 0) === 0 }),
               padding: "12px 16px",
-              background: "#fff",
-              color: "#DC2626",
-              border: "1.5px solid #FECACA",
-              borderRadius: 12,
-              fontFamily: "inherit",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: busy || (table.items?.length ?? 0) === 0 ? "default" : "pointer",
-              opacity: (table.items?.length ?? 0) === 0 ? 0.5 : 1,
             }}
           >
             Clear table
@@ -348,20 +339,18 @@ export function OrderModal({
             onClick={() => save(items)}
             disabled={busy}
             style={{
+              ...btn("primary", { full: true, disabled: busy }),
               flex: 1,
               padding: "12px 16px",
-              background: BRAND,
-              color: "#fff",
-              border: "none",
-              borderRadius: 12,
-              fontFamily: "inherit",
-              fontSize: 14.5,
-              fontWeight: 700,
-              cursor: busy ? "default" : "pointer",
-              opacity: busy ? 0.7 : 1,
             }}
           >
-            {busy ? "Saving…" : "Save order"}
+            {busy ? (
+              <>
+                <Spinner size={15} color="#fff" /> Saving
+              </>
+            ) : (
+              "Save order"
+            )}
           </button>
         </div>
       </div>

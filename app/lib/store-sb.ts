@@ -16,6 +16,7 @@ import { SUPER_EMAIL, SUPER_PASSWORD } from "./constants";
 import { sb } from "./supabase";
 import {
   applyPayment,
+  buildOrderLines,
   clampHold,
   coerceSettings,
   mergeSettings,
@@ -30,8 +31,12 @@ import type {
   AdminUser,
   Lead,
   LiveTable,
+  MenuItem,
   MenuMeta,
+  Order,
   OrderItem,
+  OrderLine,
+  OrderStatus,
   RestaurantSettings,
   TableStatus,
   Transaction,
@@ -750,4 +755,232 @@ export async function listLeads(): Promise<Lead[]> {
     restaurant: r.restaurant,
     ts: r.created_at,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Menu items (structured, orderable) + customer orders — optional feature
+// ---------------------------------------------------------------------------
+
+type MenuItemRow = {
+  id: string;
+  owner: string;
+  name: string;
+  price: number | string;
+  category: string | null;
+  description: string | null;
+  available: boolean;
+  sort_order: number | null;
+  archived: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+function rowToMenuItem(r: MenuItemRow): MenuItem {
+  return {
+    id: r.id,
+    owner: r.owner,
+    name: r.name,
+    price: Number(r.price) || 0,
+    category: r.category ?? "",
+    description: r.description ?? "",
+    available: !!r.available,
+    sortOrder: Number(r.sort_order) || 0,
+    archived: !!r.archived,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  };
+}
+
+type OrderRow = {
+  id: string;
+  owner: string;
+  table_id: string;
+  table_num: number | string;
+  status: OrderStatus;
+  lines: OrderLine[] | null;
+  total: number | string | null;
+  created_at: string;
+};
+
+function rowToOrder(r: OrderRow): Order {
+  const lines = Array.isArray(r.lines) ? r.lines : [];
+  return {
+    id: r.id,
+    owner: r.owner,
+    tableId: r.table_id,
+    tableNum: String(r.table_num),
+    status: r.status,
+    lines: lines.map((l, i) => ({
+      id: l.id ?? String(i),
+      menuItemId: l.menuItemId ?? null,
+      name: l.name,
+      price: Number(l.price) || 0,
+      qty: Number(l.qty) || 0,
+      comment: l.comment ?? "",
+    })),
+    total: Number(r.total) || 0,
+    createdAt: r.created_at,
+  };
+}
+
+/** Admin: all of an owner's non-archived items, in menu order. */
+export async function listMenuItems(owner: string): Promise<MenuItem[]> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("menu_items")
+    .select("*")
+    .eq("owner", owner)
+    .eq("archived", false)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`store: menu items read failed — ${error.message}`);
+  return (data ?? []).map((r) => rowToMenuItem(r as MenuItemRow));
+}
+
+export async function createMenuItem(
+  owner: string,
+  input: { name: string; price: number; category?: string; description?: string },
+): Promise<MenuItem> {
+  const client = await sb();
+  // Append after the current max sort_order.
+  const { data: maxRow } = await client
+    .from("menu_items")
+    .select("sort_order")
+    .eq("owner", owner)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const sort = (Number(maxRow?.sort_order) || 0) + 1;
+  const { data, error } = await client
+    .from("menu_items")
+    .insert({
+      owner,
+      name: input.name,
+      price: input.price,
+      category: input.category ?? "",
+      description: input.description ?? "",
+      sort_order: sort,
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(`store: menu item create failed — ${error.message}`);
+  return rowToMenuItem(data as MenuItemRow);
+}
+
+export async function updateMenuItem(
+  owner: string,
+  id: string,
+  patch: Partial<Pick<MenuItem, "name" | "price" | "category" | "description" | "available" | "sortOrder">>,
+): Promise<MenuItem | null> {
+  const client = await sb();
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (patch.name !== undefined) row.name = patch.name;
+  if (patch.price !== undefined) row.price = patch.price;
+  if (patch.category !== undefined) row.category = patch.category;
+  if (patch.description !== undefined) row.description = patch.description;
+  if (patch.available !== undefined) row.available = patch.available;
+  if (patch.sortOrder !== undefined) row.sort_order = patch.sortOrder;
+  const { data, error } = await client
+    .from("menu_items")
+    .update(row)
+    .eq("id", id)
+    .eq("owner", owner)
+    .select("*")
+    .maybeSingle();
+  if (error) throw new Error(`store: menu item update failed — ${error.message}`);
+  return data ? rowToMenuItem(data as MenuItemRow) : null;
+}
+
+export async function deleteMenuItem(owner: string, id: string): Promise<boolean> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("menu_items")
+    .delete()
+    .eq("id", id)
+    .eq("owner", owner)
+    .select("id");
+  if (error) throw new Error(`store: menu item delete failed — ${error.message}`);
+  return !!data && data.length > 0;
+}
+
+/** Customer: available, non-archived items for the table behind `token`. */
+export async function getPublicMenuItems(
+  token: string,
+): Promise<MenuItem[]> {
+  const t = await rawTableBy([["token", token]]);
+  if (!t) return [];
+  const client = await sb();
+  const { data, error } = await client
+    .from("menu_items")
+    .select("*")
+    .eq("owner", t.owner)
+    .eq("available", true)
+    .eq("archived", false)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(`store: public items read failed — ${error.message}`);
+  return (data ?? []).map((r) => rowToMenuItem(r as MenuItemRow));
+}
+
+/** Customer: place an order against the table behind `token`. Prices snapshotted
+ *  server-side from live items; the client can only pick id/qty/comment. */
+export async function placeOrder(
+  token: string,
+  requested: { menuItemId?: string; qty?: number; comment?: string }[],
+): Promise<Order | null> {
+  const t = await rawTableBy([["token", token]]);
+  if (!t) return null;
+  const available = await getPublicMenuItems(token);
+  const { lines, total } = buildOrderLines(available, requested);
+  if (lines.length === 0) return null;
+  const client = await sb();
+  const withIds = lines.map((l, i) => ({ id: `${i}`, ...l }));
+  const { data, error } = await client
+    .from("orders")
+    .insert({
+      owner: t.owner,
+      table_id: t.id,
+      table_num: Number(t.num),
+      status: "placed",
+      lines: withIds,
+      total,
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(`store: order create failed — ${error.message}`);
+  return rowToOrder(data as OrderRow);
+}
+
+export async function listOrders(
+  owner: string,
+  opts: { activeOnly?: boolean } = {},
+): Promise<Order[]> {
+  const client = await sb();
+  let q = client
+    .from("orders")
+    .select("*")
+    .eq("owner", owner)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (opts.activeOnly) q = q.in("status", ["placed", "preparing"]);
+  const { data, error } = await q;
+  if (error) throw new Error(`store: orders read failed — ${error.message}`);
+  return (data ?? []).map((r) => rowToOrder(r as OrderRow));
+}
+
+export async function updateOrderStatus(
+  owner: string,
+  id: string,
+  status: OrderStatus,
+): Promise<Order | null> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("orders")
+    .update({ status })
+    .eq("id", id)
+    .eq("owner", owner)
+    .select("*")
+    .maybeSingle();
+  if (error) throw new Error(`store: order status update failed — ${error.message}`);
+  return data ? rowToOrder(data as OrderRow) : null;
 }

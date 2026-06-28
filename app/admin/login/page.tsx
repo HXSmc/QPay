@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { BRAND } from "../../lib/data";
 import { login } from "../../lib/api";
+import { C, R, S, T, SHADOW, btn, field } from "../../lib/theme";
+import { Alert, Spinner } from "../../components/ui/Primitives";
+import { Wordmark } from "../../components/site/Logo";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [from, setFrom] = useState("");
@@ -37,17 +40,7 @@ export default function LoginPage() {
     }
   };
 
-  const field = {
-    width: "100%",
-    padding: "12px 14px",
-    border: "1.5px solid #E2E8F0",
-    borderRadius: 12,
-    fontFamily: "inherit",
-    fontSize: 15,
-    outline: "none",
-    color: "#0B1221",
-    background: "#fff",
-  } as const;
+  const labelStyle = { ...T.label, color: C.muted, display: "block" } as const;
 
   return (
     <div
@@ -57,114 +50,129 @@ export default function LoginPage() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        padding: S[4],
         fontFamily: "inherit",
-        color: "#0B1221",
+        color: C.text,
       }}
     >
       <div style={{ width: "100%", maxWidth: 400 }}>
         <Link
           href="/"
+          aria-label="QPay home"
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: 10,
-            marginBottom: 22,
+            marginBottom: S[5],
             textDecoration: "none",
-            color: "#0B1221",
           }}
         >
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 10,
-              background: BRAND,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(46,91,255,0.35)",
-            }}
-          >
-            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 6 9 17l-4-4" />
-            </svg>
-          </div>
-          <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>QPay</span>
+          <Wordmark size={22} markSize={34} color={C.text} />
         </Link>
 
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 22,
-            padding: 28,
-            border: "1px solid #E2E8F0",
-            boxShadow: "0 24px 60px rgba(11,18,33,0.12)",
-          }}
-        >
-          <h1 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 4px" }}>Manager sign in</h1>
-          <p style={{ fontSize: 14, color: "#475569", margin: "0 0 20px" }}>
+        <div style={{ ...cardBox }}>
+          <h1 style={{ ...T.h2, margin: `0 0 ${S[1]}px` }}>Manager sign in</h1>
+          <p style={{ ...T.body, color: C.muted, margin: `0 0 ${S[5]}px` }}>
             Access the QPay admin dashboard.
           </p>
 
-          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <input
-              type="email"
-              required
-              aria-label="Email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={field}
-            />
-            <input
-              type="password"
-              required
-              aria-label="Password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={field}
-            />
-            {error && (
-              <div style={{ fontSize: 13, fontWeight: 600, color: "#DC2626" }}>{error}</div>
-            )}
+          <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: S[4] }}>
+            {error && <Alert kind="danger">{error}</Alert>}
+
+            <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>
+              <label htmlFor="login-email" style={labelStyle}>
+                Email
+              </label>
+              <input
+                id="login-email"
+                type="email"
+                required
+                name="email"
+                autoComplete="email"
+                placeholder="you@restaurant.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={field()}
+              />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>
+              <label htmlFor="login-password" style={labelStyle}>
+                Password
+              </label>
+              <div style={{ position: "relative" }}>
+                <input
+                  id="login-password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  name="password"
+                  autoComplete="current-password"
+                  placeholder="Your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={{ ...field(), paddingRight: 46 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  style={{
+                    position: "absolute",
+                    top: "50%",
+                    right: 6,
+                    transform: "translateY(-50%)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 34,
+                    height: 34,
+                    border: "none",
+                    background: "transparent",
+                    color: C.muted,
+                    cursor: "pointer",
+                    borderRadius: R.xs,
+                  }}
+                >
+                  {showPassword ? (
+                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9.88 9.88a3 3 0 0 0 4.24 4.24" />
+                      <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                      <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                      <line x1="2" x2="22" y1="2" y2="22" />
+                    </svg>
+                  ) : (
+                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={busy}
-              style={{
-                width: "100%",
-                marginTop: 4,
-                padding: 14,
-                background: BRAND,
-                color: "#fff",
-                border: "none",
-                borderRadius: 13,
-                fontFamily: "inherit",
-                fontSize: 16,
-                fontWeight: 800,
-                cursor: busy ? "default" : "pointer",
-                opacity: busy ? 0.7 : 1,
-                boxShadow: "0 10px 24px rgba(46,91,255,0.3)",
-              }}
+              className="qp-cta"
+              style={{ ...btn("primary", { full: true, disabled: busy }), marginTop: S[1], fontSize: 16, padding: 14 }}
             >
-              {busy ? "Signing in…" : "Sign in"}
+              {busy && <Spinner size={16} color="#fff" />}
+              {busy ? "Signing in." : "Sign in"}
             </button>
           </form>
 
           <div
             style={{
-              marginTop: 18,
+              marginTop: S[5],
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              fontSize: 12.5,
-              color: "#64748B",
-              fontWeight: 600,
+              gap: S[2],
+              ...T.caption,
+              color: C.muted,
             }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
               <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             </svg>
@@ -175,3 +183,11 @@ export default function LoginPage() {
     </div>
   );
 }
+
+const cardBox: React.CSSProperties = {
+  background: C.surface,
+  borderRadius: R.xl,
+  padding: S[6],
+  border: `1px solid ${C.border}`,
+  boxShadow: SHADOW.e3,
+};

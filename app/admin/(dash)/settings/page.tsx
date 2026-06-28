@@ -1,33 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BRAND } from "../../../lib/data";
 import { getMe, getSettings, saveSettings } from "../../../lib/api";
+import { C, R, S, T, STATUS, card, field } from "../../../lib/theme";
+import { Alert, Spinner, Toast } from "../../../components/ui/Primitives";
 
 function Toggle({
   on,
-  onClick,
+  onToggle,
   label,
 }: {
   on: boolean;
-  onClick: () => void;
+  onToggle: () => void;
   label: string;
 }) {
   return (
-    <button
-      onClick={onClick}
+    <span
       role="switch"
       aria-checked={on}
       aria-label={label}
+      tabIndex={0}
+      onClick={onToggle}
+      onKeyDown={(e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
       style={{
+        display: "inline-block",
         width: 46,
         height: 26,
-        borderRadius: 999,
-        border: "none",
+        borderRadius: R.pill,
         cursor: "pointer",
-        background: on ? BRAND : "#CBD5E1",
+        background: on ? C.brand : C.borderStrong,
         position: "relative",
         transition: "background .15s",
+        flexShrink: 0,
+        outlineOffset: 2,
       }}
     >
       <span
@@ -43,7 +53,7 @@ function Toggle({
           boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
         }}
       />
-    </button>
+    </span>
   );
 }
 
@@ -56,6 +66,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [taxError, setTaxError] = useState("");
 
   useEffect(() => {
     getSettings()
@@ -79,6 +90,12 @@ export default function SettingsPage() {
   }, []);
 
   const save = async () => {
+    const rate = Number(taxRate);
+    if (taxRate.trim() === "" || Number.isNaN(rate) || rate < 0 || rate > 30) {
+      setTaxError("Tax rate must be a number between 0 and 30.");
+      return;
+    }
+    setTaxError("");
     setSaving(true);
     setError("");
     try {
@@ -89,7 +106,6 @@ export default function SettingsPage() {
         tipPrompts,
       });
       setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save. Please retry.");
     } finally {
@@ -97,67 +113,85 @@ export default function SettingsPage() {
     }
   };
 
-  const field = {
-    width: "100%",
-    padding: "11px 13px",
-    border: "1.5px solid #E2E8F0",
-    borderRadius: 11,
-    fontFamily: "inherit",
-    fontSize: 14.5,
-    outline: "none",
-    color: "#0B1221",
-    background: "#fff",
-  } as const;
-
-  const row = {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "16px 0",
-    borderTop: "1px solid #F1F5F9",
-  } as const;
+  const labelStyle = { ...T.label, color: C.muted, display: "block", marginBottom: S[2] } as const;
 
   return (
-    <div className="qp-page" style={{ padding: "30px 36px", maxWidth: 640 }}>
-      <h1 style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
-        Settings
-      </h1>
-      <p style={{ fontSize: 14, color: "#64748B", margin: "5px 0 24px", fontWeight: 600 }}>
+    <div className="qp-page" style={{ padding: `${S[6]}px ${S[6]}px`, maxWidth: 640 }}>
+      <h1 style={{ ...T.h1, margin: 0 }}>Settings</h1>
+      <p style={{ ...T.body, color: C.muted, margin: `${S[1]}px 0 ${S[5]}px` }}>
         Restaurant profile and payment preferences.
       </p>
 
-      <div style={{ background: "#fff", border: "1px solid #E2E8F0", borderRadius: 18, padding: 24 }}>
-        <label style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>Restaurant name</label>
-        <input value={restaurant} onChange={(e) => setRestaurant(e.target.value)} style={{ ...field, margin: "8px 0 16px" }} />
+      <div style={card({ pad: S[5] })}>
+        <div style={{ display: "flex", flexDirection: "column", gap: S[4] }}>
+          <div>
+            <label htmlFor="set-restaurant" style={labelStyle}>
+              Restaurant name
+            </label>
+            <input
+              id="set-restaurant"
+              value={restaurant}
+              onChange={(e) => setRestaurant(e.target.value)}
+              style={field()}
+            />
+          </div>
 
-        <label style={{ fontSize: 13, fontWeight: 700, color: "#475569" }}>Tax rate (%)</label>
-        <input value={taxRate} onChange={(e) => setTaxRate(e.target.value)} inputMode="decimal" style={{ ...field, margin: "8px 0 4px" }} />
+          <div>
+            <label htmlFor="set-taxrate" style={labelStyle}>
+              Tax rate (%)
+            </label>
+            <input
+              id="set-taxrate"
+              value={taxRate}
+              onChange={(e) => {
+                setTaxRate(e.target.value);
+                if (taxError) setTaxError("");
+              }}
+              inputMode="decimal"
+              aria-invalid={!!taxError}
+              style={{
+                ...field(),
+                borderColor: taxError ? STATUS.danger.border : C.border,
+              }}
+            />
+          </div>
+
+          {taxError && <Alert kind="danger">{taxError}</Alert>}
+        </div>
 
         <div style={row}>
           <div>
             <div style={{ fontSize: 14.5, fontWeight: 700 }}>Automatic receipts</div>
-            <div style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>Email/SMS receipt after each payment</div>
+            <div style={{ ...T.caption, color: C.muted, fontWeight: 500 }}>
+              Email or SMS receipt after each payment
+            </div>
           </div>
-          <Toggle on={autoReceipts} onClick={() => setAutoReceipts((v) => !v)} label="Automatic receipts" />
+          <Toggle on={autoReceipts} onToggle={() => setAutoReceipts((v) => !v)} label="Automatic receipts" />
         </div>
         <div style={row}>
           <div>
             <div style={{ fontSize: 14.5, fontWeight: 700 }}>Tip prompts</div>
-            <div style={{ fontSize: 13, color: "#64748B", fontWeight: 500 }}>Show tip suggestions at checkout</div>
+            <div style={{ ...T.caption, color: C.muted, fontWeight: 500 }}>
+              Show tip suggestions at checkout
+            </div>
           </div>
-          <Toggle on={tipPrompts} onClick={() => setTipPrompts((v) => !v)} label="Tip prompts" />
+          <Toggle on={tipPrompts} onToggle={() => setTipPrompts((v) => !v)} label="Tip prompts" />
         </div>
 
         <button
           onClick={save}
           disabled={saving || loading}
+          className="qp-cta"
           style={{
-            marginTop: 22,
+            marginTop: S[5],
+            display: "inline-flex",
+            alignItems: "center",
+            gap: S[2],
             padding: "12px 22px",
-            background: BRAND,
+            background: C.brand,
             color: "#fff",
             border: "none",
-            borderRadius: 12,
+            borderRadius: R.md,
             fontFamily: "inherit",
             fontSize: 14.5,
             fontWeight: 700,
@@ -165,14 +199,24 @@ export default function SettingsPage() {
             opacity: saving || loading ? 0.7 : 1,
           }}
         >
-          {saving ? "Saving…" : saved ? "Saved ✓" : "Save changes"}
+          {saving && <Spinner size={15} color="#fff" />}
+          {saving ? "Saving." : "Save changes"}
         </button>
-        {error && (
-          <div style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#DC2626" }}>
-            {error}
-          </div>
-        )}
+
+        {error && <div style={{ marginTop: S[3] }}><Alert kind="danger">{error}</Alert></div>}
       </div>
+
+      {saved && (
+        <Toast message="Settings saved." kind="success" onDone={() => setSaved(false)} />
+      )}
     </div>
   );
 }
+
+const row: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: `${S[4]}px 0`,
+  borderTop: `1px solid ${C.canvas}`,
+};

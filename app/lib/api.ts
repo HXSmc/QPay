@@ -1,7 +1,10 @@
 import type {
   LiveTable,
+  MenuItem,
   MenuMeta,
+  Order,
   OrderItem,
+  OrderStatus,
   RestaurantSettings,
   Role,
   TableStatus,
@@ -178,6 +181,95 @@ export async function uploadMenu(file: File): Promise<MenuMeta> {
 export async function deleteMenu(): Promise<void> {
   const res = await fetch("/api/menu", { method: "DELETE" });
   if (!res.ok) throw new Error(`${res.status}`);
+}
+
+// --- Structured menu items + ordering (optional feature) ---
+
+/** Admin: list own orderable items. */
+export async function listMenuItems(): Promise<MenuItem[]> {
+  return json(await fetch("/api/menu/items", { cache: "no-store" }));
+}
+
+/** Customer: list orderable items for a table (token-gated). */
+export async function getPublicMenuItems(
+  num: string,
+  token: string,
+): Promise<MenuItem[]> {
+  return json(
+    await fetch(
+      `/api/menu/items?num=${encodeURIComponent(num)}&t=${encodeURIComponent(token)}`,
+      { cache: "no-store" },
+    ),
+  );
+}
+
+export async function createMenuItem(input: {
+  name: string;
+  price: number;
+  category?: string;
+  description?: string;
+}): Promise<MenuItem> {
+  return json(
+    await fetch("/api/menu/items", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    }),
+  );
+}
+
+export async function updateMenuItem(
+  id: string,
+  patch: Partial<Pick<MenuItem, "name" | "price" | "category" | "description" | "available">>,
+): Promise<MenuItem> {
+  return json(
+    await fetch(`/api/menu/items/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    }),
+  );
+}
+
+export async function deleteMenuItem(id: string): Promise<void> {
+  const res = await fetch(`/api/menu/items/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`${res.status}`);
+}
+
+/** Customer: place an order (token-gated). Returns the created order (no owner). */
+export async function placeOrder(
+  token: string,
+  lines: { menuItemId: string; qty: number; comment: string }[],
+): Promise<Omit<Order, "owner">> {
+  return json(
+    await fetch("/api/orders", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token, lines }),
+    }),
+  );
+}
+
+/** Admin: list own orders (optionally only active = placed/preparing). */
+export async function listOrders(activeOnly = false): Promise<Order[]> {
+  return json(
+    await fetch(`/api/orders${activeOnly ? "?active=1" : ""}`, {
+      cache: "no-store",
+    }),
+  );
+}
+
+export async function setOrderStatus(
+  id: string,
+  status: OrderStatus,
+): Promise<Order> {
+  return json(
+    await fetch(`/api/orders/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ status }),
+    }),
+  );
 }
 
 /** Sign in. Returns the role on success, or null on bad credentials. */

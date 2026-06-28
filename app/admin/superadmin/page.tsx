@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BRAND } from "../../lib/data";
 import {
   createAdmin,
   deleteAdmin,
@@ -14,51 +13,15 @@ import {
   type AdminAccount,
   type Me,
 } from "../../lib/api";
-
-const BADGE_COLORS: Record<string, { bg: string; fg: string }> = {
-  blue: { bg: "#DBEAFE", fg: "#1D4ED8" },
-  slate: { bg: "#F1F5F9", fg: "#475569" },
-  green: { bg: "#DCFCE7", fg: "#15803D" },
-  red: { bg: "#FEE2E2", fg: "#991B1B" },
-};
-
-function badge(tone: keyof typeof BADGE_COLORS | string): React.CSSProperties {
-  const c = BADGE_COLORS[tone] ?? BADGE_COLORS.slate;
-  return {
-    fontSize: 11,
-    fontWeight: 800,
-    letterSpacing: "0.02em",
-    textTransform: "uppercase",
-    padding: "2px 8px",
-    borderRadius: 999,
-    background: c.bg,
-    color: c.fg,
-  };
-}
-
-function rowBtn(
-  fg: string,
-  border: string,
-  danger = false,
-): React.CSSProperties {
-  return {
-    padding: "8px 14px",
-    background: danger ? "#fff" : "#fff",
-    color: fg,
-    border: `1.5px solid ${border}`,
-    borderRadius: 10,
-    fontFamily: "inherit",
-    fontSize: 13,
-    fontWeight: 700,
-    cursor: "pointer",
-    whiteSpace: "nowrap",
-  };
-}
+import { C, R, S, T, STATUS, btn, card, field, badge } from "../../lib/theme";
+import { Alert, EmptyState, Skeleton, Spinner } from "../../components/ui/Primitives";
+import { LogoMark } from "../../components/site/Logo";
 
 export default function SuperadminPage() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
   const [admins, setAdmins] = useState<AdminAccount[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -69,11 +32,14 @@ export default function SuperadminPage() {
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  // Two-step inline delete confirm (replaces window.confirm).
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const refresh = () =>
     listAdmins()
       .then(setAdmins)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoaded(true));
 
   useEffect(() => {
     getMe().then(setMe).catch(() => {});
@@ -103,12 +69,7 @@ export default function SuperadminPage() {
   };
 
   const remove = async (a: AdminAccount) => {
-    if (
-      !confirm(
-        `Delete ${a.email}? Their tables and receipts are permanently removed.`,
-      )
-    )
-      return;
+    setConfirmId(null);
     try {
       await deleteAdmin(a.id);
       setNotice(`Deleted ${a.email}.`);
@@ -127,7 +88,7 @@ export default function SuperadminPage() {
       const res = await renewAdmin(a.id);
       if (res.ok) {
         setNotice(
-          `Renewed ${a.email} — now valid until ${new Date(
+          `Renewed ${a.email}. Now valid until ${new Date(
             res.account.expiresAt ?? "",
           ).toLocaleDateString()}.`,
         );
@@ -190,25 +151,12 @@ export default function SuperadminPage() {
     router.refresh();
   };
 
-  const field = {
-    width: "100%",
-    padding: "12px 14px",
-    border: "1.5px solid #E2E8F0",
-    borderRadius: 12,
-    fontFamily: "inherit",
-    fontSize: 15,
-    outline: "none",
-    color: "#0B1221",
-    background: "#fff",
-    boxSizing: "border-box" as const,
-  } as const;
-
   return (
     <div
       style={{
         minHeight: "100vh",
-        background: "#F8FAFC",
-        color: "#0B1221",
+        background: C.surfaceAlt,
+        color: C.text,
         fontFamily: "inherit",
         WebkitFontSmoothing: "antialiased",
       }}
@@ -216,81 +164,44 @@ export default function SuperadminPage() {
       {/* Top bar */}
       <div
         style={{
-          background: "#0B1221",
+          background: C.ink,
           color: "#fff",
-          padding: "18px 28px",
+          padding: `${S[3]}px ${S[6]}px`,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 9,
-              background: BRAND,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: S[3] }}>
+          <LogoMark size={30} onDark />
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800 }}>QPay · Super Admin</div>
-            <div style={{ fontSize: 12, color: "#94A3B8" }}>
-              {me?.email ?? "…"}
-            </div>
+            <div style={{ ...T.h3, color: "#fff" }}>QPay · Super Admin</div>
+            <div style={{ ...T.caption, color: C.faint }}>{me?.email ?? "."}</div>
           </div>
         </div>
         <button
           onClick={signOut}
-          style={{
-            border: "none",
-            background: "#161F33",
-            color: "#fff",
-            borderRadius: 10,
-            padding: "9px 16px",
-            fontFamily: "inherit",
-            fontSize: 13.5,
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
+          className="qp-btn"
+          style={{ ...btn("secondary", { size: "sm" }), background: C.inkSoft, color: "#fff", borderColor: "transparent" }}
         >
           Sign out
         </button>
       </div>
 
-      <div style={{ maxWidth: 880, margin: "0 auto", padding: "32px 24px" }}>
-        <h1 style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.02em", margin: "0 0 4px" }}>
-          Admin accounts
-        </h1>
-        <p style={{ fontSize: 14, color: "#64748B", margin: "0 0 26px", fontWeight: 600 }}>
+      <div style={{ maxWidth: 880, margin: "0 auto", padding: `${S[6]}px ${S[5]}px` }}>
+        <h1 style={{ ...T.h1, margin: `0 0 ${S[1]}px` }}>Admin accounts</h1>
+        <p style={{ ...T.body, color: C.muted, margin: `0 0 ${S[5]}px` }}>
           Issue credentials for restaurant admins. Each admin sees only their own
           tables and receipts.
         </p>
 
         {/* Create form */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #E2E8F0",
-            borderRadius: 18,
-            padding: 22,
-            marginBottom: 26,
-          }}
-        >
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px" }}>
-            Create a new admin
-          </h3>
+        <div style={{ ...card({ pad: S[5] }), marginBottom: S[5] }}>
+          <h2 style={{ ...T.h3, margin: `0 0 ${S[4]}px` }}>Create a new admin</h2>
           <form
             onSubmit={submit}
             className="qp-grid-2"
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 12, alignItems: "start" }}
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: S[3], alignItems: "start" }}
           >
             <input
               type="email"
@@ -299,7 +210,7 @@ export default function SuperadminPage() {
               placeholder="admin@restaurant.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              style={field}
+              style={field()}
             />
             <input
               type="password"
@@ -309,63 +220,60 @@ export default function SuperadminPage() {
               placeholder="Password (min 8 chars)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              style={field}
+              style={field()}
             />
             <button
               type="submit"
               disabled={busy}
-              style={{
-                padding: "12px 20px",
-                background: BRAND,
-                color: "#fff",
-                border: "none",
-                borderRadius: 12,
-                fontFamily: "inherit",
-                fontSize: 15,
-                fontWeight: 800,
-                cursor: busy ? "default" : "pointer",
-                opacity: busy ? 0.7 : 1,
-                whiteSpace: "nowrap",
-              }}
+              className="qp-cta"
+              style={{ ...btn("primary", { disabled: busy }), whiteSpace: "nowrap" }}
             >
-              {busy ? "Creating…" : "Create admin"}
+              {busy && <Spinner size={15} color="#fff" />}
+              {busy ? "Creating." : "Create admin"}
             </button>
           </form>
-          {error && (
-            <div role="alert" style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#B91C1C" }}>
-              {error}
-            </div>
-          )}
-          {notice && (
-            <div role="status" style={{ marginTop: 12, fontSize: 13, fontWeight: 600, color: "#15803D" }}>
-              {notice}
-            </div>
-          )}
+          {error && <div style={{ marginTop: S[3] }}><Alert kind="danger">{error}</Alert></div>}
+          {notice && <div style={{ marginTop: S[3] }}><Alert kind="success">{notice}</Alert></div>}
         </div>
 
         {/* Admin list */}
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #E2E8F0",
-            borderRadius: 18,
-            padding: 22,
-          }}
-        >
-          <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 14px" }}>
-            {admins.length} admin{admins.length === 1 ? "" : "s"}
-          </h3>
-          {admins.length === 0 ? (
-            <div style={{ fontSize: 13.5, color: "#64748B", fontWeight: 600, padding: "8px 0" }}>
-              No admins yet. Create one above.
+        <div style={card({ pad: S[5] })}>
+          <h2 style={{ ...T.h3, margin: `0 0 ${S[4]}px` }}>
+            {loaded ? `${admins.length} admin${admins.length === 1 ? "" : "s"}` : "Admins"}
+          </h2>
+
+          {!loaded ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: S[4] }}>
+              {[0, 1, 2].map((i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: S[3] }}>
+                  <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: S[2] }}>
+                    <Skeleton h={16} w="55%" />
+                    <Skeleton h={12} w="40%" />
+                  </div>
+                  <Skeleton h={32} w={210} radius={R.sm} />
+                </div>
+              ))}
             </div>
+          ) : admins.length === 0 ? (
+            <EmptyState
+              icon={
+                <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <line x1="19" x2="19" y1="8" y2="14" />
+                  <line x1="22" x2="16" y1="11" y2="11" />
+                </svg>
+              }
+              title="No admins yet"
+              body="Create your first restaurant admin using the form above."
+            />
           ) : (
             admins.map((a) => (
               <div
                 key={a.id}
                 style={{
-                  padding: "14px 0",
-                  borderBottom: "1px solid #F1F5F9",
+                  padding: `${S[4]}px 0`,
+                  borderBottom: `1px solid ${C.canvas}`,
                 }}
               >
                 <div
@@ -373,7 +281,7 @@ export default function SuperadminPage() {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
-                    gap: 12,
+                    gap: S[3],
                     flexWrap: "wrap",
                   }}
                 >
@@ -386,66 +294,94 @@ export default function SuperadminPage() {
                         textOverflow: "ellipsis",
                         display: "flex",
                         alignItems: "center",
-                        gap: 8,
+                        gap: S[2],
                         flexWrap: "wrap",
                       }}
                     >
                       {a.email}
-                      <span style={badge(a.source === "demo" ? "blue" : "slate")}>
+                      <span style={badge(a.source === "demo" ? "info" : "neutral")}>
                         {a.source === "demo" ? "Trial" : "Manual"}
                       </span>
-                      <span style={badge(a.active ? "green" : "red")}>
+                      <span style={badge(a.active ? "success" : "danger")}>
                         {a.active ? "Active" : "Expired"}
                       </span>
                     </div>
-                    <div
-                      style={{ fontSize: 12, color: "#64748B", fontWeight: 600, marginTop: 3 }}
-                    >
+                    <div style={{ ...T.caption, color: C.muted, marginTop: S[1] }}>
                       Created {new Date(a.createdAt).toLocaleDateString()}
                       {a.expiresAt
-                        ? ` · ${a.active ? "expires" : "expired"} ${new Date(
+                        ? `, ${a.active ? "expires" : "expired"} ${new Date(
                             a.expiresAt,
                           ).toLocaleDateString()}`
-                        : " · no expiry"}
+                        : ", no expiry"}
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: S[2], flexWrap: "wrap" }}>
                     <button
                       onClick={() => renew(a)}
                       disabled={rowBusy === a.id}
-                      style={rowBtn("#15803D", "#DCFCE7")}
+                      className="qp-btn"
+                      style={btn("success", { size: "sm", disabled: rowBusy === a.id })}
                     >
-                      {rowBusy === a.id ? "…" : "Renew 30d"}
+                      {rowBusy === a.id ? <Spinner size={14} color="#fff" /> : "Renew 30d"}
                     </button>
                     <button
                       onClick={() =>
                         editingId === a.id ? cancelEdit() : startEdit(a)
                       }
-                      style={rowBtn("#1D4ED8", "#DBEAFE")}
+                      className="qp-btn"
+                      style={btn("secondary", { size: "sm" })}
                     >
                       {editingId === a.id ? "Cancel" : "Edit"}
                     </button>
-                    <button
-                      onClick={() => remove(a)}
-                      style={rowBtn("#DC2626", "#FECACA", true)}
-                    >
-                      Delete
-                    </button>
+                    {confirmId === a.id ? (
+                      <>
+                        <button
+                          onClick={() => remove(a)}
+                          className="qp-btn"
+                          style={{ ...btn("danger", { size: "sm" }), background: STATUS.danger.fg, color: "#fff", borderColor: "transparent" }}
+                        >
+                          Confirm delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmId(null)}
+                          className="qp-btn"
+                          style={btn("ghost", { size: "sm" })}
+                        >
+                          Keep
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmId(a.id)}
+                        className="qp-btn"
+                        style={btn("danger", { size: "sm" })}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </div>
                 </div>
+                {confirmId === a.id && (
+                  <div style={{ marginTop: S[3] }}>
+                    <Alert kind="warn">
+                      Delete {a.email}? Their tables and receipts are permanently
+                      removed. This cannot be undone.
+                    </Alert>
+                  </div>
+                )}
                 {editingId === a.id && (
                   <div
+                    className="qp-grid-2"
                     style={{
                       display: "grid",
                       gridTemplateColumns: "1fr 1fr auto",
-                      gap: 10,
-                      marginTop: 12,
-                      padding: 14,
-                      background: "#F8FAFC",
-                      borderRadius: 12,
+                      gap: S[3],
+                      marginTop: S[3],
+                      padding: S[4],
+                      background: C.surfaceAlt,
+                      borderRadius: R.md,
                       alignItems: "center",
                     }}
-                    className="qp-grid-2"
                   >
                     <input
                       type="email"
@@ -453,7 +389,7 @@ export default function SuperadminPage() {
                       placeholder="New email"
                       value={editEmail}
                       onChange={(e) => setEditEmail(e.target.value)}
-                      style={field}
+                      style={field()}
                     />
                     <input
                       type="password"
@@ -461,26 +397,16 @@ export default function SuperadminPage() {
                       placeholder="New password (min 8, blank = unchanged)"
                       value={editPassword}
                       onChange={(e) => setEditPassword(e.target.value)}
-                      style={field}
+                      style={field()}
                     />
                     <button
                       onClick={() => saveEdit(a)}
                       disabled={rowBusy === a.id}
-                      style={{
-                        padding: "12px 18px",
-                        background: BRAND,
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 11,
-                        fontFamily: "inherit",
-                        fontSize: 14,
-                        fontWeight: 800,
-                        cursor: rowBusy === a.id ? "default" : "pointer",
-                        opacity: rowBusy === a.id ? 0.7 : 1,
-                        whiteSpace: "nowrap",
-                      }}
+                      className="qp-cta"
+                      style={{ ...btn("primary", { disabled: rowBusy === a.id }), whiteSpace: "nowrap" }}
                     >
-                      {rowBusy === a.id ? "Saving…" : "Save"}
+                      {rowBusy === a.id && <Spinner size={15} color="#fff" />}
+                      {rowBusy === a.id ? "Saving." : "Save"}
                     </button>
                   </div>
                 )}

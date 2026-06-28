@@ -93,6 +93,67 @@ export interface MenuMeta {
   uploadedAt: string;
 }
 
+// --- Structured menu items + in-app ordering (all optional) -----------------
+
+/** A structured, orderable menu item defined by an admin. Optional feature: if
+ *  an admin defines none, customers see only the PDF/image menu (unchanged). */
+export interface MenuItem {
+  id: string;
+  /** Owning admin id. */
+  owner: string;
+  name: string;
+  /** Unit price (currency-major, e.g. 12.5). */
+  price: number;
+  /** Free-form grouping ("Starters", "Mains"); "" = uncategorised. */
+  category: string;
+  description: string;
+  /** When false the item is hidden from diners but kept for order history. */
+  available: boolean;
+  /** Sort position within the owner's menu. */
+  sortOrder: number;
+  archived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type OrderStatus = "placed" | "preparing" | "served" | "cancelled";
+
+/** One line of a customer order, with the diner's free-text note. */
+export interface OrderLine {
+  id: string;
+  /** Source item id, or null if the item was later deleted. */
+  menuItemId: string | null;
+  /** Name/price snapshotted at order time so edits don't rewrite history. */
+  name: string;
+  price: number;
+  qty: number;
+  /** Diner note, e.g. "burger no cheese". */
+  comment: string;
+}
+
+/** A customer order placed against a table. */
+export interface Order {
+  id: string;
+  owner: string;
+  /** Surrogate table id (relational) — stable across number reuse. */
+  tableId: string;
+  /** Display table number at order time. */
+  tableNum: string;
+  status: OrderStatus;
+  lines: OrderLine[];
+  /** Sum of line price*qty (pre-tax). */
+  total: number;
+  createdAt: string;
+}
+
+/** Public (diner-facing) menu payload returned alongside a table. */
+export interface PublicMenu {
+  /** Uploaded PDF/image, if any. */
+  file: MenuMeta | null;
+  /** Orderable items (available + not archived), if the admin defined any. */
+  items: MenuItem[];
+}
+
 /** Per-restaurant (per-admin) profile + payment preferences. */
 export interface RestaurantSettings {
   /** Display name shown to diners and on QR sheets ("" → derive from email). */
@@ -120,6 +181,10 @@ export interface Store {
   leads: Lead[];
   /** Menu per owning admin (keyed by user id) — each restaurant is independent. */
   menus: Record<string, MenuMeta>;
+  /** Structured orderable items (optional feature). */
+  menuItems?: MenuItem[];
+  /** Customer orders (optional feature; newest first). */
+  orders?: Order[];
   /** Per-owner restaurant settings (keyed by user id). */
   settings: Record<string, RestaurantSettings>;
   /** Login accounts (one `super`, plus admins it creates). */

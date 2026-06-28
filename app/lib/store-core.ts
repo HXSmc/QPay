@@ -159,3 +159,45 @@ export function clampHold(items: OrderItem[], qty: number[]): number[] {
 export function nextStatusForItems(items: OrderItem[]): TableStatus {
   return items.length === 0 ? "open" : "unpaid";
 }
+
+// --- In-app ordering --------------------------------------------------------
+
+const MAX_ORDER_QTY = 50;
+const MAX_COMMENT_LEN = 160;
+const MAX_ORDER_LINES = 40;
+
+/**
+ * Build validated, price-snapshotted order lines from a customer request and the
+ * owner's live items. Prices/names come from the SERVER's items map, never the
+ * client — a diner can only choose item id, qty, and a note. Unknown ids and
+ * non-positive quantities are dropped. Shared by both backends so they agree.
+ */
+export function buildOrderLines(
+  available: { id: string; name: string; price: number }[],
+  requested: { menuItemId?: string; qty?: number; comment?: string }[],
+): { lines: OrderLineDraft[]; total: number } {
+  const byId = new Map(available.map((it) => [it.id, it]));
+  const lines: OrderLineDraft[] = [];
+  for (const r of Array.isArray(requested) ? requested.slice(0, MAX_ORDER_LINES) : []) {
+    const item = r.menuItemId ? byId.get(r.menuItemId) : undefined;
+    const qty = Math.min(Math.max(0, Math.floor(Number(r.qty) || 0)), MAX_ORDER_QTY);
+    if (!item || qty <= 0) continue;
+    lines.push({
+      menuItemId: item.id,
+      name: item.name,
+      price: item.price,
+      qty,
+      comment: typeof r.comment === "string" ? r.comment.trim().slice(0, MAX_COMMENT_LEN) : "",
+    });
+  }
+  const total = +lines.reduce((a, l) => a + l.price * l.qty, 0).toFixed(2);
+  return { lines, total };
+}
+
+export interface OrderLineDraft {
+  menuItemId: string;
+  name: string;
+  price: number;
+  qty: number;
+  comment: string;
+}

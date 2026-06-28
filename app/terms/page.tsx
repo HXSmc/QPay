@@ -1,38 +1,59 @@
 import Link from "next/link";
 import { BrandHeader } from "../components/site/BrandHeader";
 import { SITE } from "../lib/site";
+import { C, S, T } from "../lib/theme";
 
-export const metadata = { title: "Terms of Service — QPay" };
+export const metadata = { title: "Terms of service · QPay" };
 
 export default function TermsPage() {
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", color: "#0B1221" }}>
+    <div style={{ minHeight: "100vh", background: C.surface, color: C.text }}>
       <BrandHeader />
-      <main style={{ maxWidth: 760, margin: "0 auto", padding: "48px 24px", lineHeight: 1.7 }}>
-        <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-0.02em" }}>
-          Terms of Service
-        </h1>
-        <p style={{ color: "#64748B", fontWeight: 600 }}>
+      <article
+        style={{
+          maxWidth: 720,
+          margin: "0 auto",
+          padding: `${S[7]}px ${S[5]}px ${S[8]}px`,
+        }}
+      >
+        <h1 style={{ ...T.h1, margin: 0 }}>Terms of service</h1>
+        <p
+          style={{
+            ...T.caption,
+            color: C.muted,
+            marginTop: S[2],
+            marginBottom: S[6],
+          }}
+        >
           {SITE.company} · last updated {SITE.legalUpdated}
         </p>
-        <p style={{ color: "#334155" }}>
+
+        <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, marginTop: 0 }}>
           By using QPay you agree to use it lawfully for accepting restaurant
           payments. The service is provided as-is; this prototype demonstrates a
           scan-to-pay flow and is not a production payment processor.
         </p>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 28 }}>Accounts</h2>
-        <p style={{ color: "#334155" }}>
+
+        <h2 style={{ ...T.h2, marginTop: S[7], marginBottom: S[3] }}>Accounts</h2>
+        <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
           Admin accounts are issued by the operator. You are responsible for
           keeping your credentials confidential.
         </p>
-        <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 28 }}>Contact</h2>
-        <p style={{ color: "#334155" }}>Questions? Call {SITE.salesPhone}.</p>
-        <p style={{ marginTop: 32 }}>
-          <Link href="/" style={{ color: "#2E5BFF", fontWeight: 700 }}>
+
+        <h2 style={{ ...T.h2, marginTop: S[7], marginBottom: S[3] }}>Contact</h2>
+        <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
+          Questions? Call {SITE.salesPhone}.
+        </p>
+
+        <p style={{ marginTop: S[7] }}>
+          <Link
+            href="/"
+            style={{ ...T.label, color: C.brand, textDecoration: "none" }}
+          >
             ← Back to home
           </Link>
         </p>
-      </main>
+      </article>
     </div>
   );
 }

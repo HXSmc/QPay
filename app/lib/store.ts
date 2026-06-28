@@ -15,6 +15,7 @@ import { useSupabase } from "./supabase";
 import * as rel from "./store-sb";
 import {
   applyPayment,
+  buildOrderLines,
   clampHold,
   coerceSettings,
   mergeSettings,
@@ -29,8 +30,11 @@ import type {
   AdminUser,
   Lead,
   LiveTable,
+  MenuItem,
   MenuMeta,
+  Order,
   OrderItem,
+  OrderStatus,
   RestaurantSettings,
   Role,
   Store,
@@ -101,6 +105,8 @@ function seed(): Store {
     transactions: [],
     leads: [],
     menus: {},
+    menuItems: [],
+    orders: [],
     settings: {},
     users: [],
     loginAttempts: {},
@@ -138,6 +144,8 @@ function normalize(s: Store): Store {
       s.menus && typeof s.menus === "object" && !Array.isArray(s.menus)
         ? s.menus
         : {},
+    menuItems: Array.isArray(s.menuItems) ? s.menuItems : [],
+    orders: Array.isArray(s.orders) ? s.orders : [],
     settings:
       s.settings && typeof s.settings === "object" && !Array.isArray(s.settings)
         ? s.settings
@@ -502,6 +510,8 @@ export async function deleteAdmin(id: string): Promise<boolean> {
     s.users = s.users.filter((x) => x.id !== id);
     s.tables = s.tables.filter((t) => t.owner !== id);
     s.transactions = s.transactions.filter((t) => t.owner !== id);
+    s.menuItems = (s.menuItems ?? []).filter((m) => m.owner !== id);
+    s.orders = (s.orders ?? []).filter((o) => o.owner !== id);
     delete s.menus[id];
     delete s.settings[id];
     return { result: true, write: true };
@@ -689,4 +699,139 @@ export async function addLead(input: {
 export async function listLeads(): Promise<Lead[]> {
   if (useSupabase) return rel.listLeads();
   return (await readStoreBlob()).leads;
+}
+
+// ===========================================================================
+// MENU ITEMS + ORDERS (optional in-app ordering)
+// ===========================================================================
+
+export async function listMenuItems(owner: string): Promise<MenuItem[]> {
+  if (useSupabase) return rel.listMenuItems(owner);
+  return (await readStoreBlob()).menuItems!
+    .filter((m) => m.owner === owner && !m.archived)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+}
+
+export async function createMenuItem(
+  owner: string,
+  input: { name: string; price: number; category?: string; description?: string },
+): Promise<MenuItem> {
+  if (useSupabase) return rel.createMenuItem(owner, input);
+  return mutateBlob((s) => {
+    const now = new Date().toISOString();
+    const maxSort = (s.menuItems ?? [])
+      .filter((m) => m.owner === owner)
+      .reduce((a, m) => Math.max(a, m.sortOrder), 0);
+    const item: MenuItem = {
+      id: globalThis.crypto.randomUUID(),
+      owner,
+      name: input.name,
+      price: input.price,
+      category: input.category ?? "",
+      description: input.description ?? "",
+      available: true,
+      sortOrder: maxSort + 1,
+      archived: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    s.menuItems = [...(s.menuItems ?? []), item];
+    return { result: item, write: true };
+  });
+}
+
+export async function updateMenuItem(
+  owner: string,
+  id: string,
+  patch: Partial<Pick<MenuItem, "name" | "price" | "category" | "description" | "available" | "sortOrder">>,
+): Promise<MenuItem | null> {
+  if (useSupabase) return rel.updateMenuItem(owner, id, patch);
+  return mutateBlob((s) => {
+    const m = (s.menuItems ?? []).find((x) => x.id === id && x.owner === owner);
+    if (!m) return { result: null, write: false };
+    if (patch.name !== undefined) m.name = patch.name;
+    if (patch.price !== undefined) m.price = patch.price;
+    if (patch.category !== undefined) m.category = patch.category;
+    if (patch.description !== undefined) m.description = patch.description;
+    if (patch.available !== undefined) m.available = patch.available;
+    if (patch.sortOrder !== undefined) m.sortOrder = patch.sortOrder;
+    m.updatedAt = new Date().toISOString();
+    return { result: m, write: true };
+  });
+}
+
+export async function deleteMenuItem(owner: string, id: string): Promise<boolean> {
+  if (useSupabase) return rel.deleteMenuItem(owner, id);
+  return mutateBlob((s) => {
+    const before = (s.menuItems ?? []).length;
+    s.menuItems = (s.menuItems ?? []).filter(
+      (m) => !(m.id === id && m.owner === owner),
+    );
+    return { result: s.menuItems.length < before, write: s.menuItems.length < before };
+  });
+}
+
+/** Customer: available items for the table behind `token`. */
+export async function getPublicMenuItems(token: string): Promise<MenuItem[]> {
+  if (useSupabase) return rel.getPublicMenuItems(token);
+  const s = await readStoreBlob();
+  const t = s.tables.find((x) => constantTimeEqual(x.token, token));
+  if (!t) return [];
+  return (s.menuItems ?? [])
+    .filter((m) => m.owner === t.owner && m.available && !m.archived)
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+}
+
+/** Customer: place an order (prices snapshotted server-side from live items). */
+export async function placeOrder(
+  token: string,
+  requested: { menuItemId?: string; qty?: number; comment?: string }[],
+): Promise<Order | null> {
+  if (useSupabase) return rel.placeOrder(token, requested);
+  const available = await getPublicMenuItems(token);
+  const { lines, total } = buildOrderLines(available, requested);
+  if (lines.length === 0) return null;
+  return mutateBlob((s) => {
+    const t = s.tables.find((x) => constantTimeEqual(x.token, token));
+    if (!t) return { result: null, write: false };
+    const order: Order = {
+      id: globalThis.crypto.randomUUID(),
+      owner: t.owner,
+      tableId: t.token, // disk backend has no surrogate id; token is stable enough
+      tableNum: t.num,
+      status: "placed",
+      lines: lines.map((l, i) => ({ id: String(i), ...l })),
+      total,
+      createdAt: new Date().toISOString(),
+    };
+    s.orders = [order, ...(s.orders ?? [])];
+    return { result: order, write: true };
+  });
+}
+
+export async function listOrders(
+  owner: string,
+  opts: { activeOnly?: boolean } = {},
+): Promise<Order[]> {
+  if (useSupabase) return rel.listOrders(owner, opts);
+  const all = (await readStoreBlob()).orders!
+    .filter((o) => o.owner === owner)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return opts.activeOnly
+    ? all.filter((o) => o.status === "placed" || o.status === "preparing")
+    : all;
+}
+
+export async function updateOrderStatus(
+  owner: string,
+  id: string,
+  status: OrderStatus,
+): Promise<Order | null> {
+  if (useSupabase) return rel.updateOrderStatus(owner, id, status);
+  return mutateBlob((s) => {
+    const o = (s.orders ?? []).find((x) => x.id === id && x.owner === owner);
+    if (!o) return { result: null, write: false };
+    o.status = status;
+    return { result: o, write: true };
+  });
 }

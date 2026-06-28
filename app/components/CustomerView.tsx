@@ -2,9 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { billDue, BRAND, fmt, TIP_PCT } from "../lib/data";
-import { payTable, syncTable } from "../lib/api";
-import type { LiveTable, SplitMode, TipKey } from "../lib/types";
+import { getPublicMenuItems, payTable, syncTable } from "../lib/api";
+import type { LiveTable, MenuItem, SplitMode, TipKey } from "../lib/types";
 import { MenuModal } from "./site/MenuModal";
+import { OrderModal } from "./site/OrderModal";
+import { Toast } from "./ui/Primitives";
 
 const SPLIT_DEFS: { key: SplitMode; label: string }[] = [
   { key: "full", label: "Pay full" },
@@ -74,6 +76,10 @@ export function CustomerView({
     (initialTable?.items ?? []).map(() => 0),
   );
   const [menuOpen, setMenuOpen] = useState(false);
+  // Optional in-app ordering: orderable items the restaurant has defined.
+  const [orderItems, setOrderItems] = useState<MenuItem[]>([]);
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [orderToast, setOrderToast] = useState("");
   const [paying, setPaying] = useState(false);
   const [result, setResult] = useState<{
     paid: number;
@@ -94,6 +100,16 @@ export function CustomerView({
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const ownId = mounted ? clientId : "ssr";
+
+  // Load orderable items (optional feature). If none, the Order button stays
+  // hidden and the customer flow is exactly as before.
+  useEffect(() => {
+    if (!token) return;
+    getPublicMenuItems(tableNumber, token)
+      .then(setOrderItems)
+      .catch(() => setOrderItems([]));
+  }, [token, tableNumber]);
+  const canOrder = orderItems.length > 0;
 
   const hasOrder = items.length > 0;
 
@@ -315,6 +331,16 @@ export function CustomerView({
         token={token}
         onClose={() => setMenuOpen(false)}
       />
+      <OrderModal
+        open={orderOpen}
+        token={token}
+        items={orderItems}
+        onClose={() => setOrderOpen(false)}
+        onPlaced={() => setOrderToast("Order sent to the kitchen")}
+      />
+      {orderToast && (
+        <Toast message={orderToast} kind="success" onDone={() => setOrderToast("")} />
+      )}
       <div style={{ width: "100%", maxWidth: 404 }}>
         <div
           style={{
@@ -407,47 +433,87 @@ export function CustomerView({
           </div>
 
           <div style={{ padding: "20px 22px 28px" }}>
-            {/* View menu */}
-            <button
-              onClick={() => setMenuOpen(true)}
-              style={{
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                padding: "12px",
-                marginBottom: 18,
-                background: "#EEF2FF",
-                color: BRAND,
-                border: "1.5px solid #DBE3F4",
-                borderRadius: 13,
-                fontFamily: "inherit",
-                fontSize: 14.5,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              <svg
-                width="17"
-                height="17"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+            {/* View menu / order */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 18 }}>
+              <button
+                onClick={() => setMenuOpen(true)}
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  padding: "12px",
+                  background: "#EEF2FF",
+                  color: BRAND,
+                  border: "1.5px solid #DBE3F4",
+                  borderRadius: 13,
+                  fontFamily: "inherit",
+                  fontSize: 14.5,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
               >
-                <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-                <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-                <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-                <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-                <line x1="7" x2="17" y1="8" y2="8" />
-                <line x1="7" x2="17" y1="12" y2="12" />
-                <line x1="7" x2="13" y1="16" y2="16" />
-              </svg>
-              View menu
-            </button>
+                <svg
+                  width="17"
+                  height="17"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                  <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                  <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                  <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                  <line x1="7" x2="17" y1="8" y2="8" />
+                  <line x1="7" x2="17" y1="12" y2="12" />
+                  <line x1="7" x2="13" y1="16" y2="16" />
+                </svg>
+                View menu
+              </button>
+              {canOrder && (
+                <button
+                  className="qp-cta qp-press"
+                  onClick={() => setOrderOpen(true)}
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: "12px",
+                    background: BRAND,
+                    color: "#fff",
+                    border: "1.5px solid transparent",
+                    borderRadius: 13,
+                    fontFamily: "inherit",
+                    fontSize: 14.5,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    boxShadow: "0 10px 24px rgba(46,91,255,0.3)",
+                  }}
+                >
+                  <svg
+                    width="17"
+                    height="17"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="8" cy="21" r="1" />
+                    <circle cx="19" cy="21" r="1" />
+                    <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+                  </svg>
+                  Order food
+                </button>
+              )}
+            </div>
 
             {!hasOrder ? (
               <div

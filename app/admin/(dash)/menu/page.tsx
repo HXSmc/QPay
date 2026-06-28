@@ -1,11 +1,77 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BRAND } from "../../../lib/data";
 import { deleteMenu, getMenu, uploadMenu } from "../../../lib/api";
 import type { MenuMeta } from "../../../lib/types";
+import { C, R, S, T, btn, field } from "../../../lib/theme";
+import { Alert, EmptyState, Spinner } from "../../../components/ui/Primitives";
+import { MenuItemsEditor } from "../../../components/admin/MenuItemsEditor";
+
+type Tab = "file" | "items";
 
 export default function MenuPage() {
+  const [tab, setTab] = useState<Tab>("file");
+
+  return (
+    <div className="qp-page" style={{ padding: "30px 36px", maxWidth: 820 }}>
+      <h1 style={{ ...T.h1, margin: 0 }}>Menu</h1>
+      <p style={{ ...T.body, color: C.muted, margin: "6px 0 20px" }}>
+        Upload a menu file diners can view, and optionally add orderable items so
+        they can order from their phone.
+      </p>
+
+      <div
+        role="tablist"
+        aria-label="Menu type"
+        style={{ display: "inline-flex", gap: 4, background: C.canvas, padding: 4, borderRadius: R.md, marginBottom: S[5] }}
+      >
+        <TabButton active={tab === "file"} onClick={() => setTab("file")}>
+          Menu file
+        </TabButton>
+        <TabButton active={tab === "items"} onClick={() => setTab("items")}>
+          Order items
+        </TabButton>
+      </div>
+
+      {tab === "file" ? <FileTab /> : <MenuItemsEditor />}
+    </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      style={{
+        padding: "9px 18px",
+        borderRadius: R.sm,
+        border: "none",
+        cursor: "pointer",
+        fontFamily: "inherit",
+        fontSize: 14,
+        fontWeight: 700,
+        background: active ? C.surface : "transparent",
+        color: active ? C.brand : C.muted,
+        boxShadow: active ? "0 1px 3px rgba(15,23,42,0.08)" : "none",
+        transition: "background .15s, color .15s",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FileTab() {
   const [meta, setMeta] = useState<MenuMeta | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -21,10 +87,9 @@ export default function MenuPage() {
     setBusy(true);
     setError("");
     try {
-      const m = await uploadMenu(file);
-      setMeta(m);
+      setMeta(await uploadMenu(file));
     } catch {
-      setError("Upload failed. Use an image or PDF.");
+      setError("Upload failed. Use an image or PDF (max 20MB).");
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -45,14 +110,7 @@ export default function MenuPage() {
   const isPdf = meta?.mime === "application/pdf";
 
   return (
-    <div className="qp-page" style={{ padding: "30px 36px", maxWidth: 760 }}>
-      <h1 style={{ fontSize: 27, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
-        Menu
-      </h1>
-      <p style={{ fontSize: 14, color: "#64748B", margin: "5px 0 24px", fontWeight: 600 }}>
-        Upload your menu (image or PDF). Diners can view it before paying.
-      </p>
-
+    <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: R.lg, padding: S[5] }}>
       <input
         ref={inputRef}
         type="file"
@@ -60,107 +118,57 @@ export default function MenuPage() {
         onChange={onFile}
         style={{ display: "none" }}
       />
-
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #E2E8F0",
-          borderRadius: 18,
-          padding: 24,
-        }}
-      >
-        <div style={{ display: "flex", gap: 10, marginBottom: meta ? 20 : 0 }}>
-          <button
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            style={{
-              padding: "11px 18px",
-              background: BRAND,
-              color: "#fff",
-              border: "none",
-              borderRadius: 12,
-              fontFamily: "inherit",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: busy ? "default" : "pointer",
-              opacity: busy ? 0.7 : 1,
-            }}
-          >
-            {busy ? "Uploading…" : meta ? "Replace menu" : "Upload menu"}
+      <div style={{ display: "flex", gap: 10, marginBottom: meta ? S[5] : 0 }}>
+        <button
+          className="qp-cta qp-press"
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          style={btn("primary", { disabled: busy })}
+        >
+          {busy ? <Spinner color="#fff" /> : meta ? "Replace menu" : "Upload menu"}
+        </button>
+        {meta && (
+          <button onClick={remove} disabled={busy} style={btn("danger")}>
+            Remove
           </button>
-          {meta && (
-            <button
-              onClick={remove}
-              disabled={busy}
-              style={{
-                padding: "11px 18px",
-                background: "#fff",
-                color: "#DC2626",
-                border: "1.5px solid #FECACA",
-                borderRadius: 12,
-                fontFamily: "inherit",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: busy ? "default" : "pointer",
-              }}
-            >
-              Remove
-            </button>
-          )}
-        </div>
-
-        {error && (
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#DC2626", marginTop: 12 }}>
-            {error}
-          </div>
-        )}
-
-        {!meta ? (
-          <div
-            style={{
-              marginTop: 20,
-              padding: "48px 20px",
-              border: "2px dashed #CBD5E1",
-              borderRadius: 14,
-              textAlign: "center",
-              color: "#64748B",
-            }}
-          >
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#475569" }}>
-              No menu uploaded
-            </div>
-            <div style={{ fontSize: 13, marginTop: 6 }}>
-              PNG, JPG, WebP, GIF, or PDF.
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div style={{ fontSize: 13, color: "#64748B", marginBottom: 10, fontWeight: 600 }}>
-              {meta.originalName} · uploaded{" "}
-              {new Date(meta.uploadedAt).toLocaleString()}
-            </div>
-            <div
-              style={{
-                borderRadius: 14,
-                overflow: "hidden",
-                border: "1px solid #E2E8F0",
-                background: "#F8FAFC",
-              }}
-            >
-              {isPdf ? (
-                <iframe
-                  src={src!}
-                  title="Menu PDF"
-                  style={{ width: "100%", height: "60vh", border: "none" }}
-                />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={src!} alt="Menu" style={{ width: "100%", display: "block" }} />
-              )}
-            </div>
-          </div>
         )}
       </div>
+
+      {error && (
+        <div style={{ marginTop: S[3] }}>
+          <Alert kind="danger">{error}</Alert>
+        </div>
+      )}
+
+      {!meta ? (
+        <div style={{ marginTop: S[5] }}>
+          <EmptyState
+            title="No menu uploaded"
+            body="PNG, JPG, WebP, GIF, or PDF. Diners can view it before they pay."
+          />
+        </div>
+      ) : (
+        <div style={{ marginTop: src ? 0 : S[5] }}>
+          <div style={{ ...T.caption, color: C.muted, marginBottom: 10 }}>
+            {meta.originalName} · uploaded {new Date(meta.uploadedAt).toLocaleString()}
+          </div>
+          <div
+            style={{
+              borderRadius: R.md,
+              overflow: "hidden",
+              border: `1px solid ${C.border}`,
+              background: C.surfaceAlt,
+            }}
+          >
+            {isPdf ? (
+              <iframe src={src!} title="Menu PDF" style={{ width: "100%", height: "60vh", border: "none" }} />
+            ) : (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={src!} alt="Uploaded menu" style={{ width: "100%", display: "block" }} />
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

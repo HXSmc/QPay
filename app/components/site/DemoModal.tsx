@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BRAND } from "../../lib/data";
 import { submitLead, type LeadResult } from "../../lib/api";
+import { C, R, S, SHADOW, T, btn, field } from "../../lib/theme";
+import { Alert, Spinner } from "../ui/Primitives";
+
+// Basic format check (local-part@domain.tld). Catches obvious typos before we
+// hit the network, without trying to be an RFC-complete validator.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function DemoModal({
   open,
@@ -40,6 +45,10 @@ export function DemoModal({
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (!EMAIL_RE.test(email.trim())) {
+      setError("Please enter a valid work email (name@company.com).");
+      return;
+    }
     setBusy(true);
     try {
       const res = await submitLead({ name, email, restaurant });
@@ -71,18 +80,6 @@ export function DemoModal({
 
   if (!open) return null;
 
-  const field = {
-    width: "100%",
-    padding: "11px 13px",
-    border: "1.5px solid #E2E8F0",
-    borderRadius: 11,
-    fontFamily: "inherit",
-    fontSize: 14.5,
-    outline: "none",
-    color: "#0B1221",
-    background: "#fff",
-  } as const;
-
   return (
     <div
       onClick={close}
@@ -94,7 +91,7 @@ export function DemoModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        padding: S[4],
       }}
     >
       <div
@@ -105,15 +102,15 @@ export function DemoModal({
         style={{
           width: "100%",
           maxWidth: 420,
-          background: "#fff",
-          borderRadius: 22,
-          padding: 28,
-          boxShadow: "0 30px 70px rgba(11,18,33,0.4)",
+          background: C.surface,
+          borderRadius: R.xl,
+          padding: S[6],
+          boxShadow: SHADOW.e3,
         }}
       >
         {sent ? (
           <div
-            style={{ textAlign: "center", padding: "12px 0" }}
+            style={{ textAlign: "center" }}
             aria-live="polite"
             aria-atomic="true"
           >
@@ -139,63 +136,53 @@ export function DemoModal({
                 strokeWidth="2.6"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                aria-hidden="true"
               >
                 <path d="M20 6 9 17l-4-4" />
               </svg>
             </div>
-            <h3 style={{ fontSize: 21, fontWeight: 800, margin: "0 0 8px" }}>
+            <h3 style={{ ...T.h1, margin: "0 0 8px" }}>
               {result?.status === "exists" ? "Check your inbox" : "Your demo is ready"}
             </h3>
             <p
               style={{
-                fontSize: 14.5,
-                color: "#475569",
-                lineHeight: 1.55,
-                margin: "0 0 22px",
+                ...T.body,
+                color: C.muted,
+                margin: "0 0 16px",
               }}
             >
               {result?.status === "exists" ? (
                 <>
-                  Thanks{name ? `, ${name}` : ""} — this email already has a QPay
+                  Thanks{name ? `, ${name}` : ""}. This email already has a QPay
                   account, so we&apos;ve sent you a note on how to reach our sales
                   team to extend or upgrade.
                 </>
               ) : (
                 <>
-                  Thanks{name ? `, ${name}` : ""} — we&apos;ve emailed your trial
+                  Thanks{name ? `, ${name}` : ""}. We&apos;ve emailed your trial
                   admin login to <strong>{email}</strong>. It&apos;s valid for 7
                   days. Check your inbox to sign in.
                 </>
               )}
-              {result && !result.emailed && (
-                <>
-                  {" "}
-                  <span style={{ color: "#B45309", fontWeight: 600 }}>
-                    (Email delivery is still being set up — contact sales if it
-                    doesn&apos;t arrive.)
-                  </span>
-                </>
-              )}
             </p>
+            {result && !result.emailed && (
+              <div style={{ marginBottom: 18, textAlign: "left" }}>
+                <Alert kind="warn">
+                  Email delivery is still being set up. Contact sales if it
+                  doesn&apos;t arrive.
+                </Alert>
+              </div>
+            )}
             <button
+              className="qp-press"
               onClick={close}
-              style={{
-                padding: "12px 24px",
-                background: BRAND,
-                color: "#fff",
-                border: "none",
-                borderRadius: 12,
-                fontFamily: "inherit",
-                fontSize: 15,
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
+              style={{ ...btn("primary", { size: "md" }) }}
             >
               Done
             </button>
           </div>
         ) : (
-          <form onSubmit={submit}>
+          <form onSubmit={submit} noValidate>
             <div
               style={{
                 display: "flex",
@@ -205,15 +192,14 @@ export function DemoModal({
               }}
             >
               <div>
-                <h3 id="demo-title" style={{ fontSize: 21, fontWeight: 800, margin: 0 }}>
+                <h3 id="demo-title" style={{ ...T.h1, margin: 0 }}>
                   Get a free demo
                 </h3>
                 <p
                   style={{
-                    fontSize: 14,
-                    color: "#475569",
+                    ...T.body,
+                    color: C.muted,
                     margin: "6px 0 0",
-                    lineHeight: 1.5,
                   }}
                 >
                   See QPay live at your restaurant in 20 minutes.
@@ -223,22 +209,24 @@ export function DemoModal({
                 type="button"
                 onClick={close}
                 aria-label="Close"
+                className="qp-press"
                 style={{
                   border: "none",
-                  background: "#F1F5F9",
-                  borderRadius: 9,
+                  background: C.surfaceAlt,
+                  borderRadius: R.sm,
                   width: 32,
                   height: 32,
                   cursor: "pointer",
-                  color: "#475569",
+                  color: C.muted,
                   fontSize: 18,
                   lineHeight: 1,
+                  flexShrink: 0,
                 }}
               >
                 ×
               </button>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: S[3] }}>
               <input
                 required
                 ref={firstInputRef}
@@ -246,7 +234,7 @@ export function DemoModal({
                 placeholder="Your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                style={field}
+                style={field()}
               />
               <input
                 required
@@ -255,7 +243,7 @@ export function DemoModal({
                 placeholder="Work email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                style={field}
+                style={field()}
               />
               <input
                 required
@@ -263,42 +251,30 @@ export function DemoModal({
                 placeholder="Restaurant name"
                 value={restaurant}
                 onChange={(e) => setRestaurant(e.target.value)}
-                style={field}
+                style={field()}
               />
             </div>
             {error && (
-              <div
-                role="alert"
-                style={{
-                  marginTop: 12,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#DC2626",
-                }}
-              >
-                {error}
+              <div style={{ marginTop: S[3] }}>
+                <Alert kind="danger">{error}</Alert>
               </div>
             )}
             <button
               type="submit"
               disabled={busy}
+              className="qp-cta"
               style={{
-                width: "100%",
+                ...btn("primary", { size: "lg", full: true, disabled: busy }),
                 marginTop: 18,
-                padding: 14,
-                background: BRAND,
-                color: "#fff",
-                border: "none",
-                borderRadius: 12,
-                fontFamily: "inherit",
-                fontSize: 15.5,
-                fontWeight: 700,
-                cursor: busy ? "default" : "pointer",
-                opacity: busy ? 0.7 : 1,
-                boxShadow: "0 10px 24px rgba(46,91,255,0.3)",
               }}
             >
-              {busy ? "Sending…" : "Request demo"}
+              {busy ? (
+                <>
+                  <Spinner size={16} color="#fff" /> Sending
+                </>
+              ) : (
+                "Request demo"
+              )}
             </button>
           </form>
         )}

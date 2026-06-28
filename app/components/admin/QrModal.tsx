@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { BRAND } from "../../lib/data";
 import { getAppBaseUrl } from "../../lib/url";
+import { C, R, S, T, btn } from "../../lib/theme";
 
 export function QrModal({
   tableNum,
@@ -78,7 +78,7 @@ export function QrModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        padding: S[4],
       }}
     >
       <div
@@ -89,27 +89,27 @@ export function QrModal({
         style={{
           width: "100%",
           maxWidth: 360,
-          background: "#fff",
-          borderRadius: 22,
-          padding: 28,
+          background: C.surface,
+          borderRadius: R.xl,
+          padding: S[6] - 4,
           textAlign: "center",
           boxShadow: "0 30px 70px rgba(11,18,33,0.4)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-          <h3 id="qr-title" style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Table {tableNum} QR</h3>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: S[1] }}>
+          <h3 id="qr-title" style={{ ...T.h3, fontSize: 18, margin: 0 }}>Table {tableNum} QR</h3>
           <button
             ref={closeRef}
             onClick={onClose}
             aria-label="Close"
             style={{
               border: "none",
-              background: "#F1F5F9",
-              borderRadius: 9,
+              background: C.canvas,
+              borderRadius: R.xs,
               width: 32,
               height: 32,
               cursor: "pointer",
-              color: "#475569",
+              color: C.muted,
               fontSize: 18,
               lineHeight: 1,
             }}
@@ -117,7 +117,7 @@ export function QrModal({
             ×
           </button>
         </div>
-        <p style={{ fontSize: 13, color: "#475569", margin: "0 0 18px" }}>
+        <p style={{ ...T.caption, color: C.muted, margin: `0 0 ${S[4] + 2}px` }}>
           Diners scan to open the bill for this table.
         </p>
 
@@ -126,10 +126,10 @@ export function QrModal({
           style={{
             display: "flex",
             justifyContent: "center",
-            padding: 18,
-            background: "#F8FAFC",
-            borderRadius: 16,
-            border: "1px solid #E2E8F0",
+            padding: S[4] + 2,
+            background: C.surfaceAlt,
+            borderRadius: R.lg,
+            border: `1px solid ${C.border}`,
           }}
         >
           {url && (
@@ -141,47 +141,27 @@ export function QrModal({
 
         <div
           style={{
-            fontSize: 11.5,
-            color: "#64748B",
-            margin: "12px 0 18px",
+            ...T.caption,
+            color: C.muted,
+            margin: `${S[3]}px 0 ${S[4] + 2}px`,
             wordBreak: "break-all",
           }}
         >
           {url}
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
+        <div style={{ display: "flex", gap: S[2] + 2 }}>
           <button
+            className="qp-cta-lift"
             onClick={downloadSvg}
-            style={{
-              flex: 1,
-              padding: 12,
-              background: BRAND,
-              color: "#fff",
-              border: "none",
-              borderRadius: 12,
-              fontFamily: "inherit",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
+            style={{ ...btn("primary"), flex: 1 }}
           >
             Download SVG
           </button>
           <button
+            className="qp-cta-lift"
             onClick={print}
-            style={{
-              flex: 1,
-              padding: 12,
-              background: "#fff",
-              color: "#0B1221",
-              border: "1.5px solid #E2E8F0",
-              borderRadius: 12,
-              fontFamily: "inherit",
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
+            style={{ ...btn("secondary"), flex: 1 }}
           >
             Print
           </button>

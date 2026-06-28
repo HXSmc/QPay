@@ -8,10 +8,24 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+const SITE_TITLE = "QPay · QR Payments for Restaurants";
+const SITE_DESCRIPTION =
+  "Turn tables faster with QR payments. Diners scan, split, tip, and pay in under 30 seconds.";
+
 export const metadata: Metadata = {
-  title: "QPay — QR Payments for Restaurants",
-  description:
-    "Turn tables faster with QR payments. Diners scan, split, tip, and pay in under 30 seconds.",
+  metadataBase: new URL("https://qpay.com"),
+  title: SITE_TITLE,
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {
