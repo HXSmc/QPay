@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SITE } from "../lib/site";
 import { C, R, S, SHADOW, T, MONO, btn, card } from "../lib/theme";
-import { DemoForm } from "./site/DemoForm";
 import { SalesDropdown } from "./site/SalesDropdown";
 
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
@@ -109,7 +108,6 @@ const METRICS = SITE.metrics;
 
 export function MarketingView() {
   const router = useRouter();
-  const [demoOpen, setDemoOpen] = useState(false);
   const [salesOpen, setSalesOpen] = useState(false);
   const [reduced, setReduced] = useState(false);
 
@@ -129,12 +127,6 @@ export function MarketingView() {
       ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
 
   const scrollToSolutions = () => scrollToId("solutions");
-
-  // Open the inline demo section and ease it into view (never a hard jump).
-  const openDemo = () => {
-    setDemoOpen(true);
-    requestAnimationFrame(() => scrollToId("demo"));
-  };
 
   // Shared smooth expand/collapse for inline disclosures (GPU-friendly,
   // collapses instantly under reduced-motion).
@@ -361,7 +353,7 @@ export function MarketingView() {
             >
               <button
                 className="qp-cta"
-                onClick={openDemo}
+                onClick={() => router.push("/demo")}
                 style={{
                   ...btn("primary", { size: "lg" }),
                   gap: 9,
@@ -447,63 +439,6 @@ export function MarketingView() {
             />
             {billPreview}
           </div>
-        </div>
-      </div>
-
-      {/* TRUST strip - compliance line directly under the hero (no fake logos). */}
-      <div style={{ background: C.surface, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}` }}>
-        <div
-          style={{
-            maxWidth: 1120,
-            margin: "0 auto",
-            padding: "20px 32px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexWrap: "wrap",
-            gap: S[4],
-          }}
-        >
-          <span
-            aria-hidden="true"
-            style={{ display: "inline-flex", color: C.brand }}
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
-              <path d="m9 12 2 2 4-4" />
-            </svg>
-          </span>
-          {SITE.trustLine.split(" · ").map((item, i, arr) => (
-            <span
-              key={item}
-              style={{ display: "inline-flex", alignItems: "center", gap: S[4] }}
-            >
-              <span
-                style={{
-                  ...T.label,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: C.muted,
-                }}
-              >
-                {item}
-              </span>
-              {i < arr.length - 1 && (
-                <span aria-hidden="true" style={{ color: C.faint }}>
-                  ·
-                </span>
-              )}
-            </span>
-          ))}
         </div>
       </div>
 
@@ -922,164 +857,150 @@ export function MarketingView() {
         </div>
       </div>
 
-      {/* METRICS band - dark ink section, money figures in MONO. */}
-      <div style={{ maxWidth: 1120, margin: "80px auto", padding: "0 32px" }}>
+      {/* METRICS band - editorial ledger: one hero figure + hairline rows. */}
+      <div style={{ maxWidth: 1120, margin: "96px auto", padding: "0 32px" }}>
         <div
-          className="qp-section"
+          className="qp-section qp-grid-2"
           style={{
             background: C.ink,
             borderRadius: R.xl,
-            padding: "60px 48px",
+            padding: "64px 56px",
             color: C.surface,
             position: "relative",
             overflow: "hidden",
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 56,
+            alignItems: "center",
           }}
         >
+          {/* concentric ripple - the tap-to-pay motif from the logomark */}
           <div
             aria-hidden="true"
             style={{
               position: "absolute",
-              top: -80,
-              right: -60,
-              width: 320,
-              height: 320,
+              top: -130,
+              left: -130,
+              width: 380,
+              height: 380,
               borderRadius: "50%",
-              background: C.brand,
-              opacity: 0.16,
-              filter: "blur(80px)",
+              border: `1px solid ${C.brand}`,
+              opacity: 0.22,
+              boxShadow: "0 0 0 40px rgba(194,65,12,0.06)",
             }}
           />
-          <div
-            style={{
-              position: "relative",
-              marginBottom: 44,
-              maxWidth: 520,
-            }}
-          >
-            <div
-              style={{
-                ...eyebrow,
-                color: C.brandLight,
-              }}
-            >
-              The numbers
-            </div>
+
+          {/* Left: statement + the hero figure. */}
+          <div style={{ position: "relative" }}>
             <h2
               style={{
-                fontSize: 34,
-                fontWeight: 700,
+                fontSize: 40,
+                fontWeight: 600,
                 letterSpacing: "-0.03em",
-                lineHeight: 1.1,
-                margin: "12px 0 0",
+                lineHeight: 1.08,
+                margin: 0,
+                maxWidth: 420,
               }}
             >
               The math works in your favor
             </h2>
+            <p
+              style={{
+                fontSize: 16,
+                color: "rgba(255,255,255,0.6)",
+                margin: "16px 0 40px",
+                maxWidth: 380,
+                lineHeight: 1.55,
+              }}
+            >
+              Real numbers from restaurants running Nuqra through a full service.
+            </p>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+              <span
+                style={{
+                  fontSize: 92,
+                  fontWeight: 600,
+                  letterSpacing: "-0.05em",
+                  lineHeight: 0.9,
+                  color: C.brandLight,
+                  ...MONO,
+                }}
+              >
+                {METRICS[0].value}
+              </span>
+              <span
+                style={{
+                  fontSize: 34,
+                  fontWeight: 600,
+                  color: C.brandLight,
+                  ...MONO,
+                }}
+              >
+                {METRICS[0].unit}
+              </span>
+            </div>
+            <div
+              style={{
+                fontSize: 15,
+                color: "rgba(255,255,255,0.7)",
+                marginTop: 14,
+                fontWeight: 500,
+              }}
+            >
+              {METRICS[0].label}
+            </div>
           </div>
-          <div
-            className="qp-grid-4"
-            style={{
-              position: "relative",
-              display: "grid",
-              gridTemplateColumns: "repeat(4,1fr)",
-              gap: 28,
-            }}
-          >
-            {METRICS.map((m) => (
-              <div key={m.label}>
-                <div
-                  style={{
-                    fontSize: 50,
-                    fontWeight: 700,
-                    letterSpacing: "-0.04em",
-                    lineHeight: 1,
-                    color: C.brandLight,
-                    ...MONO,
-                  }}
-                >
-                  {m.value}
-                  <span style={{ fontSize: 24, marginLeft: 1 }}>{m.unit}</span>
+
+          {/* Right: the remaining figures as a hairline ledger. */}
+          <div style={{ position: "relative" }}>
+            {METRICS.slice(1).map((m) => (
+              <div
+                key={m.label}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  gap: 20,
+                  padding: "22px 0",
+                  borderTop: "1px solid rgba(255,255,255,0.12)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                  <span
+                    style={{
+                      fontSize: 44,
+                      fontWeight: 600,
+                      letterSpacing: "-0.04em",
+                      lineHeight: 1,
+                      ...MONO,
+                    }}
+                  >
+                    {m.value}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 20,
+                      fontWeight: 600,
+                      color: "rgba(255,255,255,0.85)",
+                      ...MONO,
+                    }}
+                  >
+                    {m.unit}
+                  </span>
                 </div>
                 <div
                   style={{
                     fontSize: 14.5,
-                    color: "rgba(255,255,255,0.66)",
-                    marginTop: 12,
+                    color: "rgba(255,255,255,0.64)",
                     fontWeight: 500,
+                    textAlign: "right",
+                    maxWidth: 170,
                   }}
                 >
                   {m.label}
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      </div>
-
-      {/* DEMO REQUEST - inline expandable disclosure (no popup). */}
-      <div
-        id="demo"
-        className="qp-section"
-        style={{
-          maxWidth: 760,
-          margin: "0 auto",
-          padding: "8px 32px 72px",
-          scrollMarginTop: 80,
-        }}
-      >
-        <div style={{ ...card({ pad: S[6], radius: R.xl, elevated: true }) }}>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: S[4],
-            }}
-          >
-            <div style={{ maxWidth: 420 }}>
-              <h2
-                style={{
-                  fontSize: 27,
-                  fontWeight: 700,
-                  letterSpacing: "-0.025em",
-                  color: C.text,
-                  margin: 0,
-                }}
-              >
-                Get a free demo
-              </h2>
-              <p
-                style={{
-                  fontSize: 16,
-                  color: C.muted,
-                  margin: "10px 0 0",
-                  lineHeight: 1.55,
-                }}
-              >
-                See Nuqra live at your restaurant in 20 minutes. We&apos;ll email
-                your trial admin login on the spot.
-              </p>
-            </div>
-            <button
-              className="qp-cta"
-              onClick={() => (demoOpen ? setDemoOpen(false) : openDemo())}
-              aria-expanded={demoOpen}
-              aria-controls="demo-panel"
-              style={{ ...btn("primary", { size: "lg" }) }}
-            >
-              {demoOpen ? "Hide form" : "Get a free demo"}
-            </button>
-          </div>
-          <div
-            id="demo-panel"
-            inert={!demoOpen}
-            aria-hidden={!demoOpen}
-            style={expand(demoOpen, 520)}
-          >
-            <div style={{ paddingTop: S[5] }}>
-              <DemoForm open={demoOpen} />
-            </div>
           </div>
         </div>
       </div>
@@ -1139,7 +1060,7 @@ export function MarketingView() {
             >
               <button
                 className="qp-cta"
-                onClick={() => router.push("/admin/login")}
+                onClick={() => router.push("/demo")}
                 style={{ ...btn("primary", { size: "lg" }) }}
               >
                 Start free trial
@@ -1182,8 +1103,7 @@ export function MarketingView() {
           ·{" "}
           <Link href="/terms" style={{ color: C.muted, textDecoration: "underline" }}>
             Terms
-          </Link>{" "}
-          · {SITE.footerClaim}
+          </Link>
         </div>
       </div>
     </div>
