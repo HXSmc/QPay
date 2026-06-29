@@ -120,8 +120,9 @@ export default function DashboardPage() {
         <div style={{ display: "flex", gap: S[2] + 2 }}>
           <button
             className="qp-cta-lift"
+            disabled={loading || txns.length === 0}
             onClick={() => downloadCsv("nuqra-transactions.csv", transactionsToCsv(txns))}
-            style={btn("secondary", { size: "sm" })}
+            style={btn("secondary", { size: "sm", disabled: loading || txns.length === 0 })}
           >
             {tr("Export")}
           </button>

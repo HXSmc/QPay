@@ -50,6 +50,10 @@ export const ar: Record<string, string> = {
 
   // Metrics band
   "The math works in your favor": "الأرقام في صالحك",
+  "An illustrative model of what faster table-side checkout can add up to over a full service. Your numbers will vary.":
+    "نموذج توضيحي لما يمكن أن يحققه الدفع الأسرع على الطاولة على مدى خدمة كاملة. وستختلف أرقامك.",
+  "potential tip increase": "زيادة محتملة في الإكرامية",
+  "faster table turnover": "دوران أسرع للطاولات",
   "What faster table-side checkout adds up to over a full service.":
     "ما يضيفه الدفع الأسرع على الطاولة على مدى خدمة كاملة.",
   "saved per table": "موفّرة لكل طاولة",
@@ -75,8 +79,8 @@ export const ar: Record<string, string> = {
 
   // Footer CTA
   "Ready to stop chasing checks?": "هل أنت مستعد للتوقف عن مطاردة الفواتير؟",
-  "Get paid before they leave the table. Setup takes one afternoon, and your first trial login lands in your inbox on the spot.":
-    "استلم أموالك قبل أن يغادروا الطاولة. لا يستغرق الإعداد سوى بعد ظهيرة واحدة، ويصل أول تسجيل دخول لتجربتك إلى بريدك فورًا.",
+  "Get paid before they leave the table. Setup takes one afternoon, and we email your trial login as soon as you sign up.":
+    "استلم أموالك قبل أن يغادروا الطاولة. لا يستغرق الإعداد سوى بعد ظهيرة واحدة، ونرسل بيانات دخول تجربتك بمجرد تسجيلك.",
   "Start free trial": "ابدأ تجربتك المجانية",
   "Talk to sales": "تواصل مع المبيعات",
   "Privacy": "الخصوصية",
@@ -90,6 +94,9 @@ export const ar: Record<string, string> = {
   "Check your inbox": "تحقّق من بريدك الوارد",
   "Your demo is ready": "عرضك التوضيحي جاهز",
   "Your trial is ready": "تجربتك جاهزة",
+  "Your trial is created": "تم إنشاء تجربتك",
+  "Your trial account is created, but we couldn't email your login just yet. Contact our sales team and we'll get you signed in.":
+    "تم إنشاء حساب تجربتك، لكن تعذّر إرسال بيانات الدخول إلى بريدك حتى الآن. تواصل مع فريق المبيعات وسنُدخلك.",
   "Thanks": "شكرًا",
   "This email already has a Nuqra account, so we've sent you a note on how to reach our sales team to extend or upgrade.":
     "هذا البريد لديه حساب Nuqra بالفعل، لذا أرسلنا إليك ملاحظة حول كيفية التواصل مع فريق المبيعات للتمديد أو الترقية.",
@@ -171,8 +178,8 @@ export const ar: Record<string, string> = {
     "مسح، تقسيم، إكرامية، ودفع من البداية للنهاية، تمامًا كما سيستخدمها ضيوفك في الصالة.",
   "Already have an account?": "لديك حساب بالفعل؟",
   "Create your trial account": "أنشئ حساب تجربتك",
-  "Your admin login lands in your inbox the moment you submit.":
-    "تصل بيانات دخول المدير إلى بريدك لحظة الإرسال.",
+  "We'll email your admin login as soon as you submit.":
+    "سنرسل بيانات دخول المدير إلى بريدك بمجرد الإرسال.",
 
   // DemoPopup
   "Start your free trial": "ابدأ تجربتك المجانية",

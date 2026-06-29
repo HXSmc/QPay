@@ -86,7 +86,7 @@ export default function BranchesPage() {
           <div style={{ ...T.label, color: C.brand, marginBottom: S[1] }}>{tr("Branches")}</div>
           <h1 style={{ ...T.h1, margin: 0, color: C.text }}>{tr("Branches")}</h1>
           <p style={{ ...T.body, color: C.muted, margin: `${S[2]}px 0 0`, maxWidth: 520 }}>
-            {tr("Name each location, set its POS branch ID, and manage its tables separately.")}
+            {tr("Name each location, connect its POS, and manage its tables separately.")}
           </p>
         </div>
         <button

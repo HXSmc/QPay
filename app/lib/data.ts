@@ -1,6 +1,4 @@
-import type { OrderItem, TableStatus } from "./types";
-
-export const BRAND = "#2E5BFF";
+import type { OrderItem } from "./types";
 
 /** Default tax rate (percent) when a restaurant hasn't set its own. */
 export const DEFAULT_TAX_RATE = 8;
@@ -43,20 +41,3 @@ export const TIP_PCT: Record<string, number> = {
   "20": 0.2,
 };
 
-export const STATUS_PALETTE: Record<
-  TableStatus,
-  { c: string; bg: string; label: string }
-> = {
-  // Aligned to the theme STATUS tokens (cool palette, single source of truth).
-  unpaid: { c: "#C02B3A", bg: "#FCEBED", label: "Unpaid" },
-  partial: { c: "#8A5A12", bg: "#FBF3E4", label: "Partial" },
-  cleared: { c: "#15734F", bg: "#E7F4EE", label: "Cleared" },
-  open: { c: "#3D4651", bg: "#EEF0F3", label: "Open" },
-};
-
-export const METHOD_COLOR: Record<string, { c: string; bg: string }> = {
-  "Apple Pay": { c: "#0B1221", bg: "#F1F5F9" },
-  "Google Pay": { c: "#2E5BFF", bg: "#EEF2FF" },
-  "Visa •4242": { c: "#475569", bg: "#F1F5F9" },
-  Mastercard: { c: "#475569", bg: "#F1F5F9" },
-};

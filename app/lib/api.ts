@@ -1,3 +1,7 @@
+// LeadInput is defined once with normalizeLead in store-core; re-export it here
+// (type-only, erased at build) so the client form keeps a single source of truth.
+import type { LeadInput } from "./store-core";
+export type { LeadInput };
 import type {
   Branch,
   LiveTable,
@@ -455,20 +459,6 @@ export interface LeadResult {
   status: "created" | "exists" | "received";
   /** Whether the credential / contact-sales email actually went out. */
   emailed?: boolean;
-}
-
-export interface LeadInput {
-  name: string;
-  email: string;
-  restaurant: string;
-  /** demo (default) provisions a trial; sales is a contact-only inquiry. */
-  kind?: "demo" | "sales";
-  phone?: string;
-  tables?: number;
-  branches?: number;
-  posSystem?: string;
-  preferredDates?: string;
-  message?: string;
 }
 
 export async function submitLead(input: LeadInput): Promise<LeadResult> {

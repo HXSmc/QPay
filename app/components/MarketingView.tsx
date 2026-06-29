@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SITE } from "../lib/site";
 import { C, R, S, SHADOW, T, MONO, btn } from "../lib/theme";
 import { useT } from "../lib/i18n-client";
+import { usePrefersReducedMotion } from "../lib/use-reduced-motion";
 
 const SOLUTIONS = [
   {
@@ -128,17 +129,8 @@ const FAQ = [
 export function MarketingView() {
   const tr = useT();
   const router = useRouter();
-  const [reduced, setReduced] = useState(false);
-
-  // Honor prefers-reduced-motion: scrolls jump instantly and inline panels
-  // appear without animating.
-  useEffect(() => {
-    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const apply = () => setReduced(m.matches);
-    apply();
-    m.addEventListener?.("change", apply);
-    return () => m.removeEventListener?.("change", apply);
-  }, []);
+  // Honor prefers-reduced-motion: scrolls jump instantly (shared hook).
+  const reduced = usePrefersReducedMotion();
 
   const scrollToId = (id: string) =>
     document
@@ -881,7 +873,7 @@ export function MarketingView() {
               }}
             >
               {tr(
-                "What faster table-side checkout adds up to over a full service."
+                "An illustrative model of what faster table-side checkout can add up to over a full service. Your numbers will vary."
               )}
             </p>
             <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
@@ -1073,7 +1065,7 @@ export function MarketingView() {
             }}
           >
             {tr(
-              "Get paid before they leave the table. Setup takes one afternoon, and your first trial login lands in your inbox on the spot."
+              "Get paid before they leave the table. Setup takes one afternoon, and we email your trial login as soon as you sign up."
             )}
           </p>
           <div

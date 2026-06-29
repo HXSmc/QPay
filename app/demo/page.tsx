@@ -193,7 +193,7 @@ export default async function DemoPage() {
               margin: "8px 0 0",
             }}
           >
-            {tr("Your admin login lands in your inbox the moment you submit.")}
+            {tr("We'll email your admin login as soon as you submit.")}
           </p>
           <div style={{ marginTop: S[5] }}>
             <DemoForm open />

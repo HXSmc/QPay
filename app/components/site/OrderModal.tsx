@@ -18,22 +18,11 @@ import { fmt, type Currency } from "../../lib/data";
 import { placeOrder } from "../../lib/api";
 import { Alert, Spinner } from "../ui/Primitives";
 import type { MenuItem } from "../../lib/types";
+import { usePrefersReducedMotion } from "../../lib/use-reduced-motion";
 
 type Cart = Record<string, { qty: number; comment: string }>;
 
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
-
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-  return reduced;
-}
 
 export function OrderModal({
   open,

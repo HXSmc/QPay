@@ -13,23 +13,12 @@ import { C, R, btn } from "../../lib/theme";
 import { useT } from "../../lib/i18n-client";
 import type { MenuMeta } from "../../lib/types";
 import { Modal } from "../ui/Primitives";
+import { usePrefersReducedMotion } from "../../lib/use-reduced-motion";
 
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
 const ZOOM_MIN = 1;
 const ZOOM_MAX = 4;
 const ZOOM_STEP = 0.5;
-
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-  return reduced;
-}
 
 export function MenuModal({
   open,

@@ -9,22 +9,10 @@ import { useT } from "../lib/i18n-client";
 import { MenuModal } from "./site/MenuModal";
 import { OrderModal } from "./site/OrderModal";
 import { Toast } from "./ui/Primitives";
+import { usePrefersReducedMotion } from "../lib/use-reduced-motion";
 
 // Calm shared easing for inline reveals and state transitions.
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
-
-// Reduced-motion gate for any JS-driven motion (the live-indicator pulse).
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-  return reduced;
-}
 
 // Money cell: every monetary figure renders in the monospace "ledger" face.
 function Money({

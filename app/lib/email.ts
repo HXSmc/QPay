@@ -10,6 +10,9 @@
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 const DEFAULT_FROM = "Nuqra <onboarding@resend.dev>";
+// Brand color for email headers/buttons. Mirrors C.brand in theme.ts (cyan);
+// kept as a local literal so this server template has no client-token import.
+const BRAND = "#0E7490";
 
 export interface MailInput {
   to: string;
@@ -104,7 +107,7 @@ export async function sendTrialCredentials(opts: {
   ].join("\n");
   const html = `
   <div style="font-family:'Plus Jakarta Sans',-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#0B1221">
-    <div style="background:#2E5BFF;border-radius:16px 16px 0 0;padding:26px 28px">
+    <div style="background:${BRAND};border-radius:16px 16px 0 0;padding:26px 28px">
       <div style="color:#fff;font-size:20px;font-weight:800">Nuqra</div>
     </div>
     <div style="border:1px solid #E2E8F0;border-top:none;border-radius:0 0 16px 16px;padding:28px">
@@ -118,7 +121,7 @@ export async function sendTrialCredentials(opts: {
         <tr><td style="padding:8px 0;font-size:13px;color:#64748B;font-weight:600;border-top:1px solid #F1F5F9">Password</td>
             <td style="padding:8px 0;font-size:14px;font-weight:700;text-align:right;border-top:1px solid #F1F5F9;font-family:ui-monospace,Menlo,monospace">${escapeHtml(opts.password)}</td></tr>
       </table>
-      <a href="${escapeHtml(opts.loginUrl)}" style="display:inline-block;background:#2E5BFF;color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px">Sign in to Nuqra</a>
+      <a href="${escapeHtml(opts.loginUrl)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px">Sign in to Nuqra</a>
       <p style="font-size:13px;color:#64748B;line-height:1.6;margin:22px 0 0">
         This trial account is valid until <strong>${escapeHtml(expires)}</strong> (${days} days). Need more time? Reply and our team can extend it.
       </p>
@@ -146,7 +149,7 @@ export async function sendContactSales(opts: {
   ].join("\n");
   const html = `
   <div style="font-family:'Plus Jakarta Sans',-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#0B1221">
-    <div style="background:#2E5BFF;border-radius:16px 16px 0 0;padding:26px 28px">
+    <div style="background:${BRAND};border-radius:16px 16px 0 0;padding:26px 28px">
       <div style="color:#fff;font-size:20px;font-weight:800">Nuqra</div>
     </div>
     <div style="border:1px solid #E2E8F0;border-top:none;border-radius:0 0 16px 16px;padding:28px">
@@ -157,7 +160,7 @@ export async function sendContactSales(opts: {
       <p style="font-size:14.5px;color:#475569;line-height:1.6;margin:0 0 20px">
         To extend your trial or upgrade, please reach out to our sales team — we'll take great care of you.
       </p>
-      <a href="mailto:${escapeHtml(opts.salesEmail)}" style="display:inline-block;background:#2E5BFF;color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px">Contact sales</a>
+      <a href="mailto:${escapeHtml(opts.salesEmail)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px">Contact sales</a>
     </div>
   </div>`;
   return sendMail({ to: opts.to, subject, html, text });

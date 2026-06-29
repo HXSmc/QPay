@@ -112,7 +112,11 @@ export function DemoForm({ open }: { open: boolean }) {
           </svg>
         </div>
         <h3 style={{ ...T.h1, color: C.text, margin: "0 0 8px" }}>
-          {result?.status === "exists" ? tr("Check your inbox") : tr("Your trial is ready")}
+          {result?.status === "exists"
+            ? tr("Check your inbox")
+            : result?.emailed
+              ? tr("Your trial is ready")
+              : tr("Your trial is created")}
         </h3>
         <p style={{ ...T.body, color: C.muted, margin: "0 0 16px", maxWidth: 460 }}>
           {result?.status === "exists" ? (
@@ -122,12 +126,20 @@ export function DemoForm({ open }: { open: boolean }) {
                 "This email already has a Nuqra account, so we've sent you a note on how to reach our sales team to extend or upgrade."
               )}
             </>
-          ) : (
+          ) : result?.emailed ? (
             <>
               {tr("Thanks")}{name ? `, ${name}` : ""}.{" "}
               {tr("We've emailed your trial admin login to")}{" "}
               <strong>{email}</strong>.{" "}
               {tr("It's valid for 7 days. Check your inbox to sign in.")}
+            </>
+          ) : (
+            // Honest fallback: don't claim we emailed a login when delivery failed.
+            <>
+              {tr("Thanks")}{name ? `, ${name}` : ""}.{" "}
+              {tr(
+                "Your trial account is created, but we couldn't email your login just yet. Contact our sales team and we'll get you signed in."
+              )}
             </>
           )}
         </p>

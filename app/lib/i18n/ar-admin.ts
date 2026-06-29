@@ -92,8 +92,8 @@ export const ar: Record<string, string> = {
   "Confirm delete?": "تأكيد الحذف؟",
   table: "طاولة",
   tables: "طاولات",
-  "Name each location, set its POS branch ID, and manage its tables separately.":
-    "سمِّ كل موقع، وحدّد معرّف فرع نقاط البيع، وأدِر طاولاته بشكل منفصل.",
+  "Name each location, connect its POS, and manage its tables separately.":
+    "سمِّ كل موقع، واربط نظام نقاط البيع، وأدِر طاولاته بشكل منفصل.",
   "No branches yet": "لا توجد فروع بعد",
   "Add your first branch to get started.": "أضف أول فرع للبدء.",
   "Couldn't load your branches. Please refresh.": "تعذّر تحميل فروعك. يرجى التحديث.",
