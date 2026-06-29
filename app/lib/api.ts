@@ -189,6 +189,11 @@ const MENU_IMG_MAX_DIM = 2000;
  */
 async function downscaleImage(file: File): Promise<File> {
   if (!file.type.startsWith("image/")) return file; // PDFs etc. untouched
+  // Skip the canvas decode for absurdly large files: decoding a pathological
+  // image at full resolution can OOM the tab (an uncatchable crash). The server
+  // rejects > MAX_BYTES (20MB) anyway, so passing it through just surfaces a
+  // clean "too large" error instead of risking a crash.
+  if (file.size > 30 * 1024 * 1024) return file;
   try {
     let width = 0;
     let height = 0;

@@ -80,8 +80,10 @@ export async function POST(req: Request) {
       posSystem: isPosSystem(body.posSystem) ? body.posSystem : undefined,
       posApiKey: typeof body.posApiKey === "string" ? body.posApiKey : undefined,
     });
-  } catch {
-    /* account exists; config can be set later in admin settings */
+  } catch (e) {
+    // Account is already created; config can still be set in admin settings. Log
+    // so a half-provisioned account is visible instead of silently swallowed.
+    console.error("[seedAdminAccount] failed for", created.id, e);
   }
   return NextResponse.json(created, { status: 201 });
 }
