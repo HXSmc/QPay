@@ -61,7 +61,22 @@ async function aesKey(): Promise<CryptoKey> {
   return _cryptoKey;
 }
 
-const PREFIX = "v1.";
+// Ciphertext marker. Leads with a control char so it CANNOT collide with a real
+// printable secret/token (the old "v1." prefix could — a token literally starting
+// "v1." was mis-detected as ciphertext, stored plaintext, then wiped on read).
+const PREFIX = "nqenc1.";
+const LEGACY_PREFIX = "v1.";
+// iv(12) + GCM tag(16) = 28 bytes minimum for a genuine ciphertext.
+const MIN_CT_BYTES = 28;
+
+/** True if `s` decodes as base64url to at least one full iv+tag (our ciphertext). */
+function looksLikeCiphertext(body: string): boolean {
+  try {
+    return fromB64url(body).length >= MIN_CT_BYTES;
+  } catch {
+    return false;
+  }
+}
 
 /** Encrypt a UTF-8 string. Returns a self-describing base64url token. */
 export async function encryptSecret(plaintext: string): Promise<string> {
@@ -76,11 +91,15 @@ export async function encryptSecret(plaintext: string): Promise<string> {
   return PREFIX + b64url(packed);
 }
 
-/** Decrypt a token from {@link encryptSecret}. Returns null on any failure. */
+/** Decrypt a token from {@link encryptSecret}. Returns null on any failure.
+ *  Accepts the current prefix and the legacy "v1." prefix (migration window). */
 export async function decryptSecret(token: string): Promise<string | null> {
   try {
-    if (!token.startsWith(PREFIX)) return null;
-    const packed = fromB64url(token.slice(PREFIX.length));
+    let body: string | null = null;
+    if (token.startsWith(PREFIX)) body = token.slice(PREFIX.length);
+    else if (token.startsWith(LEGACY_PREFIX)) body = token.slice(LEGACY_PREFIX.length);
+    if (body === null) return null;
+    const packed = fromB64url(body);
     const iv = packed.slice(0, 12);
     const ct = packed.slice(12);
     const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, await aesKey(), ct);
@@ -90,7 +109,11 @@ export async function decryptSecret(token: string): Promise<string | null> {
   }
 }
 
-/** True if `s` looks like one of our ciphertext tokens. */
+/** True if `s` is one of our ciphertext tokens. The legacy "v1." prefix is only
+ *  treated as ciphertext when the body actually decodes to a full iv+tag, so a
+ *  plaintext secret like "v1.mytoken" is NOT mis-detected (it gets encrypted). */
 export function isEncrypted(s: unknown): s is string {
-  return typeof s === "string" && s.startsWith(PREFIX);
+  if (typeof s !== "string") return false;
+  if (s.startsWith(PREFIX)) return true;
+  return s.startsWith(LEGACY_PREFIX) && looksLikeCiphertext(s.slice(LEGACY_PREFIX.length));
 }

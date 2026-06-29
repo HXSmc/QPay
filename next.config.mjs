@@ -14,7 +14,9 @@ const csp = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co https://*.vercel-storage.com",
-  "frame-src 'none'",
+  // PDF menus render in an <iframe> from the public Blob store (prod) or the
+  // same-origin /uploads path (dev) — allow those, not blanket 'none'.
+  "frame-src 'self' https://*.vercel-storage.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
