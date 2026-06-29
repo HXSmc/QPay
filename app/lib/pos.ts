@@ -133,60 +133,13 @@ export function posFields(id: string | undefined | null): PosField[] {
   return POS_FIELDS[id] ?? GENERIC_FIELDS;
 }
 
-/** Secret field keys for a POS (API keys/tokens — encrypted at rest). */
+/** Secret field keys for a POS (API keys/tokens — encrypted at rest). Used by
+ *  pos-secrets.ts to decide which posConfig fields to encrypt/decrypt. */
 export function posSecretKeys(id: string | undefined | null): string[] {
   return posFields(id).filter((f) => f.secret).map((f) => f.key);
 }
 
-/** Non-secret field keys for a POS (stored as plaintext jsonb). */
-export function posPublicKeys(id: string | undefined | null): string[] {
-  return posFields(id).filter((f) => !f.secret).map((f) => f.key);
-}
-
-/**
- * Split a flat config into the non-secret part (safe to store/return as JSON)
- * and the secret part (encrypted at rest, never returned to the client). Empty
- * values are dropped so a blank secret field means "leave the stored one as-is".
- */
-export function splitPosConfig(
-  id: string | undefined | null,
-  config: Record<string, unknown> | undefined | null,
-): { publicCfg: Record<string, string>; secrets: Record<string, string> } {
-  const secretSet = new Set(posSecretKeys(id));
-  const publicCfg: Record<string, string> = {};
-  const secrets: Record<string, string> = {};
-  const cfg = config && typeof config === "object" ? config : {};
-  for (const f of posFields(id)) {
-    const v = (cfg as Record<string, unknown>)[f.key];
-    if (typeof v !== "string" || !v.trim()) continue;
-    const val = v.trim().slice(0, 400);
-    if (secretSet.has(f.key)) secrets[f.key] = val;
-    else publicCfg[f.key] = val;
-  }
-  return { publicCfg, secrets };
-}
-
 export type PosConnection = "none" | "incomplete" | "connected";
-
-/**
- * Connection state from the client's view: it sees the non-secret config plus a
- * list of which secret keys are stored (never the secret values themselves).
- */
-export function posConnectionFromParts(
-  posSystem: string | undefined | null,
-  publicCfg: Record<string, string> | undefined | null,
-  secretsSet: string[] | undefined | null,
-): PosConnection {
-  if (!posSystem || posSystem === "none") return "none";
-  const required = posFields(posSystem).filter((f) => f.required);
-  if (required.length === 0) return "none";
-  const pub = publicCfg ?? {};
-  const setKeys = new Set(secretsSet ?? []);
-  const ok = required.every((f) =>
-    f.secret ? setKeys.has(f.key) : (pub[f.key] ?? "").trim().length > 0,
-  );
-  return ok ? "connected" : "incomplete";
-}
 
 /**
  * Connection state for a chosen POS + its saved config. Pure: no network. The

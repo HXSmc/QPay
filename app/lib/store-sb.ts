@@ -908,9 +908,14 @@ export async function listBranches(owner: string): Promise<Branch[]> {
   return Promise.all(rows.map(rowToBranch));
 }
 
-export async function createBranch(owner: string, name: string): Promise<Branch> {
-  // Ensure a default exists first so the new one is never the only row.
-  await listBranches(owner);
+export async function createBranch(
+  owner: string,
+  name: string,
+  ensureDefault = true,
+): Promise<Branch> {
+  // Ensure a default exists first so the new one is never the only row (skipped
+  // by reconcile, which has already ensured it — avoids re-listing per create).
+  if (ensureDefault) await listBranches(owner);
   return rowToBranch(await insertBranch(owner, name.trim().slice(0, 80) || "Branch"));
 }
 

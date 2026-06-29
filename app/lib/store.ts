@@ -753,8 +753,11 @@ async function reconcileBranches(owner: string, count: number | undefined): Prom
   const target = Math.min(count ?? 1, MAX_AUTO_BRANCHES);
   if (target <= 1) return;
   const existing = await listBranches(owner); // also ensures the default "Main"
+  if (existing.length >= target) return; // common case: nothing to add (1 read)
+  // ensureDefault:false — the list above already guaranteed the default, so the
+  // creates don't each re-list (avoids write-amplification on raise).
   for (let k = existing.length; k < target; k++) {
-    await createBranch(owner, `Branch ${k + 1}`);
+    await createBranch(owner, `Branch ${k + 1}`, false);
   }
 }
 
@@ -839,9 +842,13 @@ export async function listBranches(owner: string): Promise<Branch[]> {
   );
 }
 
-export async function createBranch(owner: string, name: string): Promise<Branch> {
-  if (useSupabase) return rel.createBranch(owner, name);
-  await listBranches(owner); // ensure the default exists first
+export async function createBranch(
+  owner: string,
+  name: string,
+  ensureDefault = true,
+): Promise<Branch> {
+  if (useSupabase) return rel.createBranch(owner, name, ensureDefault);
+  if (ensureDefault) await listBranches(owner); // ensure the default exists first
   const branch: Branch = {
     id: globalThis.crypto.randomUUID(),
     owner,
