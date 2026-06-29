@@ -10,7 +10,7 @@ import {
   UPLOAD_DIR,
 } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
-import { allowDistributed } from "@/app/lib/ratelimit";
+import { rateLimit } from "@/app/lib/ratelimit";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { MenuMeta } from "@/app/lib/types";
 
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
   if (!limiter) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  if (!(await allowDistributed(`menu|${limiter.id}`, 12, 60_000))) {
+  if (!(await rateLimit("menu", limiter.id))) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
 

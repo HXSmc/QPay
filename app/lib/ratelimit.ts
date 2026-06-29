@@ -61,14 +61,44 @@ export async function allowDistributed(
       cache: "no-store",
       signal: AbortSignal.timeout(800),
     });
-    if (!res.ok) return true; // fail-open to the in-memory result
+    if (!res.ok) {
+      // Surface silent degradation: a KV outage drops every public endpoint back
+      // to per-instance-only limits, which should be visible in logs.
+      console.warn(`ratelimit: KV returned ${res.status}; falling back to in-memory`);
+      return true;
+    }
     const data = (await res.json()) as Array<{ result?: unknown }>;
     const count = Array.isArray(data) ? Number(data[0]?.result) : NaN;
     if (!Number.isFinite(count)) return true;
     return count <= max;
-  } catch {
+  } catch (e) {
+    console.warn(
+      "ratelimit: KV unreachable; falling back to in-memory —",
+      e instanceof Error ? e.message : e,
+    );
     return true; // KV unreachable — don't block legitimate users
   }
+}
+
+// Central registry of every rate limit (max requests / window) so the numbers
+// live in ONE place instead of scattered literals across routes. Use rateLimit()
+// below; the `key` argument is the per-subject suffix (IP, capability token,
+// user id…). Distributed when KV is configured, in-memory otherwise.
+export const LIMITS = {
+  lead: { max: 10, windowMs: 60_000 },
+  pay: { max: 15, windowMs: 60_000 },
+  sync: { max: 40, windowMs: 60_000 },
+  order: { max: 12, windowMs: 60_000 },
+  menu: { max: 12, windowMs: 60_000 },
+  posTest: { max: 10, windowMs: 60_000 },
+  adminCreate: { max: 20, windowMs: 60_000 },
+  adminEdit: { max: 30, windowMs: 60_000 },
+} as const;
+
+/** Check a named rate limit for `key`. Returns true if the action is allowed. */
+export async function rateLimit(name: keyof typeof LIMITS, key: string): Promise<boolean> {
+  const { max, windowMs } = LIMITS[name];
+  return allowDistributed(`${name}|${key}`, max, windowMs);
 }
 
 /**

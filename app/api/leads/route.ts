@@ -3,7 +3,7 @@ import { addLead, authedUser, listLeads, provisionTrialAdmin } from "@/app/lib/s
 import { isSameOrigin } from "@/app/lib/auth";
 import { sendContactSales, sendTrialCredentials } from "@/app/lib/email";
 import { SITE } from "@/app/lib/site";
-import { allowDistributed, clientIp } from "@/app/lib/ratelimit";
+import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +31,7 @@ export async function POST(req: Request) {
   if (!isSameOrigin(req)) {
     return NextResponse.json({ error: "bad origin" }, { status: 403 });
   }
-  if (!(await allowDistributed(`lead|${clientIp(req)}`, 10, 60_000))) {
+  if (!(await rateLimit("lead", clientIp(req)))) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
   const body = (await req.json().catch(() => ({}))) as {

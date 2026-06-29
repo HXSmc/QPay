@@ -7,7 +7,7 @@ import {
   RENEW_DAYS,
 } from "@/app/lib/store";
 import { hashPassword, isSameOrigin } from "@/app/lib/auth";
-import { allow, clientIp } from "@/app/lib/ratelimit";
+import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +47,7 @@ export async function PATCH(
   if (!(await requireSuper(req))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  if (!allow(`admin-edit|${clientIp(req)}`, 30, 60_000)) {
+  if (!(await rateLimit("adminEdit", clientIp(req)))) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
   const { id } = await params;

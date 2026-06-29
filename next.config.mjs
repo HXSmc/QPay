@@ -13,7 +13,9 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co https://*.vercel-storage.com",
+  // The browser only fetches /api (self) and PUTs menu uploads to the Blob store;
+  // Supabase is server-side only, so it's not in connect-src.
+  "connect-src 'self' https://*.vercel-storage.com",
   // PDF menus render in an <iframe> from the public Blob store (prod) or the
   // same-origin /uploads path (dev) — allow those, not blanket 'none'.
   "frame-src 'self' https://*.vercel-storage.com",

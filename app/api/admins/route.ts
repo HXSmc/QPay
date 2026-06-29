@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hashPassword, isSameOrigin } from "@/app/lib/auth";
 import { authedUser, createAdmin, listAdmins } from "@/app/lib/store";
-import { allow, clientIp } from "@/app/lib/ratelimit";
+import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
   if (!(await requireSuper(req))) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  if (!allow(`admin-create|${clientIp(req)}`, 20, 60_000)) {
+  if (!(await rateLimit("adminCreate", clientIp(req)))) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
   const body = (await req.json().catch(() => ({}))) as {

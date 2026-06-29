@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { authedUser, listOrders, placeOrder } from "@/app/lib/store";
-import { allowDistributed, clientIp } from "@/app/lib/ratelimit";
+import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   if (!Array.isArray(body.lines) || body.lines.length === 0 || body.lines.length > MAX_LINES) {
     return NextResponse.json({ error: "invalid lines" }, { status: 400 });
   }
-  if (!(await allowDistributed(`order|${clientIp(req)}`, 12, 60_000))) {
+  if (!(await rateLimit("order", clientIp(req)))) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
   const requested = body.lines.map((l) => {

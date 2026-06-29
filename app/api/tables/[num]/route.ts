@@ -9,7 +9,7 @@ import {
   syncReservation,
 } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
-import { allowDistributed, clientIp } from "@/app/lib/ratelimit";
+import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 import type { OrderItem, TableStatus } from "@/app/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -94,7 +94,7 @@ export async function PATCH(
     // Key the throttle on the capability token (the real table identity), NOT
     // the URL `num` — which the resolver ignores and an attacker can rotate to
     // mint unlimited fresh rate-limit buckets for the same table.
-    if (!(await allowDistributed(`sync|${clientIp(req)}|${token}`, 40, 60_000))) {
+    if (!(await rateLimit("sync", `${clientIp(req)}|${token}`))) {
       return NextResponse.json({ error: "rate limited" }, { status: 429 });
     }
     const updated = await syncReservation(num, id, qty, token);
@@ -112,7 +112,7 @@ export async function PATCH(
       return NextResponse.json({ error: "invalid token" }, { status: 400 });
     }
     // Throttle on the capability token, not the spoofable URL `num` (see sync).
-    if (!(await allowDistributed(`pay|${clientIp(req)}|${body.token}`, 15, 60_000))) {
+    if (!(await rateLimit("pay", `${clientIp(req)}|${body.token}`))) {
       return NextResponse.json({ error: "rate limited" }, { status: 429 });
     }
     const id = typeof body.id === "string" ? body.id : undefined;
