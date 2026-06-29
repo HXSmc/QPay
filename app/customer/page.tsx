@@ -1,4 +1,3 @@
-import { BrandHeader } from "../components/site/BrandHeader";
 import { CustomerView } from "../components/CustomerView";
 import { getPublicRestaurant, getTableByToken } from "../lib/store";
 import { DEFAULT_TAX_RATE } from "../lib/data";
@@ -42,7 +41,6 @@ export default async function CustomerPage({
         WebkitFontSmoothing: "antialiased",
       }}
     >
-      <BrandHeader />
       <CustomerView
         tableNumber={tableNumber || "—"}
         token={token}

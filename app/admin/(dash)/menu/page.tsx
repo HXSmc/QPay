@@ -76,6 +76,7 @@ function FileTab() {
   const tr = useT();
   const [meta, setMeta] = useState<MenuMeta | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -87,13 +88,15 @@ function FileTab() {
     const file = e.target.files?.[0];
     if (!file) return;
     setBusy(true);
+    setProgress(0);
     setError("");
     try {
-      setMeta(await uploadMenu(file));
+      setMeta(await uploadMenu(file, (pct) => setProgress(pct)));
     } catch {
       setError(tr("Upload failed. Use an image or PDF (max 20MB)."));
     } finally {
       setBusy(false);
+      setProgress(null);
       if (inputRef.current) inputRef.current.value = "";
     }
   };
@@ -127,7 +130,16 @@ function FileTab() {
           disabled={busy}
           style={btn("primary", { disabled: busy })}
         >
-          {busy ? <Spinner color="#fff" /> : meta ? tr("Replace menu") : tr("Upload menu")}
+          {busy ? (
+            <>
+              <Spinner color="#fff" />
+              {progress !== null ? ` ${tr("Uploading")} ${progress}%` : ` ${tr("Preparing.")}`}
+            </>
+          ) : meta ? (
+            tr("Replace menu")
+          ) : (
+            tr("Upload menu")
+          )}
         </button>
         {meta && (
           <button onClick={remove} disabled={busy} style={btn("danger")}>

@@ -9,6 +9,7 @@ import { useT } from "../lib/i18n-client";
 import { MenuModal } from "./site/MenuModal";
 import { OrderModal } from "./site/OrderModal";
 import { Toast } from "./ui/Primitives";
+import { LanguageToggle } from "./site/LanguageToggle";
 import { usePrefersReducedMotion } from "../lib/use-reduced-motion";
 
 // Calm shared easing for inline reveals and state transitions.
@@ -166,10 +167,16 @@ export function CustomerView({
   // --- split equally (share of the *remaining* balance) ---
   const clampedPaying = Math.min(payingFor, peopleAtTable);
   const perPerson = +(due / peopleAtTable).toFixed(2);
-  const equalPrincipal = Math.min(
-    +(perPerson * clampedPaying).toFixed(2),
-    remaining,
-  );
+  // Rounding each share to the cent makes N shares not sum exactly to the bill,
+  // so the last payer would otherwise leave a few cents unpaid. If paying my
+  // share would leave LESS than one more person's share, I cover the exact
+  // remaining instead — so the bill always clears to zero.
+  const myShare = +(perPerson * clampedPaying).toFixed(2);
+  const leftoverAfter = +(remaining - myShare).toFixed(2);
+  const equalPrincipal =
+    leftoverAfter > 0 && leftoverAfter <= perPerson
+      ? remaining
+      : Math.min(myShare, remaining);
   const atTableInc = () => setPeopleAtTable((p) => Math.min(p + 1, 20));
   // Keep the updater pure (no nested setState — it double-fires under
   // StrictMode). `clampedPaying` already caps payingFor to the headcount.
@@ -373,6 +380,9 @@ export function CustomerView({
         <Toast message={orderToast} kind="success" onDone={() => setOrderToast("")} />
       )}
 
+      {/* No diner-facing navbar here by design: the customer payment view has no
+          Nuqra-home or free-trial nav — only the language toggle (next to "Live
+          bill" below). Keeps diners on the bill. See audit.md. */}
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div
           style={{
@@ -462,37 +472,49 @@ export function CustomerView({
               </div>
             </div>
 
-            {/* Live indicator — calm ember pulse dot + label on the dark band */}
+            {/* Live indicator — calm ember pulse dot + label on the dark band,
+                with the language toggle alongside it (per request). */}
             <div
               style={{
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
-                gap: 8,
+                justifyContent: "space-between",
+                gap: S[3],
                 marginTop: S[4],
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid rgba(255,255,255,0.14)",
-                padding: "6px 13px",
-                borderRadius: R.pill,
-                fontSize: 12.5,
-                fontWeight: 600,
-                color: "rgba(255,255,255,0.92)",
+                flexWrap: "wrap",
               }}
             >
-              <span
-                aria-hidden="true"
+              <div
                 style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: C.brand,
-                  flexShrink: 0,
-                  animation: reduced ? undefined : "qpv-livepulse 2.4s ease-in-out infinite",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.14)",
+                  padding: "6px 13px",
+                  borderRadius: R.pill,
+                  fontSize: 12.5,
+                  fontWeight: 600,
+                  color: "rgba(255,255,255,0.92)",
                 }}
-              />
-              {tr("Live bill")}
-              {otherGuests > 0
-                ? `, ${otherGuests} ${otherGuests === 1 ? tr("other phone paying") : tr("other phones paying")}`
-                : ""}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: "50%",
+                    background: C.brand,
+                    flexShrink: 0,
+                    animation: reduced ? undefined : "qpv-livepulse 2.4s ease-in-out infinite",
+                  }}
+                />
+                {tr("Live bill")}
+                {otherGuests > 0
+                  ? `, ${otherGuests} ${otherGuests === 1 ? tr("other phone paying") : tr("other phones paying")}`
+                  : ""}
+              </div>
+              <LanguageToggle onDark />
             </div>
           </div>
 

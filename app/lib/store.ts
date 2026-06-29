@@ -705,8 +705,10 @@ export async function provisionTrialAdmin(
       name: restaurant.trim().slice(0, 80),
       tables: profile?.tables,
       // Trial accounts are capped to a single branch (multi-branch is a paid
-      // capability). The form's branch count is still captured on the lead.
+      // capability). maxBranches=1 enforces it through the normal cap mechanism,
+      // so the super can later lift it per account. Form branch count still on lead.
       branches: 1,
+      maxBranches: 1,
       posSystem: profile?.posSystem,
     });
   } catch (e) {
@@ -828,18 +830,17 @@ async function reconcileTables(
   }
 }
 
-/** Owner's hard table cap (0 = unlimited): the super-set maxTables, falling back
- *  to the legacy `tables` number for accounts created before maxTables existed. */
+/** Owner's hard table cap (0/unset = unlimited): the super-set maxTables. The
+ *  count is NOT a cap — leaving Max blank means no limit, by design. */
 export async function tableCap(owner: string): Promise<number> {
   const s = await getSettings(owner);
-  return s.maxTables || s.tables || 0;
+  return s.maxTables && s.maxTables > 0 ? s.maxTables : 0;
 }
 
-/** Owner's hard branch cap (0 = unlimited): maxBranches, falling back to the
- *  branch count. Used to limit branch creation. */
+/** Owner's hard branch cap (0/unset = unlimited): the super-set maxBranches. */
 export async function branchCap(owner: string): Promise<number> {
   const s = await getSettings(owner);
-  return s.maxBranches || s.branches || 0;
+  return s.maxBranches && s.maxBranches > 0 ? s.maxBranches : 0;
 }
 
 /**

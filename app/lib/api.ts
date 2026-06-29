@@ -178,7 +178,68 @@ export async function getMenu(
   return json(await fetch(`/api/menu${qs}`, { cache: "no-store" }));
 }
 
-export async function uploadMenu(file: File): Promise<MenuMeta> {
+/** Longest-edge cap for menu photos. Phone-library shots are often 10–30 MP /
+ *  many MB (and HEIC), which upload painfully slowly; downscale to this. */
+const MENU_IMG_MAX_DIM = 2000;
+
+/**
+ * Downscale + re-encode a large image to JPEG client-side before upload (huge
+ * phone photos / HEIC). PDFs and small images pass through unchanged. Best-
+ * effort: any decode failure returns the original file.
+ */
+async function downscaleImage(file: File): Promise<File> {
+  if (!file.type.startsWith("image/")) return file; // PDFs etc. untouched
+  try {
+    let width = 0;
+    let height = 0;
+    let source: CanvasImageSource | null = null;
+    const bitmap = await createImageBitmap(file).catch(() => null);
+    if (bitmap) {
+      width = bitmap.width;
+      height = bitmap.height;
+      source = bitmap;
+    } else {
+      const url = URL.createObjectURL(file);
+      const img = await new Promise<HTMLImageElement | null>((res) => {
+        const i = new Image();
+        i.onload = () => res(i);
+        i.onerror = () => res(null);
+        i.src = url;
+      });
+      URL.revokeObjectURL(url);
+      if (!img) return file;
+      width = img.naturalWidth;
+      height = img.naturalHeight;
+      source = img;
+    }
+    if (!width || !height || !source) return file;
+    const scale = Math.min(1, MENU_IMG_MAX_DIM / Math.max(width, height));
+    const w = Math.round(width * scale);
+    const h = Math.round(height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(source, 0, 0, w, h);
+    const blob = await new Promise<Blob | null>((res) =>
+      canvas.toBlob(res, "image/jpeg", 0.82),
+    );
+    if (!blob || blob.size >= file.size) return file; // no gain (or failed)
+    const base = file.name.replace(/\.[^.]+$/, "") || "menu";
+    return new File([blob], `${base}.jpg`, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
+
+export async function uploadMenu(
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<MenuMeta> {
+  // Shrink big phone photos (and convert HEIC→JPEG) before sending so uploads
+  // don't crawl on mobile data.
+  file = await downscaleImage(file);
   // Prod path: upload straight to Vercel Blob (no 4.5MB serverless body cap).
   // The /api/menu route mints a scoped token (after auth) and persists the meta.
   try {
@@ -188,6 +249,9 @@ export async function uploadMenu(file: File): Promise<MenuMeta> {
       handleUploadUrl: "/api/menu",
       contentType: file.type,
       clientPayload: JSON.stringify({ originalName: file.name }),
+      onUploadProgress: onProgress
+        ? (p: { percentage: number }) => onProgress(Math.round(p.percentage))
+        : undefined,
     });
     return {
       filename: blob.pathname,

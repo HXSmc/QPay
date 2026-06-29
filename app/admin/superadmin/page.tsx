@@ -189,13 +189,14 @@ export default function SuperadminPage() {
     const trimmed = editEmail.trim();
     if (trimmed && trimmed !== a.email) patch.email = trimmed;
     if (editPassword) patch.password = editPassword;
-    // Counts + caps: send when changed from the loaded values.
-    const t = numOr(editTables, 0);
-    const b = numOr(editBranches, 0);
+    // Counts: a blank field means "leave as is" (don't wipe to 0). Caps: a blank
+    // field means "no cap" (0 = unlimited), the way you remove a limit.
+    const tU = editTables.trim() ? Number(editTables) : undefined;
+    const bU = editBranches.trim() ? Number(editBranches) : undefined;
     const mt = numOr(editMaxTables, 0);
     const mb = numOr(editMaxBranches, 0);
-    if (t !== (a.config?.tables ?? 0)) patch.tables = t;
-    if (b !== (a.config?.branches ?? 0)) patch.branches = b;
+    if (tU !== undefined && tU !== (a.config?.tables ?? 0)) patch.tables = tU;
+    if (bU !== undefined && bU !== (a.config?.branches ?? 0)) patch.branches = bU;
     if (mt !== (a.config?.maxTables ?? 0)) patch.maxTables = mt;
     if (mb !== (a.config?.maxBranches ?? 0)) patch.maxBranches = mb;
     if (Object.keys(patch).length === 0) {
@@ -312,7 +313,7 @@ export default function SuperadminPage() {
             </Labeled>
             <div className="qp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[3] }}>
               <Labeled label={tr("POS system")} hint={tr("the owner finishes setup later")}>
-                <select value={cPos} onChange={(e) => setCPos(e.target.value)} style={field()}>
+                <select value={cPos} onChange={(e) => { setCPos(e.target.value); setCPosKey(""); }} style={field()}>
                   <option value="">{tr("None")}</option>
                   {POS_SYSTEMS.filter((p) => p.id !== "none").map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
@@ -336,16 +337,16 @@ export default function SuperadminPage() {
             {/* Counts (owner + super editable) + caps (super only). */}
             <div className="qp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: S[3] }}>
               <Labeled label={tr("Tables")}>
-                <input type="number" min={0} inputMode="numeric" value={cTables} onChange={(e) => setCTables(e.target.value)} style={field()} />
+                <input type="number" min={0} inputMode="numeric" aria-label={tr("Tables")} value={cTables} onChange={(e) => setCTables(e.target.value)} style={field()} />
               </Labeled>
               <Labeled label={tr("Max tables")} hint={tr("super only")}>
-                <input type="number" min={0} inputMode="numeric" value={cMaxTables} onChange={(e) => setCMaxTables(e.target.value)} style={field()} />
+                <input type="number" min={0} inputMode="numeric" aria-label={tr("Max tables")} value={cMaxTables} onChange={(e) => setCMaxTables(e.target.value)} style={field()} />
               </Labeled>
               <Labeled label={tr("Branches")}>
-                <input type="number" min={0} inputMode="numeric" value={cBranches} onChange={(e) => setCBranches(e.target.value)} style={field()} />
+                <input type="number" min={0} inputMode="numeric" aria-label={tr("Branches")} value={cBranches} onChange={(e) => setCBranches(e.target.value)} style={field()} />
               </Labeled>
               <Labeled label={tr("Max branches")} hint={tr("super only")}>
-                <input type="number" min={0} inputMode="numeric" value={cMaxBranches} onChange={(e) => setCMaxBranches(e.target.value)} style={field()} />
+                <input type="number" min={0} inputMode="numeric" aria-label={tr("Max branches")} value={cMaxBranches} onChange={(e) => setCMaxBranches(e.target.value)} style={field()} />
               </Labeled>
             </div>
 
@@ -536,16 +537,16 @@ export default function SuperadminPage() {
                     </div>
                     <div className="qp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: S[3] }}>
                       <Labeled label={tr("Tables")}>
-                        <input type="number" min={0} inputMode="numeric" value={editTables} onChange={(e) => setEditTables(e.target.value)} style={field()} />
+                        <input type="number" min={0} inputMode="numeric" aria-label={`${tr("Tables")} — ${a.email}`} value={editTables} onChange={(e) => setEditTables(e.target.value)} style={field()} />
                       </Labeled>
                       <Labeled label={tr("Max tables")} hint={tr("super only")}>
-                        <input type="number" min={0} inputMode="numeric" value={editMaxTables} onChange={(e) => setEditMaxTables(e.target.value)} style={field()} />
+                        <input type="number" min={0} inputMode="numeric" aria-label={`${tr("Max tables")} — ${a.email}`} value={editMaxTables} onChange={(e) => setEditMaxTables(e.target.value)} style={field()} />
                       </Labeled>
                       <Labeled label={tr("Branches")}>
-                        <input type="number" min={0} inputMode="numeric" value={editBranches} onChange={(e) => setEditBranches(e.target.value)} style={field()} />
+                        <input type="number" min={0} inputMode="numeric" aria-label={`${tr("Branches")} — ${a.email}`} value={editBranches} onChange={(e) => setEditBranches(e.target.value)} style={field()} />
                       </Labeled>
                       <Labeled label={tr("Max branches")} hint={tr("super only")}>
-                        <input type="number" min={0} inputMode="numeric" value={editMaxBranches} onChange={(e) => setEditMaxBranches(e.target.value)} style={field()} />
+                        <input type="number" min={0} inputMode="numeric" aria-label={`${tr("Max branches")} — ${a.email}`} value={editMaxBranches} onChange={(e) => setEditMaxBranches(e.target.value)} style={field()} />
                       </Labeled>
                     </div>
                     <button

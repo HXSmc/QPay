@@ -135,7 +135,7 @@ export default function SettingsPage() {
     setSaving(true);
     setError("");
     try {
-      await saveSettings({
+      const saved = await saveSettings({
         name: restaurant.trim(),
         taxRate: Number(taxRate),
         currency,
@@ -146,8 +146,13 @@ export default function SettingsPage() {
         posSystem,
         posConfig,
       });
+      // Re-hydrate from the server's normalized result so a count clamped to the
+      // cap (e.g. typed 99, capped to 10) shows the real stored value, not the
+      // stale over-cap input.
+      setTables(saved.tables ? String(saved.tables) : "");
+      setBranches(saved.branches ? String(saved.branches) : "");
       setSaved(true);
-      const nb = branches ? Number(branches) : 0;
+      const nb = saved.branches ?? 0;
       if (nb !== branchesAtLoad.current) {
         // Branch count changed → server provisioned/updated branches; reload so
         // the sidebar Branches link and the Tables branch tabs reflect it.

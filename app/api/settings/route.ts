@@ -22,8 +22,16 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const body = (await req.json().catch(() => ({}))) as Partial<RestaurantSettings>;
-  // Trial accounts are capped to a single branch (multi-branch is paid).
-  const branches = user.source === "demo" ? 1 : body.branches;
+  // Trials are capped to a single branch (multi-branch is paid) — UNLESS the super
+  // explicitly granted this account a higher maxBranches, in which case respect it
+  // (mergeSettings clamps to that cap). Without the guard, a trial's own settings
+  // save would reset super-granted branches back to 1 and orphan provisioned rows.
+  const cur = await getSettings(user.id);
+  const hasGrantedCap = !!(cur.maxBranches && cur.maxBranches > 0);
+  const branches =
+    user.source === "demo" && !hasGrantedCap && body.branches !== undefined
+      ? Math.min(body.branches, 1)
+      : body.branches;
   // setSettings (via mergeSettings) validates/clamps each field; ignore anything
   // else. POS config is sanitized server-side to the chosen system's fields.
   const next = await setSettings(user.id, {
