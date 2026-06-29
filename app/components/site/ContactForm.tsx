@@ -24,6 +24,7 @@ export function ContactForm() {
   const [posSystem, setPosSystem] = useState("");
   const [preferredDates, setPreferredDates] = useState("");
   const [message, setMessage] = useState("");
+  const [hp, setHp] = useState(""); // honeypot — humans never fill this
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -56,6 +57,7 @@ export function ContactForm() {
         posSystem: posSystem || undefined,
         preferredDates: preferredDates || undefined,
         message: message || undefined,
+        hp,
       });
       setSent(true);
     } catch {
@@ -135,6 +137,17 @@ export function ContactForm() {
 
   return (
     <form onSubmit={submit} noValidate>
+      {/* Honeypot — see DemoForm. */}
+      <input
+        type="text"
+        name="company_url"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        value={hp}
+        onChange={(e) => setHp(e.target.value)}
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
       <div
         style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[4] }}
         className="qp-grid-2"

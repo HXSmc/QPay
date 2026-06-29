@@ -210,7 +210,16 @@ async function ensureSuperadminBlob(s: Store): Promise<boolean> {
 }
 
 async function readStoreBlob(): Promise<Store> {
-  // Local-dev fallback only (production uses the relational Supabase backend).
+  // The disk blob is a LOCAL-DEV fallback only. In production it would be an
+  // ephemeral, per-instance store that silently loses data — so if a prod request
+  // ever reaches this path (SUPABASE_URL unset/misconfigured) fail loudly instead
+  // of quietly running on disposable storage. Only fires at runtime on the disk
+  // path; the relational backend never calls this, and the build never reads it.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "store: refusing to use the ephemeral disk backend in production — set SUPABASE_URL (+ SUPABASE_SERVICE_ROLE_KEY)",
+    );
+  }
   let raw: Store;
   let text: string | null = null;
   try {

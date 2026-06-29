@@ -24,6 +24,7 @@ export function DemoForm({ open }: { open: boolean }) {
   const [tables, setTables] = useState("");
   const [branches, setBranches] = useState("");
   const [posSystem, setPosSystem] = useState("");
+  const [hp, setHp] = useState(""); // honeypot — humans never fill this
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -50,6 +51,7 @@ export function DemoForm({ open }: { open: boolean }) {
         tables: tables ? Number(tables) : undefined,
         branches: branches ? Number(branches) : undefined,
         posSystem: posSystem || undefined,
+        hp,
       });
       setResult(res);
       setSent(true);
@@ -165,6 +167,18 @@ export function DemoForm({ open }: { open: boolean }) {
 
   return (
     <form onSubmit={submit} noValidate>
+      {/* Honeypot: off-screen, hidden from a11y + tab order. Bots fill it; humans
+          can't see it. A filled value is dropped server-side. */}
+      <input
+        type="text"
+        name="company_url"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        value={hp}
+        onChange={(e) => setHp(e.target.value)}
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
       <div
         style={{
           display: "grid",

@@ -3,7 +3,7 @@ import { addLead, authedUser, listLeads, provisionTrialAdmin } from "@/app/lib/s
 import { isSameOrigin } from "@/app/lib/auth";
 import { sendContactSales, sendTrialCredentials } from "@/app/lib/email";
 import { SITE } from "@/app/lib/site";
-import { allow, clientIp } from "@/app/lib/ratelimit";
+import { allowDistributed, clientIp } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -31,13 +31,14 @@ export async function POST(req: Request) {
   if (!isSameOrigin(req)) {
     return NextResponse.json({ error: "bad origin" }, { status: 403 });
   }
-  if (!allow(`lead|${clientIp(req)}`, 10, 60_000)) {
+  if (!(await allowDistributed(`lead|${clientIp(req)}`, 10, 60_000))) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
   const body = (await req.json().catch(() => ({}))) as {
     name?: unknown;
     email?: unknown;
     restaurant?: unknown;
+    hp?: unknown;
     kind?: unknown;
     phone?: unknown;
     tables?: unknown;
@@ -52,6 +53,15 @@ export async function POST(req: Request) {
     return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined;
   };
   const kind: "demo" | "sales" = body.kind === "sales" ? "sales" : "demo";
+  // Honeypot: a hidden field humans never fill. A bot that auto-fills every input
+  // trips it — we ack with a success-shaped response (so the bot can't probe) but
+  // provision/store nothing.
+  if (typeof body.hp === "string" && body.hp.trim()) {
+    return NextResponse.json(
+      { ok: true, status: kind === "sales" ? "received" : "created" },
+      { status: 201 },
+    );
+  }
   const name = str(body.name);
   const email = str(body.email);
   const restaurant = str(body.restaurant);

@@ -461,7 +461,9 @@ export interface LeadResult {
   emailed?: boolean;
 }
 
-export async function submitLead(input: LeadInput): Promise<LeadResult> {
+export async function submitLead(
+  input: LeadInput & { hp?: string },
+): Promise<LeadResult> {
   return json(
     await fetch("/api/leads", {
       method: "POST",
