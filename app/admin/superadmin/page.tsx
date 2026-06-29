@@ -34,7 +34,7 @@ function Labeled({
     <div>
       <div style={{ display: "flex", alignItems: "baseline", gap: S[2], marginBottom: 5 }}>
         <span style={{ ...T.label, color: C.text }}>{label}</span>
-        {hint && <span style={{ ...T.caption, color: C.faint }}>· {hint}</span>}
+        {hint && <span style={{ ...T.caption, color: C.muted }}>· {hint}</span>}
       </div>
       {children}
     </div>
@@ -313,7 +313,7 @@ export default function SuperadminPage() {
             </Labeled>
             <div className="qp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[3] }}>
               <Labeled label={tr("POS system")} hint={tr("the owner finishes setup later")}>
-                <select value={cPos} onChange={(e) => { setCPos(e.target.value); setCPosKey(""); }} style={field()}>
+                <select aria-label={tr("POS system")} value={cPos} onChange={(e) => { setCPos(e.target.value); setCPosKey(""); }} style={field()}>
                   <option value="">{tr("None")}</option>
                   {POS_SYSTEMS.filter((p) => p.id !== "none").map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
