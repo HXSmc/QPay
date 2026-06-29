@@ -4,11 +4,8 @@ import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SITE } from "../lib/site";
-import { C, R, S, SHADOW, T, MONO, btn, card } from "../lib/theme";
-import { SalesDropdown } from "./site/SalesDropdown";
+import { C, R, S, SHADOW, T, MONO, btn } from "../lib/theme";
 import { useT } from "../lib/i18n-client";
-
-const EASE = "cubic-bezier(0.16,1,0.3,1)";
 
 const SOLUTIONS = [
   {
@@ -131,7 +128,6 @@ const FAQ = [
 export function MarketingView() {
   const tr = useT();
   const router = useRouter();
-  const [salesOpen, setSalesOpen] = useState(false);
   const [reduced, setReduced] = useState(false);
 
   // Honor prefers-reduced-motion: scrolls jump instantly and inline panels
@@ -150,18 +146,6 @@ export function MarketingView() {
       ?.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
 
   const scrollToSolutions = () => scrollToId("solutions");
-
-  // Shared smooth expand/collapse for inline disclosures (GPU-friendly,
-  // collapses instantly under reduced-motion).
-  const expand = (open: boolean, max: number): CSSProperties => ({
-    overflow: "hidden",
-    maxHeight: open ? max : 0,
-    opacity: open ? 1 : 0,
-    transform: open ? "none" : "translateY(-6px)",
-    transition: reduced
-      ? "none"
-      : `max-height 320ms ${EASE}, opacity 240ms ${EASE}, transform 280ms ${EASE}`,
-  });
 
   const eyebrow: CSSProperties = {
     fontSize: 12.5,
@@ -272,13 +256,16 @@ export function MarketingView() {
   );
 
   return (
-    <div style={{ background: C.canvas, color: C.text }}>
-      {/* HERO - asymmetric split: copy left, real live-bill device right. */}
+    // Transparent so the page-wrapper hero glow (which spans behind the navbar)
+    // shows through; sections below set their own backgrounds as before.
+    <div style={{ background: "transparent", color: C.text }}>
+      {/* HERO - asymmetric split: copy left, real live-bill device right. The
+          glow now lives on the page wrapper (app/page.tsx) so it continues
+          seamlessly behind the sticky navbar. */}
       <div
         style={{
           position: "relative",
           overflow: "hidden",
-          background: `radial-gradient(115% 120% at 92% -12%, ${C.brandTint} 0%, ${C.canvas} 56%)`,
         }}
       >
         <div
@@ -1115,23 +1102,11 @@ export function MarketingView() {
               </button>
               <button
                 className="qp-press"
-                onClick={() => setSalesOpen((v) => !v)}
-                aria-expanded={salesOpen}
-                aria-controls="sales-panel"
+                onClick={() => router.push("/contact")}
                 style={{ ...btn("secondary", { size: "lg" }) }}
               >
                 {tr("Talk to sales")}
               </button>
-            </div>
-            <div
-              id="sales-panel"
-              inert={!salesOpen}
-              aria-hidden={!salesOpen}
-              style={{ ...expand(salesOpen, 320), width: "100%", maxWidth: 340 }}
-            >
-              <div style={{ paddingTop: S[1] }}>
-                <SalesDropdown />
-              </div>
             </div>
           </div>
         </div>

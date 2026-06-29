@@ -1,4 +1,5 @@
 import type {
+  Branch,
   LiveTable,
   MenuItem,
   MenuMeta,
@@ -50,8 +51,14 @@ export async function listTables(): Promise<LiveTable[]> {
   return json(await fetch("/api/tables", { cache: "no-store" }));
 }
 
-export async function createTable(): Promise<LiveTable> {
-  return json(await fetch("/api/tables", { method: "POST" }));
+export async function createTable(branchId?: string): Promise<LiveTable> {
+  return json(
+    await fetch("/api/tables", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(branchId ? { branchId } : {}),
+    }),
+  );
 }
 
 export async function setTableStatus(
@@ -383,20 +390,88 @@ export async function saveSettings(
   );
 }
 
+// --- Branches (multi-location) ---
+
+export async function listBranches(): Promise<Branch[]> {
+  return json(await fetch("/api/branches", { cache: "no-store" }));
+}
+
+export async function createBranch(name: string): Promise<Branch> {
+  return json(
+    await fetch("/api/branches", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name }),
+    }),
+  );
+}
+
+export async function updateBranch(
+  id: string,
+  patch: { name?: string; externalId?: string; posSystem?: string; posConfig?: Record<string, string> },
+): Promise<Branch> {
+  return json(
+    await fetch(`/api/branches/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(patch),
+    }),
+  );
+}
+
+export async function deleteBranch(
+  id: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch(`/api/branches/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, error: data.error || "failed" };
+  }
+  return { ok: true };
+}
+
+export interface PosTestResult {
+  ok: boolean;
+  message: string;
+  automated: boolean;
+}
+
+/** Verify a saved POS connection (account-level, or a specific branch). */
+export async function testPosConnection(branchId?: string): Promise<PosTestResult> {
+  return json(
+    await fetch("/api/pos/test", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(branchId ? { branchId } : {}),
+    }),
+  );
+}
+
 // --- Marketing demo-request lead ---
 
 export interface LeadResult {
-  /** created = trial admin issued + emailed; exists = email already had an account. */
-  status: "created" | "exists";
+  /** created = trial issued + emailed; exists = email already had an account;
+   *  received = sales inquiry captured (no trial). */
+  status: "created" | "exists" | "received";
   /** Whether the credential / contact-sales email actually went out. */
-  emailed: boolean;
+  emailed?: boolean;
 }
 
-export async function submitLead(input: {
+export interface LeadInput {
   name: string;
   email: string;
   restaurant: string;
-}): Promise<LeadResult> {
+  /** demo (default) provisions a trial; sales is a contact-only inquiry. */
+  kind?: "demo" | "sales";
+  phone?: string;
+  tables?: number;
+  branches?: number;
+  posSystem?: string;
+  preferredDates?: string;
+  message?: string;
+}
+
+export async function submitLead(input: LeadInput): Promise<LeadResult> {
   return json(
     await fetch("/api/leads", {
       method: "POST",

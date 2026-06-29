@@ -14,22 +14,27 @@
 import { hashPassword } from "./auth";
 import { SUPER_EMAIL, SUPER_PASSWORD } from "./constants";
 import { fmt, type Currency } from "./data";
+import { decryptPosConfig, encryptPosConfig } from "./pos-secrets";
 import { sb } from "./supabase";
 import {
   applyPayment,
   buildOrderLines,
   clampHold,
   coerceSettings,
+  type LeadInput,
   mergeSettings,
   newToken,
   nextStatusForItems,
+  normalizeLead,
   orderAmount,
   pruneReservations,
   zeros,
 } from "./store-core";
+import { sanitizePosConfig } from "./pos";
 import type {
   AccountSource,
   AdminUser,
+  Branch,
   Lead,
   LiveTable,
   MenuItem,
@@ -64,6 +69,7 @@ type TableRow = {
   paid_qty: number[] | null;
   reservations: LiveTable["reservations"] | null;
   version: number | string | null;
+  branch_id?: string | null;
 };
 
 function rowToTable(r: TableRow): LiveTable {
@@ -72,6 +78,7 @@ function rowToTable(r: TableRow): LiveTable {
   return {
     num: String(r.num),
     owner: r.owner,
+    branchId: r.branch_id ?? null,
     token: r.token,
     status: r.status,
     amount: r.amount,
@@ -157,17 +164,56 @@ async function settingsRow(owner: string): Promise<RestaurantSettings> {
     .eq("owner", owner)
     .maybeSingle();
   if (error) throw new Error(`store: settings read failed — ${error.message}`);
-  return coerceSettings(
-    data
-      ? {
-          name: data.name,
-          taxRate: Number(data.tax_rate),
-          currency: data.currency,
-          autoReceipts: data.auto_receipts,
-          tipPrompts: data.tip_prompts,
-        }
-      : null,
-  );
+  if (!data) return coerceSettings(null);
+  const posSystem = typeof data.pos_system === "string" ? data.pos_system : undefined;
+  // Decrypt secret POS fields (stored as ciphertext) before coercing.
+  const posConfig =
+    data.pos_config && typeof data.pos_config === "object"
+      ? await decryptPosConfig(posSystem, data.pos_config)
+      : undefined;
+  return coerceSettings({
+    name: data.name,
+    taxRate: Number(data.tax_rate),
+    currency: data.currency,
+    autoReceipts: data.auto_receipts,
+    tipPrompts: data.tip_prompts,
+    // New columns: absent on a not-yet-migrated DB → coerceSettings defaults.
+    tables: typeof data.num_tables === "number" ? data.num_tables : undefined,
+    branches: typeof data.num_branches === "number" ? data.num_branches : undefined,
+    posSystem,
+    posConfig,
+  });
+}
+
+/**
+ * Insert/upsert that survives a not-yet-migrated DB: if PostgREST rejects an
+ * unknown column (PGRST204 "Could not find the 'X' column …"), drop that column
+ * and retry, so the app can deploy before its migration lands. Returns the
+ * inserted row (when `select` requested) or null.
+ */
+async function writeWithOptionalCols(
+  table: string,
+  row: Record<string, unknown>,
+  opts: { onConflict?: string; select?: boolean } = {},
+): Promise<Record<string, unknown> | null> {
+  const client = await sb();
+  const payload = { ...row };
+  for (let i = 0; i < 12; i++) {
+    const base = opts.onConflict
+      ? client.from(table).upsert(payload, { onConflict: opts.onConflict })
+      : client.from(table).insert(payload);
+    const { data, error } = opts.select
+      ? await base.select("*").single()
+      : await base;
+    if (!error) return (data as Record<string, unknown> | null) ?? null;
+    const miss = /Could not find the '([^']+)' column/i.exec(error.message);
+    if (miss && miss[1] in payload) {
+      delete payload[miss[1]];
+      continue;
+    }
+    throw new Error(`store: ${table} write failed — ${error.message}`);
+  }
+  throw new Error(`store: ${table} write failed — too many unknown columns`);
 }
 
 export async function getSettings(owner: string): Promise<RestaurantSettings> {
@@ -180,23 +226,27 @@ export async function setSettings(
 ): Promise<RestaurantSettings> {
   const cur = await settingsRow(owner);
   const next = mergeSettings(cur, patch);
-  const client = await sb();
-  const base = {
-    owner,
-    name: next.name,
-    tax_rate: next.taxRate,
-    auto_receipts: next.autoReceipts,
-    tip_prompts: next.tipPrompts,
-  };
-  // Try with currency; if the column hasn't been migrated yet, retry without it
-  // so saving settings never breaks (currency just won't persist until migrated).
-  let { error } = await client
-    .from("settings")
-    .upsert({ ...base, currency: next.currency }, { onConflict: "owner" });
-  if (error && /currency/i.test(error.message)) {
-    ({ error } = await client.from("settings").upsert(base, { onConflict: "owner" }));
-  }
-  if (error) throw new Error(`store: settings write failed — ${error.message}`);
+  // Encrypt secret POS fields before persisting (non-secret fields stay plaintext).
+  const encConfig = await encryptPosConfig(next.posSystem, next.posConfig);
+  // writeWithOptionalCols drops any column the DB doesn't have yet (currency /
+  // pos_system / num_tables / num_branches / pos_config on a pre-migration DB)
+  // and retries, so saving settings never breaks before the migration lands.
+  await writeWithOptionalCols(
+    "settings",
+    {
+      owner,
+      name: next.name,
+      tax_rate: next.taxRate,
+      auto_receipts: next.autoReceipts,
+      tip_prompts: next.tipPrompts,
+      currency: next.currency,
+      num_tables: next.tables ?? null,
+      num_branches: next.branches ?? null,
+      pos_system: next.posSystem ?? null,
+      pos_config: encConfig,
+    },
+    { onConflict: "owner" },
+  );
   return next;
 }
 
@@ -204,13 +254,18 @@ export async function setSettings(
 // Tables
 // ---------------------------------------------------------------------------
 
-export async function listTables(owner: string): Promise<LiveTable[]> {
+export async function listTables(
+  owner: string,
+  opts: { branchId?: string; includeUnassigned?: boolean } = {},
+): Promise<LiveTable[]> {
   const client = await sb();
-  const { data, error } = await client
-    .from("tables")
-    .select("*")
-    .eq("owner", owner)
-    .order("num", { ascending: true });
+  let q = client.from("tables").select("*").eq("owner", owner);
+  if (opts.branchId) {
+    q = opts.includeUnassigned
+      ? q.or(`branch_id.eq.${opts.branchId},branch_id.is.null`)
+      : q.eq("branch_id", opts.branchId);
+  }
+  const { data, error } = await q.order("num", { ascending: true });
   if (error) throw new Error(`store: tables read failed — ${error.message}`);
   return (data ?? []).map((r) => rowToTable(r as TableRow));
 }
@@ -318,7 +373,10 @@ async function casTable(
   }
 }
 
-export async function createTable(owner: string): Promise<LiveTable> {
+export async function createTable(
+  owner: string,
+  branchId?: string | null,
+): Promise<LiveTable> {
   const client = await sb();
   // Per-owner allocation that fills gaps: the smallest free number for this
   // owner (admin A: 1,2 · admin B: 1). A deleted number is reused (next_table_num
@@ -335,6 +393,7 @@ export async function createTable(owner: string): Promise<LiveTable> {
     const table: LiveTable = {
       num: String(num),
       owner,
+      branchId: branchId ?? null,
       token,
       status: "open",
       amount: "—",
@@ -343,7 +402,7 @@ export async function createTable(owner: string): Promise<LiveTable> {
       paidQty: [],
       reservations: [],
     };
-    const { error } = await client.from("tables").insert({
+    const insertRow: Record<string, unknown> = {
       num,
       owner,
       token,
@@ -354,7 +413,14 @@ export async function createTable(owner: string): Promise<LiveTable> {
       paid_qty: [],
       reservations: [],
       version: 0,
-    });
+    };
+    if (branchId) insertRow.branch_id = branchId;
+    let { error } = await client.from("tables").insert(insertRow);
+    // Pre-migration safety: retry without branch_id if the column is absent.
+    if (error && /branch_id/i.test(error.message) && "branch_id" in insertRow) {
+      delete insertRow.branch_id;
+      ({ error } = await client.from("tables").insert(insertRow));
+    }
     if (!error) return table;
     // Another concurrent create grabbed the same free num → recompute + retry.
     if (error.code === "23505" && attempt < MAX_CAS_RETRIES) {
@@ -722,31 +788,46 @@ export async function getPublicRestaurant(
 // Leads
 // ---------------------------------------------------------------------------
 
-export async function addLead(input: {
-  name: string;
-  email: string;
-  restaurant: string;
-}): Promise<Lead> {
-  const client = await sb();
-  const lead = {
-    name: input.name.trim().slice(0, 120),
-    email: input.email.trim().slice(0, 200),
-    restaurant: input.restaurant.trim().slice(0, 120),
-  };
-  const { data, error } = await client
-    .from("leads")
-    .insert(lead)
-    .select("*")
-    .single();
-  if (error) throw new Error(`store: lead write failed — ${error.message}`);
-  // Best-effort cap: trim rows beyond MAX_LEADS (newest kept).
+/** Domain lead → snake_case row (extra cols dropped if unmigrated). */
+function leadRow(input: LeadInput): Record<string, unknown> {
+  const n = normalizeLead(input);
   return {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    restaurant: data.restaurant,
-    ts: data.created_at,
+    name: n.name,
+    email: n.email,
+    restaurant: n.restaurant,
+    kind: n.kind,
+    phone: n.phone || null,
+    num_tables: n.tables || null,
+    num_branches: n.branches || null,
+    pos_system: n.posSystem || null,
+    preferred_dates: n.preferredDates || null,
+    message: n.message || null,
   };
+}
+
+/** Lead row → domain Lead (tolerant of missing columns). */
+function rowToLead(r: Record<string, unknown>): Lead {
+  return {
+    id: String(r.id ?? ""),
+    name: String(r.name ?? ""),
+    email: String(r.email ?? ""),
+    restaurant: String(r.restaurant ?? ""),
+    kind: r.kind === "sales" ? "sales" : "demo",
+    phone: typeof r.phone === "string" ? r.phone : undefined,
+    tables: typeof r.num_tables === "number" ? r.num_tables : undefined,
+    branches: typeof r.num_branches === "number" ? r.num_branches : undefined,
+    posSystem: typeof r.pos_system === "string" ? r.pos_system : undefined,
+    preferredDates: typeof r.preferred_dates === "string" ? r.preferred_dates : undefined,
+    message: typeof r.message === "string" ? r.message : undefined,
+    ts: String(r.created_at ?? ""),
+  };
+}
+
+export async function addLead(input: LeadInput): Promise<Lead> {
+  const lead = leadRow(input);
+  // Extra profiling columns drop out gracefully on a pre-migration DB.
+  const data = (await writeWithOptionalCols("leads", lead, { select: true })) ?? {};
+  return rowToLead(data);
 }
 
 export async function listLeads(): Promise<Lead[]> {
@@ -757,13 +838,136 @@ export async function listLeads(): Promise<Lead[]> {
     .order("created_at", { ascending: false })
     .limit(MAX_LEADS);
   if (error) throw new Error(`store: leads read failed — ${error.message}`);
-  return (data ?? []).map((r) => ({
+  return (data ?? []).map(rowToLead);
+}
+
+// ---------------------------------------------------------------------------
+// Branches (multi-location)
+// ---------------------------------------------------------------------------
+
+type BranchRow = {
+  id: string;
+  owner: string;
+  name: string | null;
+  external_id: string | null;
+  pos_system: string | null;
+  pos_config: Record<string, string> | null;
+  created_at: string;
+};
+
+async function rowToBranch(r: BranchRow): Promise<Branch> {
+  const posSystem = r.pos_system ?? "";
+  const posConfig =
+    r.pos_config && typeof r.pos_config === "object"
+      ? await decryptPosConfig(posSystem, r.pos_config)
+      : {};
+  return {
     id: r.id,
-    name: r.name,
-    email: r.email,
-    restaurant: r.restaurant,
-    ts: r.created_at,
-  }));
+    owner: r.owner,
+    name: r.name || "Main",
+    externalId: r.external_id ?? "",
+    posSystem,
+    posConfig,
+    createdAt: r.created_at,
+  };
+}
+
+/** A synthetic default branch used when the branches table doesn't exist yet
+ *  (pre-migration) so single-branch accounts keep working. */
+function syntheticDefault(owner: string): Branch {
+  return { id: "default", owner, name: "Main", externalId: "", posSystem: "", posConfig: {}, createdAt: "" };
+}
+
+async function insertBranch(owner: string, name: string): Promise<BranchRow> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("branches")
+    .insert({ owner, name, external_id: "", pos_config: {} })
+    .select("*")
+    .single();
+  if (error) throw new Error(`store: branch create failed — ${error.message}`);
+  return data as BranchRow;
+}
+
+export async function listBranches(owner: string): Promise<Branch[]> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("branches")
+    .select("*")
+    .eq("owner", owner)
+    .order("created_at", { ascending: true });
+  if (error) {
+    // Table not migrated yet → behave as a single default branch.
+    if (/relation .*branches.* does not exist|find the table|schema cache/i.test(error.message)) {
+      return [syntheticDefault(owner)];
+    }
+    throw new Error(`store: branches read failed — ${error.message}`);
+  }
+  let rows = (data ?? []) as BranchRow[];
+  if (rows.length === 0) rows = [await insertBranch(owner, "Main")];
+  return Promise.all(rows.map(rowToBranch));
+}
+
+export async function createBranch(owner: string, name: string): Promise<Branch> {
+  // Ensure a default exists first so the new one is never the only row.
+  await listBranches(owner);
+  return rowToBranch(await insertBranch(owner, name.trim().slice(0, 80) || "Branch"));
+}
+
+export async function updateBranch(
+  owner: string,
+  id: string,
+  patch: { name?: string; externalId?: string; posSystem?: string; posConfig?: Record<string, string> },
+): Promise<Branch | null> {
+  const client = await sb();
+  const { data: curRow } = await client
+    .from("branches")
+    .select("*")
+    .eq("owner", owner)
+    .eq("id", id)
+    .maybeSingle();
+  if (!curRow) return null;
+  const posSystem =
+    typeof patch.posSystem === "string" ? patch.posSystem : (curRow.pos_system ?? "");
+  const fields: Record<string, unknown> = {};
+  if (typeof patch.name === "string") fields.name = patch.name.trim().slice(0, 80) || "Branch";
+  if (typeof patch.externalId === "string") fields.external_id = patch.externalId.trim().slice(0, 120);
+  if (typeof patch.posSystem === "string") fields.pos_system = posSystem;
+  if (patch.posConfig) {
+    const clean = sanitizePosConfig(posSystem, patch.posConfig);
+    fields.pos_config = await encryptPosConfig(posSystem, clean);
+  }
+  if (Object.keys(fields).length === 0) return rowToBranch(curRow as BranchRow);
+  const { data, error } = await client
+    .from("branches")
+    .update(fields)
+    .eq("owner", owner)
+    .eq("id", id)
+    .select("*")
+    .maybeSingle();
+  if (error) throw new Error(`store: branch update failed — ${error.message}`);
+  return data ? rowToBranch(data as BranchRow) : null;
+}
+
+export async function deleteBranch(
+  owner: string,
+  id: string,
+): Promise<{ ok: boolean; reason?: "last" | "not-found" }> {
+  const branches = await listBranches(owner);
+  if (branches.length <= 1) return { ok: false, reason: "last" };
+  const fallback = branches.find((b) => b.id !== id);
+  if (!fallback) return { ok: false, reason: "last" };
+  const client = await sb();
+  // Move this branch's tables to the fallback branch so none are orphaned.
+  await client.from("tables").update({ branch_id: fallback.id }).eq("owner", owner).eq("branch_id", id);
+  const { data, error } = await client
+    .from("branches")
+    .delete()
+    .eq("owner", owner)
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(`store: branch delete failed — ${error.message}`);
+  return { ok: (data?.length ?? 0) > 0, reason: (data?.length ?? 0) > 0 ? undefined : "not-found" };
 }
 
 // ---------------------------------------------------------------------------

@@ -7,10 +7,11 @@ import {
   deleteTable,
   getMe,
   getSettings,
+  listBranches,
   listTables,
   setTableItems,
 } from "../../../lib/api";
-import type { LiveTable, TableStatus } from "../../../lib/types";
+import type { Branch, LiveTable, TableStatus } from "../../../lib/types";
 import { QrModal } from "../../../components/admin/QrModal";
 import { OrderModal } from "../../../components/admin/OrderModal";
 import { C, R, S, T, NUM, MONO, STATUS, badge, btn, card } from "../../../lib/theme";
@@ -34,6 +35,8 @@ const STATUS_LABEL: Record<TableStatus, string> = {
 export default function TablesPage() {
   const tr = useT();
   const [tables, setTables] = useState<LiveTable[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState<string>("");
   const [qrFor, setQrFor] = useState<LiveTable | null>(null);
   const [orderFor, setOrderFor] = useState<LiveTable | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,6 +62,20 @@ export default function TablesPage() {
       .then(setTables)
       .catch(() => setError(tr("Couldn't load your tables. Please refresh.")))
       .finally(() => setLoading(false));
+    // Load branches; if the account has multiple, a branch switcher appears and
+    // tables are filtered/created per branch. The ?branch query (from the
+    // Branches page "Manage tables" link) pre-selects one.
+    listBranches()
+      .then((b) => {
+        setBranches(b);
+        const wanted =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("branch")
+            : null;
+        const initial = wanted && b.some((x) => x.id === wanted) ? wanted : b[0]?.id ?? "";
+        setSelectedBranch(initial);
+      })
+      .catch(() => {});
     getSettings()
       .then(async (s) => {
         setCurrency(s.currency);
@@ -78,11 +95,21 @@ export default function TablesPage() {
     return () => clearInterval(id);
   }, []);
 
+  const multiBranch = branches.length > 1;
+  const defaultBranchId = branches[0]?.id;
+  const visibleTables = multiBranch
+    ? tables.filter(
+        (t) =>
+          t.branchId === selectedBranch ||
+          (selectedBranch === defaultBranchId && (t.branchId == null || t.branchId === "")),
+      )
+    : tables;
+
   const addTable = async () => {
     setBusy(true);
     setError("");
     try {
-      const t = await createTable();
+      const t = await createTable(multiBranch ? selectedBranch : undefined);
       setTables((prev) => [...prev, t]);
     } catch {
       setError(tr("Couldn't add a table. Please retry."));
@@ -146,6 +173,34 @@ export default function TablesPage() {
         </button>
       </div>
 
+      {multiBranch && (
+        <div
+          className="qp-scroll-x"
+          style={{ display: "flex", gap: S[2], marginBottom: S[5], flexWrap: "wrap" }}
+          role="tablist"
+          aria-label={tr("Branches")}
+        >
+          {branches.map((b) => {
+            const active = b.id === selectedBranch;
+            return (
+              <button
+                key={b.id}
+                role="tab"
+                aria-selected={active}
+                onClick={() => setSelectedBranch(b.id)}
+                className="qp-press"
+                style={{
+                  ...btn(active ? "primary" : "secondary", { size: "sm" }),
+                  borderRadius: R.pill,
+                }}
+              >
+                {b.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {error && (
         <div style={{ marginBottom: S[4] }}>
           <Alert kind="danger">{error}</Alert>
@@ -168,7 +223,7 @@ export default function TablesPage() {
             <Skeleton key={i} h={196} radius={R.md} />
           ))}
         </div>
-      ) : tables.length === 0 ? (
+      ) : visibleTables.length === 0 ? (
         <EmptyState
           title={tr("No tables yet")}
           body={tr("Create your first table to generate a QR code and start taking scan-to-pay orders.")}
@@ -181,7 +236,7 @@ export default function TablesPage() {
         />
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: S[3] + 2 }}>
-          {tables.map((t) => {
+          {visibleTables.map((t) => {
             const dot = STATUS[STATUS_BADGE[t.status]].fg;
             return (
               <Fragment key={t.num}>

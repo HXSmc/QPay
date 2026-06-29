@@ -1,29 +1,29 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { submitLead, type LeadResult } from "../../lib/api";
+import { useRef, useState } from "react";
+import { submitLead } from "../../lib/api";
 import { C, S, STATUS, T, btn, field } from "../../lib/theme";
 import { Alert, Spinner } from "../ui/Primitives";
 import { useT } from "../../lib/i18n-client";
 import { POS_SYSTEMS } from "../../lib/pos";
 
-// Basic format check (local-part@domain.tld). Catches obvious typos before we
-// hit the network, without trying to be an RFC-complete validator.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Inline demo-request form (no popup, no overlay). It lives in the normal page
-// flow inside an expandable section. `open` only drives focus + reset; the
-// expand/collapse animation is owned by the parent section.
-export function DemoForm({ open }: { open: boolean }) {
+// Sales-inquiry form (kind: "sales"). Unlike the demo form it provisions no
+// trial; it captures a richer profile so the team can prepare and follow up at
+// the prospect's preferred time. Lives in the normal page flow (no modal).
+export function ContactForm() {
   const tr = useT();
   const [sent, setSent] = useState(false);
-  const [result, setResult] = useState<LeadResult | null>(null);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
   const [restaurant, setRestaurant] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [tables, setTables] = useState("");
   const [branches, setBranches] = useState("");
   const [posSystem, setPosSystem] = useState("");
+  const [preferredDates, setPreferredDates] = useState("");
+  const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const firstInputRef = useRef<HTMLInputElement>(null);
@@ -31,21 +31,32 @@ export function DemoForm({ open }: { open: boolean }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!EMAIL_RE.test(email.trim())) {
-      setError(tr("Please enter a valid work email (name@company.com)."));
+    if (!name.trim() || !restaurant.trim()) {
+      setError(tr("Please add your name and restaurant."));
+      return;
+    }
+    if (!phone.trim() && !email.trim()) {
+      setError(tr("Add a phone number or email so we can reach you."));
+      return;
+    }
+    if (email.trim() && !EMAIL_RE.test(email.trim())) {
+      setError(tr("Please enter a valid email (name@company.com)."));
       return;
     }
     setBusy(true);
     try {
-      const res = await submitLead({
+      await submitLead({
+        kind: "sales",
         name,
-        email,
         restaurant,
+        email,
+        phone,
         tables: tables ? Number(tables) : undefined,
         branches: branches ? Number(branches) : undefined,
         posSystem: posSystem || undefined,
+        preferredDates: preferredDates || undefined,
+        message: message || undefined,
       });
-      setResult(res);
       setSent(true);
     } catch {
       setError(tr("Couldn't send your request. Please try again."));
@@ -56,24 +67,20 @@ export function DemoForm({ open }: { open: boolean }) {
 
   const reset = () => {
     setSent(false);
-    setResult(null);
     setName("");
-    setEmail("");
     setRestaurant("");
+    setEmail("");
+    setPhone("");
     setTables("");
     setBranches("");
     setPosSystem("");
+    setPreferredDates("");
+    setMessage("");
     setError("");
     setBusy(false);
   };
 
-  // Focus the first field when the section is opened (and not already sent).
-  useEffect(() => {
-    if (open && !sent) firstInputRef.current?.focus();
-  }, [open, sent]);
-
-  // Shared label styling: sits ABOVE every field (no placeholder-as-label).
-  const labelStyle = { ...T.label, color: C.text, marginBottom: 6, display: "block" };
+  const labelStyle = { ...T.label, color: C.text, marginBottom: 6, display: "block" } as const;
 
   if (sent) {
     return (
@@ -106,34 +113,15 @@ export function DemoForm({ open }: { open: boolean }) {
           </svg>
         </div>
         <h3 style={{ ...T.h1, color: C.text, margin: "0 0 8px" }}>
-          {result?.status === "exists" ? tr("Check your inbox") : tr("Your trial is ready")}
+          {tr("Thanks, we'll be in touch")}
         </h3>
         <p style={{ ...T.body, color: C.muted, margin: "0 0 16px", maxWidth: 460 }}>
-          {result?.status === "exists" ? (
-            <>
-              {tr("Thanks")}{name ? `, ${name}` : ""}.{" "}
-              {tr(
-                "This email already has a Nuqra account, so we've sent you a note on how to reach our sales team to extend or upgrade."
-              )}
-            </>
-          ) : (
-            <>
-              {tr("Thanks")}{name ? `, ${name}` : ""}.{" "}
-              {tr("We've emailed your trial admin login to")}{" "}
-              <strong>{email}</strong>.{" "}
-              {tr("It's valid for 7 days. Check your inbox to sign in.")}
-            </>
+          {tr("Thanks")}
+          {name ? `, ${name}` : ""}.{" "}
+          {tr(
+            "Our team will reach out at the time you picked to walk you through Nuqra and your POS integration."
           )}
         </p>
-        {result && !result.emailed && (
-          <div style={{ marginBottom: 18, maxWidth: 460 }}>
-            <Alert kind="warn">
-              {tr(
-                "Email delivery is still being set up. Contact sales if it doesn't arrive."
-              )}
-            </Alert>
-          </div>
-        )}
         <button
           className="qp-press"
           onClick={reset}
@@ -148,19 +136,15 @@ export function DemoForm({ open }: { open: boolean }) {
   return (
     <form onSubmit={submit} noValidate>
       <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: S[4],
-        }}
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[4] }}
         className="qp-grid-2"
       >
         <div>
-          <label htmlFor="demo-name" style={labelStyle}>
+          <label htmlFor="c-name" style={labelStyle}>
             {tr("Your name")}
           </label>
           <input
-            id="demo-name"
+            id="c-name"
             required
             ref={firstInputRef}
             aria-label={tr("Your name")}
@@ -170,25 +154,11 @@ export function DemoForm({ open }: { open: boolean }) {
           />
         </div>
         <div>
-          <label htmlFor="demo-email" style={labelStyle}>
-            {tr("Work email")}
-          </label>
-          <input
-            id="demo-email"
-            required
-            type="email"
-            aria-label={tr("Work email")}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={field()}
-          />
-        </div>
-        <div style={{ gridColumn: "1 / -1" }}>
-          <label htmlFor="demo-restaurant" style={labelStyle}>
+          <label htmlFor="c-restaurant" style={labelStyle}>
             {tr("Restaurant name")}
           </label>
           <input
-            id="demo-restaurant"
+            id="c-restaurant"
             required
             aria-label={tr("Restaurant name")}
             value={restaurant}
@@ -197,14 +167,41 @@ export function DemoForm({ open }: { open: boolean }) {
           />
         </div>
         <div>
-          <label htmlFor="demo-tables" style={labelStyle}>
+          <label htmlFor="c-phone" style={labelStyle}>
+            {tr("Phone number")}
+          </label>
+          <input
+            id="c-phone"
+            type="tel"
+            inputMode="tel"
+            aria-label={tr("Phone number")}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            style={field()}
+          />
+        </div>
+        <div>
+          <label htmlFor="c-email" style={labelStyle}>
+            {tr("Email (optional)")}
+          </label>
+          <input
+            id="c-email"
+            type="email"
+            aria-label={tr("Email (optional)")}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            style={field()}
+          />
+        </div>
+        <div>
+          <label htmlFor="c-tables" style={labelStyle}>
             {tr("Number of tables")}
           </label>
           <input
-            id="demo-tables"
-            inputMode="numeric"
-            min={0}
+            id="c-tables"
             type="number"
+            min={0}
+            inputMode="numeric"
             aria-label={tr("Number of tables")}
             value={tables}
             onChange={(e) => setTables(e.target.value)}
@@ -212,14 +209,14 @@ export function DemoForm({ open }: { open: boolean }) {
           />
         </div>
         <div>
-          <label htmlFor="demo-branches" style={labelStyle}>
+          <label htmlFor="c-branches" style={labelStyle}>
             {tr("Number of branches")}
           </label>
           <input
-            id="demo-branches"
-            inputMode="numeric"
-            min={0}
+            id="c-branches"
             type="number"
+            min={0}
+            inputMode="numeric"
             aria-label={tr("Number of branches")}
             value={branches}
             onChange={(e) => setBranches(e.target.value)}
@@ -227,11 +224,11 @@ export function DemoForm({ open }: { open: boolean }) {
           />
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
-          <label htmlFor="demo-pos" style={labelStyle}>
+          <label htmlFor="c-pos" style={labelStyle}>
             {tr("Which POS do you use?")}
           </label>
           <select
-            id="demo-pos"
+            id="c-pos"
             aria-label={tr("Which POS do you use?")}
             value={posSystem}
             onChange={(e) => setPosSystem(e.target.value)}
@@ -245,6 +242,32 @@ export function DemoForm({ open }: { open: boolean }) {
             ))}
           </select>
         </div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label htmlFor="c-dates" style={labelStyle}>
+            {tr("Best dates and times to reach you")}
+          </label>
+          <input
+            id="c-dates"
+            aria-label={tr("Best dates and times to reach you")}
+            placeholder={tr("e.g. Sunday or Monday mornings")}
+            value={preferredDates}
+            onChange={(e) => setPreferredDates(e.target.value)}
+            style={field()}
+          />
+        </div>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label htmlFor="c-message" style={labelStyle}>
+            {tr("Anything you'd like us to know?")}
+          </label>
+          <textarea
+            id="c-message"
+            aria-label={tr("Anything you'd like us to know?")}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={4}
+            style={{ ...field(), resize: "vertical", minHeight: 96 }}
+          />
+        </div>
       </div>
       {error && (
         <div style={{ marginTop: S[3] }}>
@@ -255,29 +278,18 @@ export function DemoForm({ open }: { open: boolean }) {
         type="submit"
         disabled={busy}
         className="qp-cta"
-        style={{
-          ...btn("primary", { size: "lg", disabled: busy }),
-          marginTop: S[4],
-          gap: 9,
-        }}
+        style={{ ...btn("primary", { size: "lg", disabled: busy }), marginTop: S[4], gap: 9 }}
       >
         {busy ? (
           <>
             <Spinner size={16} color="#fff" /> {tr("Sending")}
           </>
         ) : (
-          tr("Start free trial")
+          tr("Request a callback")
         )}
       </button>
-      <p
-        style={{
-          ...T.caption,
-          color: C.faint,
-          marginTop: S[3],
-          marginBottom: 0,
-        }}
-      >
-        {tr("7-day trial admin login, no card required.")}
+      <p style={{ ...T.caption, color: C.faint, marginTop: S[3], marginBottom: 0 }}>
+        {tr("We only use these details to set up your walkthrough. No spam.")}
       </p>
     </form>
   );

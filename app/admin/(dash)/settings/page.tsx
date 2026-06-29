@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMe, getSettings, saveSettings } from "../../../lib/api";
+import { getMe, getSettings, saveSettings, testPosConnection, type PosTestResult } from "../../../lib/api";
 import { C, R, S, T, STATUS, SHADOW, btn, card, field } from "../../../lib/theme";
 import { Alert, Spinner, Toast } from "../../../components/ui/Primitives";
 import { CURRENCIES, type Currency } from "../../../lib/data";
 import { useT } from "../../../lib/i18n-client";
+import { POS_SYSTEMS, posConnection, posFields } from "../../../lib/pos";
+import { badge } from "../../../lib/theme";
 
 const CURRENCY_LABELS: Record<Currency, string> = {
   USD: "USD (US Dollar $)",
@@ -73,6 +75,12 @@ export default function SettingsPage() {
   const [currency, setCurrency] = useState<Currency>("USD");
   const [autoReceipts, setAutoReceipts] = useState(true);
   const [tipPrompts, setTipPrompts] = useState(true);
+  const [tables, setTables] = useState("");
+  const [branches, setBranches] = useState("");
+  const [posSystem, setPosSystem] = useState("");
+  const [posConfig, setPosConfig] = useState<Record<string, string>>({});
+  const [testing, setTesting] = useState(false);
+  const [posTest, setPosTest] = useState<PosTestResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -96,6 +104,10 @@ export default function SettingsPage() {
         setCurrency(s.currency);
         setAutoReceipts(s.autoReceipts);
         setTipPrompts(s.tipPrompts);
+        setTables(s.tables ? String(s.tables) : "");
+        setBranches(s.branches ? String(s.branches) : "");
+        setPosSystem(s.posSystem ?? "");
+        setPosConfig(s.posConfig ?? {});
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -117,12 +129,31 @@ export default function SettingsPage() {
         currency,
         autoReceipts,
         tipPrompts,
+        tables: tables ? Number(tables) : 0,
+        branches: branches ? Number(branches) : 0,
+        posSystem,
+        posConfig,
       });
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save. Please retry.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Save first (so the latest, encrypted credentials persist) then run a real
+  // read-only verification against the POS API.
+  const runTest = async () => {
+    setTesting(true);
+    setPosTest(null);
+    try {
+      await saveSettings({ posSystem, posConfig });
+      setPosTest(await testPosConnection());
+    } catch {
+      setPosTest({ ok: false, automated: true, message: "Couldn't test the connection." });
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -188,6 +219,37 @@ export default function SettingsPage() {
               ))}
             </select>
           </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[4] }}>
+            <div>
+              <label htmlFor="set-tables" style={labelStyle}>
+                {tr("Number of tables")}
+              </label>
+              <input
+                id="set-tables"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={tables}
+                onChange={(e) => setTables(e.target.value)}
+                style={field()}
+              />
+            </div>
+            <div>
+              <label htmlFor="set-branches" style={labelStyle}>
+                {tr("Number of branches")}
+              </label>
+              <input
+                id="set-branches"
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={branches}
+                onChange={(e) => setBranches(e.target.value)}
+                style={field()}
+              />
+            </div>
+          </div>
         </div>
 
         <div style={row}>
@@ -207,6 +269,95 @@ export default function SettingsPage() {
             </div>
           </div>
           <Toggle on={tipPrompts} onToggle={() => setTipPrompts((v) => !v)} label={tr("Tip prompts")} />
+        </div>
+
+        {/* POS integration: pick the system, then fill the credentials it needs.
+            Saved with the rest of the form by the Save button below. */}
+        <div style={{ borderTop: `1px solid ${C.canvas}`, marginTop: S[4], paddingTop: S[5] }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: S[3],
+              marginBottom: S[2],
+            }}
+          >
+            <div style={{ fontSize: 14.5, fontWeight: 700 }}>{tr("POS integration")}</div>
+            {(() => {
+              const conn = posConnection(posSystem, posConfig);
+              if (conn === "connected") return <span style={badge("success")}>{tr("Connected")}</span>;
+              if (conn === "incomplete") return <span style={badge("warn")}>{tr("Needs details")}</span>;
+              return <span style={badge("neutral")}>{tr("Not set")}</span>;
+            })()}
+          </div>
+          <p style={{ ...T.caption, color: C.muted, fontWeight: 500, margin: `0 0 ${S[3]}px` }}>
+            {tr("Connect your point-of-sale so orders and payments stay in sync.")}
+          </p>
+
+          <label htmlFor="set-pos" style={labelStyle}>
+            {tr("Your POS system")}
+          </label>
+          <select
+            id="set-pos"
+            value={posSystem}
+            onChange={(e) => {
+              setPosSystem(e.target.value);
+              setPosConfig({}); // switching systems clears the old credentials
+            }}
+            style={field()}
+          >
+            {POS_SYSTEMS.map((p) => (
+              <option key={p.id} value={p.id === "none" ? "" : p.id}>
+                {p.id === "none" ? tr("None") : p.name}
+              </option>
+            ))}
+          </select>
+
+          {posFields(posSystem).length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: S[4], marginTop: S[4] }}>
+              {posFields(posSystem).map((f) => (
+                <div key={f.key}>
+                  <label htmlFor={`pos-${f.key}`} style={labelStyle}>
+                    {tr(f.label)}
+                    {f.required ? "" : ` ${tr("(optional)")}`}
+                  </label>
+                  <input
+                    id={`pos-${f.key}`}
+                    type={f.secret ? "password" : "text"}
+                    autoComplete={f.secret ? "new-password" : "off"}
+                    placeholder={f.placeholder ? tr(f.placeholder) : undefined}
+                    value={posConfig[f.key] ?? ""}
+                    onChange={(e) => {
+                      setPosConfig((c) => ({ ...c, [f.key]: e.target.value }));
+                      setPosTest(null);
+                    }}
+                    style={field()}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {posSystem && posSystem !== "none" && (
+            <button
+              type="button"
+              onClick={runTest}
+              disabled={testing}
+              className="qp-cta-lift"
+              style={{ ...btn("secondary", { size: "sm", disabled: testing }), marginTop: S[3] }}
+            >
+              {testing && <Spinner size={14} />}
+              {tr("Test connection")}
+            </button>
+          )}
+          {posTest && (
+            <div style={{ marginTop: S[3] }}>
+              <Alert kind={posTest.ok ? "success" : posTest.automated ? "danger" : "info"}>
+                {tr(posTest.message)}
+              </Alert>
+            </div>
+          )}
         </div>
 
         <button

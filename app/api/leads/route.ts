@@ -33,27 +33,67 @@ export async function POST(req: Request) {
     name?: unknown;
     email?: unknown;
     restaurant?: unknown;
+    kind?: unknown;
+    phone?: unknown;
+    tables?: unknown;
+    branches?: unknown;
+    posSystem?: unknown;
+    preferredDates?: unknown;
+    message?: unknown;
   };
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  const email = typeof body.email === "string" ? body.email.trim() : "";
-  const restaurant =
-    typeof body.restaurant === "string" ? body.restaurant.trim() : "";
-  if (
-    !name ||
-    name.length > 120 ||
-    !restaurant ||
-    restaurant.length > 120 ||
-    email.length > 254 ||
-    !EMAIL_RE.test(email)
-  ) {
+  const str = (v: unknown) => (typeof v === "string" ? v.trim() : "");
+  const num = (v: unknown) => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined;
+  };
+  const kind: "demo" | "sales" = body.kind === "sales" ? "sales" : "demo";
+  const name = str(body.name);
+  const email = str(body.email);
+  const restaurant = str(body.restaurant);
+  const phone = str(body.phone);
+  const profile = {
+    phone,
+    tables: num(body.tables),
+    branches: num(body.branches),
+    posSystem: str(body.posSystem) || undefined,
+    preferredDates: str(body.preferredDates) || undefined,
+    message: str(body.message) || undefined,
+  };
+
+  // Common validation.
+  if (!name || name.length > 120 || !restaurant || restaurant.length > 120) {
     return NextResponse.json({ error: "invalid form" }, { status: 400 });
   }
+  // Email is required + valid for a demo (we email the trial login). For a sales
+  // inquiry it's optional, but if present it must be valid, and we require at
+  // least one way to reach them (email or phone).
+  const emailOk = !!email && email.length <= 254 && EMAIL_RE.test(email);
+  if (kind === "demo" && !emailOk) {
+    return NextResponse.json({ error: "invalid form" }, { status: 400 });
+  }
+  if (kind === "sales") {
+    if (email && !emailOk) {
+      return NextResponse.json({ error: "invalid form" }, { status: 400 });
+    }
+    if (!email && !phone) {
+      return NextResponse.json({ error: "invalid form" }, { status: 400 });
+    }
+  }
 
-  // Always capture the marketing lead.
-  await addLead({ name, email, restaurant });
+  // Always capture the lead (with whatever profiling fields were provided).
+  await addLead({ name, email, restaurant, kind, ...profile });
 
-  // Provision (or decline) the trial, then send the matching email.
-  const result = await provisionTrialAdmin(email, restaurant);
+  // A sales inquiry never provisions a trial — the team follows up directly.
+  if (kind === "sales") {
+    return NextResponse.json({ ok: true, status: "received" }, { status: 201 });
+  }
+
+  // Demo: provision (or decline) the trial, then send the matching email.
+  const result = await provisionTrialAdmin(email, restaurant, {
+    tables: profile.tables,
+    branches: profile.branches,
+    posSystem: profile.posSystem,
+  });
   if (result.status === "created" && result.password && result.expiresAt) {
     const mail = await sendTrialCredentials({
       to: email,

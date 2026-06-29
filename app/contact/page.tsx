@@ -1,31 +1,39 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandHeader } from "../components/site/BrandHeader";
-import { DemoForm } from "../components/site/DemoForm";
+import { ContactForm } from "../components/site/ContactForm";
+import { SalesDropdown } from "../components/site/SalesDropdown";
+import { getServerLocale } from "../lib/i18n-server";
+import { t } from "../lib/i18n";
 import { C, R, S, T, card } from "../lib/theme";
 
 export const metadata: Metadata = {
-  title: "Start your free trial · Nuqra",
+  title: "Talk to sales · Nuqra",
   description:
-    "Create a Nuqra trial account. We email your admin login on the spot so you can take a payment in minutes.",
+    "Tell us about your restaurant and POS. We'll set up a tailored Nuqra walkthrough, handle the integration, and plan your branch rollout.",
 };
 
-const PERKS = [
+// Benefits are sales-specific (the demo page already sells self-serve). Each is
+// benefit-first with a concrete, honest supporting line. No fabricated metrics.
+const POINTS = [
   {
-    title: "Live in minutes",
-    body: "Get a working admin account by email, add a table, and take your first QR payment the same afternoon.",
+    title: "A walkthrough built around your floor",
+    body: "We map Nuqra to how your tables, menu, and service actually run, instead of a generic demo.",
   },
   {
-    title: "No card, no commitment",
-    body: "A 7-day trial with full access. Bring your own menu and tax rate, or start from a clean slate.",
+    title: "POS integration, done for you",
+    body: "Already on Foodics, Marn, Anywhere, or another POS? We connect it so orders and payments stay in sync.",
   },
   {
-    title: "Real diner flow",
-    body: "Scan, split, tip, and pay end to end, exactly as your guests will use it on the floor.",
+    title: "Built for multi-branch",
+    body: "Launch one location or fifty. Per-branch settings, currency, and reporting are there from day one.",
   },
 ];
 
-export default function DemoPage() {
+export default async function ContactPage() {
+  const locale = await getServerLocale();
+  const tr = (s: string) => t(s, locale);
+
   return (
     <div
       style={{
@@ -53,7 +61,7 @@ export default function DemoPage() {
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
           </svg>
-          Back to home
+          {tr("Back to home")}
         </Link>
       </div>
 
@@ -69,7 +77,7 @@ export default function DemoPage() {
           alignItems: "start",
         }}
       >
-        {/* Left: value prop. */}
+        {/* Left: value prop + the call-now alternative. */}
         <div>
           <div
             style={{
@@ -79,7 +87,7 @@ export default function DemoPage() {
               letterSpacing: "0.12em",
             }}
           >
-            Free trial
+            {tr("Talk to sales")}
           </div>
           <h1
             style={{
@@ -91,7 +99,7 @@ export default function DemoPage() {
               maxWidth: 460,
             }}
           >
-            Take your first QR payment today
+            {tr("Roll Nuqra out across every branch")}
           </h1>
           <p
             style={{
@@ -102,12 +110,13 @@ export default function DemoPage() {
               maxWidth: 440,
             }}
           >
-            Create your account below. We email your admin login right away, so
-            you can set up a table and run a real bill in minutes.
+            {tr(
+              "Tell us about your restaurant and your POS. We'll set up a tailored walkthrough and handle the integration for you."
+            )}
           </p>
 
           <div style={{ marginTop: 40, display: "grid", gap: S[5] }}>
-            {PERKS.map((p) => (
+            {POINTS.map((p) => (
               <div key={p.title} style={{ display: "flex", gap: S[4] }}>
                 <span
                   aria-hidden="true"
@@ -138,7 +147,7 @@ export default function DemoPage() {
                   </svg>
                 </span>
                 <div>
-                  <div style={{ ...T.h3, color: C.text }}>{p.title}</div>
+                  <div style={{ ...T.h3, color: C.text }}>{tr(p.title)}</div>
                   <p
                     style={{
                       fontSize: 14.5,
@@ -148,25 +157,41 @@ export default function DemoPage() {
                       maxWidth: 380,
                     }}
                   >
-                    {p.body}
+                    {tr(p.body)}
                   </p>
                 </div>
               </div>
             ))}
           </div>
 
-          <p style={{ fontSize: 14, color: C.faint, marginTop: 36 }}>
-            Already have an account?{" "}
+          {/* Prefer a call? The existing sales card carries the number. */}
+          <div style={{ marginTop: 36, maxWidth: 360 }}>
+            <div
+              style={{
+                ...T.label,
+                color: C.muted,
+                marginBottom: S[3],
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+              }}
+            >
+              {tr("Prefer to call?")}
+            </div>
+            <SalesDropdown />
+          </div>
+
+          <p style={{ fontSize: 14, color: C.faint, marginTop: 28 }}>
+            {tr("Just want to try it yourself?")}{" "}
             <Link
-              href="/admin/login"
+              href="/demo"
               style={{ color: C.brand, fontWeight: 600, textDecoration: "none" }}
             >
-              Sign in
+              {tr("Start a free trial")}
             </Link>
           </p>
         </div>
 
-        {/* Right: the signup form. */}
+        {/* Right: the lead-capture form. */}
         <div style={{ ...card({ pad: S[6], radius: R.xl, elevated: true }) }}>
           <h2
             style={{
@@ -177,7 +202,7 @@ export default function DemoPage() {
               color: C.text,
             }}
           >
-            Create your trial account
+            {tr("Request a callback")}
           </h2>
           <p
             style={{
@@ -187,10 +212,10 @@ export default function DemoPage() {
               margin: "8px 0 0",
             }}
           >
-            Your admin login lands in your inbox the moment you submit.
+            {tr("Share a few details and we'll reach out at a time that suits you.")}
           </p>
           <div style={{ marginTop: S[5] }}>
-            <DemoForm open />
+            <ContactForm />
           </div>
         </div>
       </div>

@@ -3,7 +3,10 @@
 // two persistence layers can never drift on money. Nothing here touches I/O.
 
 import { billDue, DEFAULT_CURRENCY, DEFAULT_TAX_RATE, fmt, isCurrency, type Currency } from "./data";
+import { isPosSystem, sanitizePosConfig } from "./pos";
 import type {
+  Lead,
+  LeadKind,
   LiveTable,
   OrderItem,
   Reservation,
@@ -11,6 +14,44 @@ import type {
   TableStatus,
   Transaction,
 } from "./types";
+
+// --- Leads ------------------------------------------------------------------
+
+/** Raw lead payload from a public form (demo or sales contact). */
+export interface LeadInput {
+  name: string;
+  email: string;
+  restaurant: string;
+  kind?: LeadKind;
+  phone?: string;
+  tables?: number;
+  branches?: number;
+  posSystem?: string;
+  preferredDates?: string;
+  message?: string;
+}
+
+/** Normalize + bound a lead's optional profiling fields (shared by backends). */
+export function normalizeLead(input: LeadInput): Required<Omit<LeadInput, "kind">> & {
+  kind: LeadKind;
+} {
+  const str = (v: unknown, n: number) =>
+    typeof v === "string" ? v.trim().slice(0, n) : "";
+  const count = (v: unknown) =>
+    typeof v === "number" && isFinite(v) && v >= 0 ? Math.min(Math.floor(v), 100000) : 0;
+  return {
+    name: str(input.name, 120),
+    email: str(input.email, 200),
+    restaurant: str(input.restaurant, 120),
+    kind: input.kind === "sales" ? "sales" : "demo",
+    phone: str(input.phone, 40),
+    tables: count(input.tables),
+    branches: count(input.branches),
+    posSystem: str(input.posSystem, 60),
+    preferredDates: str(input.preferredDates, 200),
+    message: str(input.message, 2000),
+  };
+}
 
 export const newToken = (): string => globalThis.crypto.randomUUID();
 
@@ -25,16 +66,27 @@ export function pruneReservations(rs: Reservation[]): Reservation[] {
   return (rs ?? []).filter((r) => r.ts >= cutoff && r.qty.some((q) => q > 0));
 }
 
+/** Clamp a count (tables/branches) to a sane 0..100000 integer, or undefined. */
+function coerceCount(v: unknown): number | undefined {
+  if (typeof v !== "number" || !isFinite(v) || v < 0) return undefined;
+  return Math.min(Math.floor(v), 100000);
+}
+
 /** Coerce a possibly-partial settings record to a complete one with defaults. */
 export function coerceSettings(
   v: Partial<RestaurantSettings> | undefined | null,
 ): RestaurantSettings {
+  const posSystem = isPosSystem(v?.posSystem) ? v!.posSystem : undefined;
   return {
     name: typeof v?.name === "string" ? v.name : "",
     taxRate: typeof v?.taxRate === "number" ? v.taxRate : DEFAULT_TAX_RATE,
     currency: isCurrency(v?.currency) ? v.currency : DEFAULT_CURRENCY,
     autoReceipts: v?.autoReceipts ?? true,
     tipPrompts: v?.tipPrompts ?? true,
+    tables: coerceCount(v?.tables),
+    branches: coerceCount(v?.branches),
+    posSystem,
+    posConfig: posSystem ? sanitizePosConfig(posSystem, v?.posConfig) : {},
   };
 }
 
@@ -43,6 +95,14 @@ export function mergeSettings(
   cur: RestaurantSettings,
   patch: Partial<RestaurantSettings>,
 ): RestaurantSettings {
+  // POS: changing the system re-scopes the config to that system's fields.
+  const posSystem = isPosSystem(patch.posSystem) ? patch.posSystem : cur.posSystem;
+  let posConfig = cur.posConfig ?? {};
+  if (isPosSystem(patch.posSystem)) {
+    posConfig = sanitizePosConfig(patch.posSystem, { ...posConfig, ...(patch.posConfig ?? {}) });
+  } else if (patch.posConfig) {
+    posConfig = sanitizePosConfig(posSystem, { ...posConfig, ...patch.posConfig });
+  }
   return {
     name:
       typeof patch.name === "string"
@@ -62,6 +122,10 @@ export function mergeSettings(
         : cur.autoReceipts,
     tipPrompts:
       typeof patch.tipPrompts === "boolean" ? patch.tipPrompts : cur.tipPrompts,
+    tables: coerceCount(patch.tables) ?? cur.tables,
+    branches: coerceCount(patch.branches) ?? cur.branches,
+    posSystem,
+    posConfig,
   };
 }
 

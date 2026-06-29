@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { C, R, S, T } from "../../lib/theme";
+import { C, R, S, SHADOW, T, btn } from "../../lib/theme";
 import { Wordmark } from "./Logo";
 import { LanguageToggle } from "./LanguageToggle";
 import { useT } from "../../lib/i18n-client";
 
-// Seamless sticky navbar: it sits transparent over the page at the top and,
-// only once the page scrolls, melts into a soft blurred surface (no hard 1px
-// border, no boxed bar). The logo/text color stays constant the whole time.
+// Floating rounded navbar (Moyasar-style): a self-contained, capsule-shaped bar
+// that hovers inset from the top of the page on its own translucent surface with
+// a hairline border and soft shadow. It tightens (more opaque, deeper shadow)
+// once the page scrolls. The full-width <header> is just a transparent,
+// pointer-through positioning shell; the visible pill is the inner container.
 export function BrandHeader() {
   const [scrolled, setScrolled] = useState(false);
   const tr = useT();
@@ -27,61 +29,82 @@ export function BrandHeader() {
         position: "sticky",
         top: 0,
         zIndex: 50,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: S[4],
-        height: 64,
-        padding: `0 ${S[5]}px`,
-        // Transparent at rest, gentle blurred surface once scrolled. No border.
-        background: scrolled ? "rgba(255,255,255,0.72)" : "rgba(255,255,255,0)",
-        backdropFilter: scrolled ? "saturate(180%) blur(12px)" : "none",
-        WebkitBackdropFilter: scrolled ? "saturate(180%) blur(12px)" : "none",
-        boxShadow: scrolled
-          ? "0 6px 24px rgba(20,23,27,0.06)"
-          : "0 0 0 rgba(20,23,27,0)",
-        transition:
-          "background 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1)",
+        padding: `${S[3]}px ${S[4]}px`,
+        pointerEvents: "none", // shell ignores clicks; the pill re-enables them
       }}
     >
-      <Link
-        href="/"
-        aria-label="Nuqra home"
+      <div
+        className="qp-nav-pill"
         style={{
-          display: "inline-flex",
+          pointerEvents: "auto",
+          display: "flex",
           alignItems: "center",
-          textDecoration: "none",
-          color: C.text,
-          borderRadius: R.sm,
+          justifyContent: "space-between",
+          gap: S[4],
+          maxWidth: 1080,
+          margin: "0 auto",
+          height: 60,
+          padding: `0 ${S[3]}px 0 ${S[5]}px`,
+          borderRadius: R.pill,
+          border: `1px solid ${scrolled ? C.border : "rgba(229,232,236,0.7)"}`,
+          background: scrolled ? "rgba(255,255,255,0.86)" : "rgba(255,255,255,0.62)",
+          backdropFilter: "saturate(180%) blur(14px)",
+          WebkitBackdropFilter: "saturate(180%) blur(14px)",
+          boxShadow: scrolled ? SHADOW.e2 : SHADOW.e1,
+          transition:
+            "background 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1), border-color 280ms cubic-bezier(0.16,1,0.3,1)",
         }}
       >
-        <Wordmark />
-      </Link>
-
-      <nav
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: S[3],
-        }}
-      >
-        <LanguageToggle />
         <Link
-          href="/admin/login"
-          className="qp-nav"
+          href="/"
+          aria-label="Nuqra home"
           style={{
-            ...T.label,
             display: "inline-flex",
             alignItems: "center",
-            padding: `${S[2]}px ${S[3]}px`,
             textDecoration: "none",
-            color: C.muted,
-            borderRadius: R.md,
+            color: C.text,
+            borderRadius: R.sm,
           }}
         >
-          {tr("Sign in")}
+          <Wordmark />
         </Link>
-      </nav>
+
+        <nav
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: S[2],
+          }}
+        >
+          <LanguageToggle />
+          <Link
+            href="/admin/login"
+            className="qp-nav qp-hide-mobile"
+            style={{
+              ...T.label,
+              display: "inline-flex",
+              alignItems: "center",
+              padding: `${S[2]}px ${S[3]}px`,
+              textDecoration: "none",
+              color: C.muted,
+              borderRadius: R.pill,
+            }}
+          >
+            {tr("Sign in")}
+          </Link>
+          <Link
+            href="/demo"
+            className="qp-cta"
+            style={{
+              ...btn("primary", { size: "sm" }),
+              borderRadius: R.pill,
+              textDecoration: "none",
+            }}
+          >
+            {tr("Start free trial")}
+          </Link>
+        </nav>
+      </div>
     </header>
   );
 }

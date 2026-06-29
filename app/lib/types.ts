@@ -21,10 +21,32 @@ export interface Reservation {
   ts: number;
 }
 
+/**
+ * A branch / location belonging to one admin. Multi-branch accounts manage
+ * tables and POS integration details per branch. Single-branch accounts have an
+ * implicit default branch and never see the branch UI.
+ */
+export interface Branch {
+  id: string;
+  /** Owning admin id. */
+  owner: string;
+  /** Display name ("Main", "Riyadh - Olaya", ...). */
+  name: string;
+  /** External POS branch/location id used for integration. */
+  externalId: string;
+  /** Per-branch POS field schema (defaults to the account's chosen system). */
+  posSystem: string;
+  /** Per-branch POS config; secret fields encrypted at rest. */
+  posConfig: Record<string, string>;
+  createdAt: string;
+}
+
 export interface LiveTable {
   num: string;
   /** Admin user id that owns this table. Tables are private to their owner. */
   owner: string;
+  /** Branch this table belongs to (null/absent = the account's default branch). */
+  branchId?: string | null;
   /**
    * Unguessable per-table capability. The customer QR URL carries it, and the
    * public (unauthenticated) read/pay/sync endpoints require a match — so a
@@ -166,20 +188,51 @@ export interface RestaurantSettings {
   currency: Currency;
   autoReceipts: boolean;
   tipPrompts: boolean;
+  /** Number of tables in the restaurant (0 = unset). Captured at signup. */
+  tables?: number;
+  /** Number of branches/locations (0 = unset). Captured at signup. */
+  branches?: number;
+  /** Chosen POS system id (see app/lib/pos.ts); "" / "none" = none. */
+  posSystem?: string;
+  /** Per-POS integration credentials the admin filled in (keyed by field key). */
+  posConfig?: Record<string, string>;
 }
 
-/** A demo-request lead captured from the public marketing form. */
+/** What kind of inbound the lead is: a self-service demo, or a sales inquiry. */
+export type LeadKind = "demo" | "sales";
+
+/**
+ * A lead captured from a public marketing form — either the demo signup (a trial
+ * is provisioned) or the "Talk to sales" contact page (no trial; the team
+ * follows up). The extra profiling fields are all optional so older rows and the
+ * lighter demo form keep working.
+ */
 export interface Lead {
   id: string;
   name: string;
   email: string;
   restaurant: string;
+  kind?: LeadKind;
+  /** Contact phone (sales form). */
+  phone?: string;
+  /** Number of tables. */
+  tables?: number;
+  /** Number of branches. */
+  branches?: number;
+  /** Chosen POS system id (see app/lib/pos.ts). */
+  posSystem?: string;
+  /** Preferred dates/times for us to reach out (free text). */
+  preferredDates?: string;
+  /** Free-text message from the prospect. */
+  message?: string;
   /** ISO timestamp. */
   ts: string;
 }
 
 export interface Store {
   tables: LiveTable[];
+  /** Branches per owner (the disk fallback keeps them in one array). */
+  branches?: Branch[];
   transactions: Transaction[];
   /** Demo-request leads from the marketing site (newest first). */
   leads: Lead[];

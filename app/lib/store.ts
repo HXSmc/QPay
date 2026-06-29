@@ -14,14 +14,18 @@ import { constantTimeEqual, getSession, hashPassword } from "./auth";
 import { useSupabase } from "./supabase";
 import * as rel from "./store-sb";
 import { fmt, type Currency } from "./data";
+import { sanitizePosConfig } from "./pos";
+import { decryptPosConfig, encryptPosConfig } from "./pos-secrets";
 import {
   applyPayment,
   buildOrderLines,
   clampHold,
   coerceSettings,
+  type LeadInput,
   mergeSettings,
   newToken,
   nextStatusForItems,
+  normalizeLead,
   orderAmount,
   pruneReservations,
   zeros,
@@ -29,6 +33,7 @@ import {
 import type {
   AccountSource,
   AdminUser,
+  Branch,
   Lead,
   LiveTable,
   MenuItem,
@@ -103,6 +108,7 @@ export const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
 function seed(): Store {
   return {
     tables: [],
+    branches: [],
     transactions: [],
     leads: [],
     menus: {},
@@ -140,6 +146,7 @@ function normalize(s: Store): Store {
     transactions: (s.transactions ?? []).filter(
       (tx) => typeof tx.owner === "string" && tx.owner !== "",
     ),
+    branches: Array.isArray(s.branches) ? s.branches : [],
     leads: Array.isArray(s.leads) ? s.leads : [],
     menus:
       s.menus && typeof s.menus === "object" && !Array.isArray(s.menus)
@@ -246,13 +253,25 @@ async function mutateBlob<T>(
 // TABLES
 // ===========================================================================
 
-export async function listTables(owner: string): Promise<LiveTable[]> {
-  if (useSupabase) return rel.listTables(owner);
-  return (await readStoreBlob()).tables.filter((t) => t.owner === owner);
+export async function listTables(
+  owner: string,
+  opts: { branchId?: string; includeUnassigned?: boolean } = {},
+): Promise<LiveTable[]> {
+  if (useSupabase) return rel.listTables(owner, opts);
+  const all = (await readStoreBlob()).tables.filter((t) => t.owner === owner);
+  if (!opts.branchId) return all;
+  return all.filter(
+    (t) =>
+      t.branchId === opts.branchId ||
+      (opts.includeUnassigned && (t.branchId == null || t.branchId === "")),
+  );
 }
 
-export async function createTable(owner: string): Promise<LiveTable> {
-  if (useSupabase) return rel.createTable(owner);
+export async function createTable(
+  owner: string,
+  branchId?: string | null,
+): Promise<LiveTable> {
+  if (useSupabase) return rel.createTable(owner, branchId);
   return mutateBlob((s) => {
     // Per-owner numbering that fills gaps: smallest free positive integer for
     // this owner, so a deleted number is reused (delete table 2 → next is 2).
@@ -264,6 +283,7 @@ export async function createTable(owner: string): Promise<LiveTable> {
     const table: LiveTable = {
       num: String(num),
       owner,
+      branchId: branchId ?? null,
       token: newToken(),
       status: "open",
       amount: "—",
@@ -511,6 +531,7 @@ export async function deleteAdmin(id: string): Promise<boolean> {
     if (!u || u.role !== "admin") return { result: false, write: false };
     s.users = s.users.filter((x) => x.id !== id);
     s.tables = s.tables.filter((t) => t.owner !== id);
+    s.branches = (s.branches ?? []).filter((b) => b.owner !== id);
     s.transactions = s.transactions.filter((t) => t.owner !== id);
     s.menuItems = (s.menuItems ?? []).filter((m) => m.owner !== id);
     s.orders = (s.orders ?? []).filter((o) => o.owner !== id);
@@ -589,7 +610,12 @@ export interface TrialProvision {
  */
 export async function provisionTrialAdmin(
   email: string,
-  _restaurant: string,
+  restaurant: string,
+  profile?: {
+    tables?: number;
+    branches?: number;
+    posSystem?: string;
+  },
 ): Promise<TrialProvision> {
   const norm = email.trim().toLowerCase();
   if (await findUserByEmail(norm)) return { status: "exists" };
@@ -602,6 +628,25 @@ export async function provisionTrialAdmin(
   });
   // A null here means a concurrent insert won the unique race — already exists.
   if (!created) return { status: "exists" };
+
+  // Seed the new trial's settings from the signup form so the restaurant name,
+  // size, and chosen POS are pre-filled when they first open the dashboard.
+  // Best-effort: a settings write failure must not fail the provisioning.
+  try {
+    await setSettings(created.id, {
+      name: restaurant.trim().slice(0, 80),
+      tables: profile?.tables,
+      // Trial accounts are capped to a single branch (multi-branch is a paid
+      // capability). The form's branch count is still captured on the lead.
+      branches: 1,
+      posSystem: profile?.posSystem,
+    });
+  } catch (e) {
+    console.warn(
+      "store: trial settings seed failed (non-fatal):",
+      e instanceof Error ? e.message : e,
+    );
+  }
   return { status: "created", account: created, password, expiresAt };
 }
 
@@ -646,7 +691,9 @@ export async function clearMenu(owner: string): Promise<void> {
 
 export async function getSettings(owner: string): Promise<RestaurantSettings> {
   if (useSupabase) return rel.getSettings(owner);
-  return settingsFor(await readStoreBlob(), owner);
+  const cur = settingsFor(await readStoreBlob(), owner);
+  // Decrypt secret POS fields for the authenticated owner (stored encrypted).
+  return { ...cur, posConfig: await decryptPosConfig(cur.posSystem, cur.posConfig) };
 }
 
 export async function setSettings(
@@ -654,11 +701,16 @@ export async function setSettings(
   patch: Partial<RestaurantSettings>,
 ): Promise<RestaurantSettings> {
   if (useSupabase) return rel.setSettings(owner, patch);
-  return mutateBlob((s) => {
-    const next = mergeSettings(settingsFor(s, owner), patch);
-    s.settings[owner] = next;
-    return { result: next, write: true };
+  // Merge against the DECRYPTED current config, then encrypt secrets for storage.
+  const cur0 = settingsFor(await readStoreBlob(), owner);
+  const cur = { ...cur0, posConfig: await decryptPosConfig(cur0.posSystem, cur0.posConfig) };
+  const next = mergeSettings(cur, patch);
+  const encConfig = await encryptPosConfig(next.posSystem, next.posConfig);
+  await mutateBlob((s) => {
+    s.settings[owner] = { ...next, posConfig: encConfig };
+    return { result: undefined, write: true };
   });
+  return next;
 }
 
 export async function getPublicRestaurant(
@@ -678,18 +730,22 @@ export async function getPublicRestaurant(
 // LEADS
 // ===========================================================================
 
-export async function addLead(input: {
-  name: string;
-  email: string;
-  restaurant: string;
-}): Promise<Lead> {
+export async function addLead(input: LeadInput): Promise<Lead> {
   if (useSupabase) return rel.addLead(input);
   return mutateBlob((s) => {
+    const n = normalizeLead(input);
     const lead: Lead = {
       id: globalThis.crypto.randomUUID(),
-      name: input.name.trim().slice(0, 120),
-      email: input.email.trim().slice(0, 200),
-      restaurant: input.restaurant.trim().slice(0, 120),
+      name: n.name,
+      email: n.email,
+      restaurant: n.restaurant,
+      kind: n.kind,
+      phone: n.phone || undefined,
+      tables: n.tables || undefined,
+      branches: n.branches || undefined,
+      posSystem: n.posSystem || undefined,
+      preferredDates: n.preferredDates || undefined,
+      message: n.message || undefined,
       ts: new Date().toISOString(),
     };
     s.leads.unshift(lead);
@@ -701,6 +757,104 @@ export async function addLead(input: {
 export async function listLeads(): Promise<Lead[]> {
   if (useSupabase) return rel.listLeads();
   return (await readStoreBlob()).leads;
+}
+
+// ===========================================================================
+// BRANCHES (multi-location)
+// ===========================================================================
+
+export async function listBranches(owner: string): Promise<Branch[]> {
+  if (useSupabase) return rel.listBranches(owner);
+  const blob = await readStoreBlob();
+  let mine = (blob.branches ?? []).filter((b) => b.owner === owner);
+  if (mine.length === 0) {
+    const def: Branch = {
+      id: globalThis.crypto.randomUUID(),
+      owner,
+      name: "Main",
+      externalId: "",
+      posSystem: "",
+      posConfig: {},
+      createdAt: new Date().toISOString(),
+    };
+    await mutateBlob((s) => {
+      s.branches = [...(s.branches ?? []), def];
+      return { result: undefined, write: true };
+    });
+    mine = [def];
+  }
+  return Promise.all(
+    mine.map(async (b) => ({ ...b, posConfig: await decryptPosConfig(b.posSystem, b.posConfig) })),
+  );
+}
+
+export async function createBranch(owner: string, name: string): Promise<Branch> {
+  if (useSupabase) return rel.createBranch(owner, name);
+  await listBranches(owner); // ensure the default exists first
+  const branch: Branch = {
+    id: globalThis.crypto.randomUUID(),
+    owner,
+    name: name.trim().slice(0, 80) || "Branch",
+    externalId: "",
+    posSystem: "",
+    posConfig: {},
+    createdAt: new Date().toISOString(),
+  };
+  await mutateBlob((s) => {
+    s.branches = [...(s.branches ?? []), branch];
+    return { result: undefined, write: true };
+  });
+  return branch;
+}
+
+export async function updateBranch(
+  owner: string,
+  id: string,
+  patch: { name?: string; externalId?: string; posSystem?: string; posConfig?: Record<string, string> },
+): Promise<Branch | null> {
+  if (useSupabase) return rel.updateBranch(owner, id, patch);
+  const blob = await readStoreBlob();
+  const cur = (blob.branches ?? []).find((b) => b.id === id && b.owner === owner);
+  if (!cur) return null;
+  const posSystem = typeof patch.posSystem === "string" ? patch.posSystem : cur.posSystem;
+  const curPlain = await decryptPosConfig(cur.posSystem, cur.posConfig);
+  let posConfig = curPlain;
+  if (patch.posConfig) posConfig = sanitizePosConfig(posSystem, { ...curPlain, ...patch.posConfig });
+  else if (posSystem !== cur.posSystem) posConfig = sanitizePosConfig(posSystem, curPlain);
+  const enc = await encryptPosConfig(posSystem, posConfig);
+  const updated: Branch = {
+    ...cur,
+    name: typeof patch.name === "string" ? patch.name.trim().slice(0, 80) || "Branch" : cur.name,
+    externalId:
+      typeof patch.externalId === "string" ? patch.externalId.trim().slice(0, 120) : cur.externalId,
+    posSystem,
+    posConfig: enc,
+  };
+  await mutateBlob((s) => {
+    s.branches = (s.branches ?? []).map((b) => (b.id === id && b.owner === owner ? updated : b));
+    return { result: undefined, write: true };
+  });
+  return { ...updated, posConfig: await decryptPosConfig(posSystem, enc) };
+}
+
+export async function deleteBranch(
+  owner: string,
+  id: string,
+): Promise<{ ok: boolean; reason?: "last" | "not-found" }> {
+  if (useSupabase) return rel.deleteBranch(owner, id);
+  const branches = await listBranches(owner);
+  if (branches.length <= 1) return { ok: false, reason: "last" };
+  const fallback = branches.find((b) => b.id !== id);
+  if (!fallback) return { ok: false, reason: "last" };
+  return mutateBlob<{ ok: boolean; reason?: "last" | "not-found" }>((s) => {
+    const exists = (s.branches ?? []).some((b) => b.id === id && b.owner === owner);
+    if (!exists) return { result: { ok: false, reason: "not-found" }, write: false };
+    s.branches = (s.branches ?? []).filter((b) => !(b.id === id && b.owner === owner));
+    s.tables = s.tables.map((t) =>
+      t.owner === owner && t.branchId === id ? { ...t, branchId: fallback.id } : t,
+    );
+    return { result: { ok: true }, write: true };
+  });
 }
 
 // ===========================================================================

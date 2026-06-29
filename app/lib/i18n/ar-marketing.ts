@@ -115,6 +115,48 @@ export const ar: Record<string, string> = {
   "Copy failed, select above": "فشل النسخ، حدّد الرقم بالأعلى",
   "Copy number": "انسخ الرقم",
 
+  // Demo + contact form profiling fields
+  "Number of tables": "عدد الطاولات",
+  "Number of branches": "عدد الفروع",
+  "Which POS do you use?": "ما نظام نقاط البيع الذي تستخدمه؟",
+  "Select your POS (optional)": "اختر نظام نقاط البيع (اختياري)",
+
+  // Contact / Talk to sales page
+  "Roll Nuqra out across every branch": "أطلق Nuqra في كل فروعك",
+  "Tell us about your restaurant and your POS. We'll set up a tailored walkthrough and handle the integration for you.":
+    "حدّثنا عن مطعمك ونظام نقاط البيع لديك. سنجهّز لك عرضًا مخصّصًا ونتولّى الربط نيابةً عنك.",
+  "A walkthrough built around your floor": "عرض مصمّم على مقاس صالتك",
+  "We map Nuqra to how your tables, menu, and service actually run, instead of a generic demo.":
+    "نهيّئ Nuqra وفق طريقة عمل طاولاتك وقائمتك وخدمتك فعليًا، بدلًا من عرض عام.",
+  "POS integration, done for you": "ربط نقاط البيع، ننجزه لك",
+  "Already on Foodics, Marn, Anywhere, or another POS? We connect it so orders and payments stay in sync.":
+    "تستخدم Foodics أو مرن أو Anywhere أو نظامًا آخر؟ نربطه لتبقى الطلبات والمدفوعات متزامنة.",
+  "Built for multi-branch": "مصمّم لتعدّد الفروع",
+  "Launch one location or fifty. Per-branch settings, currency, and reporting are there from day one.":
+    "أطلق فرعًا واحدًا أو خمسين. إعدادات وعملة وتقارير لكل فرع منذ اليوم الأول.",
+  "Prefer to call?": "تفضّل الاتصال؟",
+  "Just want to try it yourself?": "تريد تجربته بنفسك فقط؟",
+  "Start a free trial": "ابدأ تجربة مجانية",
+  "Request a callback": "اطلب معاودة الاتصال",
+  "Share a few details and we'll reach out at a time that suits you.":
+    "شاركنا بعض التفاصيل وسنتواصل معك في الوقت المناسب لك.",
+  "Back to home": "العودة إلى الرئيسية",
+  "Phone number": "رقم الهاتف",
+  "Email (optional)": "البريد الإلكتروني (اختياري)",
+  "Best dates and times to reach you": "أفضل المواعيد للتواصل معك",
+  "e.g. Sunday or Monday mornings": "مثال: صباح الأحد أو الإثنين",
+  "Anything you'd like us to know?": "هل من شيء تودّ إخبارنا به؟",
+  "We only use these details to set up your walkthrough. No spam.":
+    "نستخدم هذه التفاصيل فقط لتجهيز عرضك التوضيحي. بلا رسائل مزعجة.",
+  "Please add your name and restaurant.": "يرجى إضافة اسمك واسم مطعمك.",
+  "Add a phone number or email so we can reach you.":
+    "أضف رقم هاتف أو بريدًا إلكترونيًا لنتمكّن من التواصل معك.",
+  "Please enter a valid email (name@company.com).":
+    "يرجى إدخال بريد إلكتروني صالح (name@company.com).",
+  "Thanks, we'll be in touch": "شكرًا، سنتواصل معك",
+  "Our team will reach out at the time you picked to walk you through Nuqra and your POS integration.":
+    "سيتواصل فريقنا في الموعد الذي اخترته ليطلعك على Nuqra وعلى ربط نظام نقاط البيع لديك.",
+
   // DemoPopup
   "Start your free trial": "ابدأ تجربتك المجانية",
   "Free trial": "تجربة مجانية",
