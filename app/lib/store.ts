@@ -678,7 +678,7 @@ export interface TrialProvision {
  */
 /** Default table ceiling for self-service trials (super-created accounts get
  *  whatever the super sets). Caps cost-abuse without limiting evaluation. */
-const TRIAL_MAX_TABLES = 50;
+const TRIAL_MAX_TABLES = 16;
 
 export async function provisionTrialAdmin(
   email: string,
