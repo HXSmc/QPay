@@ -58,6 +58,11 @@ export default function TablesPage() {
     orderOpenRef.current = orderFor !== null;
   }, [orderFor]);
 
+  // Timestamp of the last local optimistic mutation. A poll whose listTables()
+  // started before a mutation but resolves after it is dropped, so a just
+  // added/deleted/cleared table can't be clobbered by a stale server snapshot.
+  const lastMutationRef = useRef(0);
+
   useEffect(() => {
     listTables()
       .then(setTables)
@@ -92,7 +97,13 @@ export default function TablesPage() {
     // manual page refresh. Pauses when the tab is hidden or an order is open.
     const id = setInterval(() => {
       if (document.hidden || orderOpenRef.current) return;
-      listTables().then(setTables).catch(() => {});
+      const t0 = Date.now();
+      listTables()
+        .then((rows) => {
+          // Drop the snapshot if a local mutation happened after this poll began.
+          if (lastMutationRef.current <= t0) setTables(rows);
+        })
+        .catch(() => {});
     }, 3000);
     return () => clearInterval(id);
   }, []);
@@ -113,6 +124,7 @@ export default function TablesPage() {
     try {
       const t = await createTable(showBranches ? selectedBranch : undefined);
       setTables((prev) => [...prev, t]);
+      lastMutationRef.current = Date.now();
     } catch (e) {
       // Surface the server message (e.g. the table-cap limit) when present.
       setError(e instanceof Error ? e.message : tr("Couldn't add a table. Please retry."));
@@ -126,6 +138,7 @@ export default function TablesPage() {
     try {
       const updated = await setTableItems(t.num, []);
       applyTable(updated);
+      lastMutationRef.current = Date.now();
     } catch {
       setError(`${tr("Couldn't clear Table")} ${t.num}. ${tr("Please retry.")}`);
     }
@@ -137,6 +150,7 @@ export default function TablesPage() {
     try {
       await deleteTable(t.num);
       setTables((prev) => prev.filter((x) => x.num !== t.num));
+      lastMutationRef.current = Date.now();
     } catch {
       // Keep the row if the delete failed (e.g. session expired) rather than
       // dropping an unhandled rejection and lying about the table being gone.

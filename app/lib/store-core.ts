@@ -154,6 +154,7 @@ export function applyPayment(
   amount: number,
   opts: { id?: string; items?: number[]; method?: string },
   taxRate: number,
+  currency: Currency = DEFAULT_CURRENCY,
 ): { applied: number; txn: Transaction | null } {
   if (t.items.length === 0) return { applied: 0, txn: null };
 
@@ -207,7 +208,7 @@ export function applyPayment(
         minute: "2-digit",
       }),
       table: t.num,
-      amount: fmt(applied),
+      amount: fmt(applied, currency),
       method: opts?.method || "Card",
       owner: t.owner,
     };

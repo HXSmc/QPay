@@ -31,6 +31,12 @@ export function DemoForm({ open }: { open: boolean }) {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    // noValidate disables the native `required` checks, so validate in JS to
+    // match ContactForm (otherwise a blank name/restaurant lead can be sent).
+    if (!name.trim() || !restaurant.trim()) {
+      setError(tr("Please add your name and restaurant."));
+      return;
+    }
     if (!EMAIL_RE.test(email.trim())) {
       setError(tr("Please enter a valid work email (name@company.com)."));
       return;

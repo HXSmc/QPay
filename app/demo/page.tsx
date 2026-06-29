@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandHeader } from "../components/site/BrandHeader";
 import { DemoForm } from "../components/site/DemoForm";
+import { getServerLocale } from "../lib/i18n-server";
+import { t } from "../lib/i18n";
 import { C, R, S, T, card } from "../lib/theme";
 
 export const metadata: Metadata = {
@@ -25,7 +27,10 @@ const PERKS = [
   },
 ];
 
-export default function DemoPage() {
+export default async function DemoPage() {
+  const locale = await getServerLocale();
+  const tr = (s: string) => t(s, locale);
+
   return (
     <div
       style={{
@@ -53,7 +58,7 @@ export default function DemoPage() {
             <path d="m12 19-7-7 7-7" />
             <path d="M19 12H5" />
           </svg>
-          Back to home
+          {tr("Back to home")}
         </Link>
       </div>
 
@@ -79,7 +84,7 @@ export default function DemoPage() {
               letterSpacing: "0.12em",
             }}
           >
-            Free trial
+            {tr("Free trial")}
           </div>
           <h1
             style={{
@@ -91,7 +96,7 @@ export default function DemoPage() {
               maxWidth: 460,
             }}
           >
-            Take your first QR payment today
+            {tr("Take your first QR payment today")}
           </h1>
           <p
             style={{
@@ -102,8 +107,9 @@ export default function DemoPage() {
               maxWidth: 440,
             }}
           >
-            Create your account below. We email your admin login right away, so
-            you can set up a table and run a real bill in minutes.
+            {tr(
+              "Create your account below. We email your admin login right away, so you can set up a table and run a real bill in minutes."
+            )}
           </p>
 
           <div style={{ marginTop: 40, display: "grid", gap: S[5] }}>
@@ -138,7 +144,7 @@ export default function DemoPage() {
                   </svg>
                 </span>
                 <div>
-                  <div style={{ ...T.h3, color: C.text }}>{p.title}</div>
+                  <div style={{ ...T.h3, color: C.text }}>{tr(p.title)}</div>
                   <p
                     style={{
                       fontSize: 14.5,
@@ -148,7 +154,7 @@ export default function DemoPage() {
                       maxWidth: 380,
                     }}
                   >
-                    {p.body}
+                    {tr(p.body)}
                   </p>
                 </div>
               </div>
@@ -156,12 +162,12 @@ export default function DemoPage() {
           </div>
 
           <p style={{ fontSize: 14, color: C.faint, marginTop: 36 }}>
-            Already have an account?{" "}
+            {tr("Already have an account?")}{" "}
             <Link
               href="/admin/login"
               style={{ color: C.brand, fontWeight: 600, textDecoration: "none" }}
             >
-              Sign in
+              {tr("Sign in")}
             </Link>
           </p>
         </div>
@@ -177,7 +183,7 @@ export default function DemoPage() {
               color: C.text,
             }}
           >
-            Create your trial account
+            {tr("Create your trial account")}
           </h2>
           <p
             style={{
@@ -187,14 +193,13 @@ export default function DemoPage() {
               margin: "8px 0 0",
             }}
           >
-            Your admin login lands in your inbox the moment you submit.
+            {tr("Your admin login lands in your inbox the moment you submit.")}
           </p>
           <div style={{ marginTop: S[5] }}>
             <DemoForm open />
           </div>
         </div>
       </div>
-
     </div>
   );
 }

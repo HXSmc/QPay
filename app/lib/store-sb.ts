@@ -472,9 +472,9 @@ export async function payTable(
   opts: { id?: string; items?: number[]; method?: string; token: string },
 ): Promise<LiveTable | null> {
   // Resolve by the unique token (capability) — a match IS the authorization.
-  return casTable([["token", opts.token]], (t, { taxRate }) => {
+  return casTable([["token", opts.token]], (t, { taxRate, currency }) => {
     if (t.items.length === 0) return { write: false };
-    const { txn } = applyPayment(t, amount, opts, taxRate);
+    const { txn } = applyPayment(t, amount, opts, taxRate, currency);
     return { write: true, txn };
   });
 }

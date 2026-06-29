@@ -157,6 +157,23 @@ export const ar: Record<string, string> = {
   "Our team will reach out at the time you picked to walk you through Nuqra and your POS integration.":
     "سيتواصل فريقنا في الموعد الذي اخترته ليطلعك على Nuqra وعلى ربط نظام نقاط البيع لديك.",
 
+  // Demo page
+  "Create your account below. We email your admin login right away, so you can set up a table and run a real bill in minutes.":
+    "أنشئ حسابك أدناه. نرسل بيانات دخول المدير فورًا، لتجهّز طاولة وتشغّل فاتورة حقيقية خلال دقائق.",
+  "Live in minutes": "جاهز خلال دقائق",
+  "Get a working admin account by email, add a table, and take your first QR payment the same afternoon.":
+    "احصل على حساب مدير فعّال عبر البريد، أضف طاولة، واستقبل أول دفعة عبر رمز QR في الظهيرة نفسها.",
+  "No card, no commitment": "بلا بطاقة وبلا التزام",
+  "A 7-day trial with full access. Bring your own menu and tax rate, or start from a clean slate.":
+    "تجربة لمدة 7 أيام بوصول كامل. أحضر قائمتك ونسبة ضريبتك، أو ابدأ من صفحة بيضاء.",
+  "Real diner flow": "تجربة ضيف حقيقية",
+  "Scan, split, tip, and pay end to end, exactly as your guests will use it on the floor.":
+    "مسح، تقسيم، إكرامية، ودفع من البداية للنهاية، تمامًا كما سيستخدمها ضيوفك في الصالة.",
+  "Already have an account?": "لديك حساب بالفعل؟",
+  "Create your trial account": "أنشئ حساب تجربتك",
+  "Your admin login lands in your inbox the moment you submit.":
+    "تصل بيانات دخول المدير إلى بريدك لحظة الإرسال.",
+
   // DemoPopup
   "Start your free trial": "ابدأ تجربتك المجانية",
   "Free trial": "تجربة مجانية",

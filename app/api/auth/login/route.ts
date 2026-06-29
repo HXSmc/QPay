@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { AUTH_COOKIE, createSessionToken, verifyPassword } from "@/app/lib/auth";
+import { AUTH_COOKIE, createSessionToken, isSameOrigin, verifyPassword } from "@/app/lib/auth";
 import {
   clearLoginFailures,
   findUserByEmail,
@@ -11,6 +11,12 @@ import { clientIp } from "@/app/lib/ratelimit";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  // CSRF: reject cross-origin logins so a malicious site can't silently sign a
+  // victim's browser into an attacker-controlled session (login CSRF). Mirrors
+  // the Origin check on every other cookie-mutating route (logout, settings...).
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ error: "bad origin" }, { status: 403 });
+  }
   const body = (await req.json().catch(() => ({}))) as {
     email?: string;
     password?: string;

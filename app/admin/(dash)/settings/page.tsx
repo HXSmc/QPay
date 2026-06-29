@@ -186,6 +186,7 @@ export default function SettingsPage() {
             <input
               id="set-restaurant"
               value={restaurant}
+              disabled={loading}
               onChange={(e) => setRestaurant(e.target.value)}
               style={field()}
             />
@@ -198,6 +199,7 @@ export default function SettingsPage() {
             <input
               id="set-taxrate"
               value={taxRate}
+              disabled={loading}
               onChange={(e) => {
                 setTaxRate(e.target.value);
                 if (taxError) setTaxError("");
@@ -220,6 +222,7 @@ export default function SettingsPage() {
             <select
               id="set-currency"
               value={currency}
+              disabled={loading}
               onChange={(e) => setCurrency(e.target.value as Currency)}
               style={field()}
             >
@@ -241,6 +244,7 @@ export default function SettingsPage() {
                 type="number"
                 min={0}
                 inputMode="numeric"
+                disabled={loading}
                 value={tables}
                 onChange={(e) => setTables(e.target.value)}
                 style={field()}
@@ -255,6 +259,7 @@ export default function SettingsPage() {
                 type="number"
                 min={0}
                 inputMode="numeric"
+                disabled={loading}
                 value={branches}
                 onChange={(e) => setBranches(e.target.value)}
                 style={field()}

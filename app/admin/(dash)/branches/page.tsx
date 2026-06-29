@@ -57,7 +57,13 @@ export default function BranchesPage() {
     setAdding(true);
     setError("");
     try {
-      await createBranch(`${tr("Branch")} ${branches.length + 1}`);
+      // Derive the suffix from the highest existing "Branch N" (not the count),
+      // so deleting a middle branch can't produce a duplicate default name.
+      const maxNum = branches.reduce((m, b) => {
+        const n = Number(/(\d+)\s*$/.exec(b.name)?.[1] ?? 0);
+        return Math.max(m, n);
+      }, branches.length);
+      await createBranch(`${tr("Branch")} ${maxNum + 1}`);
       await reload();
     } catch (e) {
       setError(e instanceof Error ? e.message : tr("Couldn't add a branch. Please retry."));
@@ -146,7 +152,6 @@ function BranchCard({
 }) {
   const tr = useT();
   const [name, setName] = useState(branch.name);
-  const [externalId, setExternalId] = useState(branch.externalId);
   const [posSystem, setPosSystem] = useState(branch.posSystem || defaultPos || "");
   const [posConfig, setPosConfig] = useState<Record<string, string>>(branch.posConfig ?? {});
   const [saving, setSaving] = useState(false);
@@ -164,9 +169,8 @@ function BranchCard({
     setError("");
     setSaved(false);
     try {
-      const updated = await updateBranch(branch.id, { name, externalId, posSystem, posConfig });
+      const updated = await updateBranch(branch.id, { name, posSystem, posConfig });
       setName(updated.name);
-      setExternalId(updated.externalId);
       setPosSystem(updated.posSystem);
       setPosConfig(updated.posConfig ?? {});
       setSaved(true);
@@ -184,7 +188,7 @@ function BranchCard({
     setError("");
     try {
       // Save first so the test uses the latest (encrypted) credentials.
-      await updateBranch(branch.id, { name, externalId, posSystem, posConfig });
+      await updateBranch(branch.id, { name, posSystem, posConfig });
       setTest(await testPosConnection(branch.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : tr("Couldn't test the connection."));
@@ -238,25 +242,11 @@ function BranchCard({
         </Link>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[4] }} className="qp-grid-2">
-        <div>
-          <label htmlFor={`bn-${branch.id}`} style={labelStyle}>
-            {tr("Branch name")}
-          </label>
-          <input id={`bn-${branch.id}`} value={name} onChange={(e) => setName(e.target.value)} style={field()} />
-        </div>
-        <div>
-          <label htmlFor={`bx-${branch.id}`} style={labelStyle}>
-            {tr("POS branch ID")}
-          </label>
-          <input
-            id={`bx-${branch.id}`}
-            value={externalId}
-            onChange={(e) => setExternalId(e.target.value)}
-            placeholder={tr("e.g. 1024")}
-            style={field()}
-          />
-        </div>
+      <div>
+        <label htmlFor={`bn-${branch.id}`} style={labelStyle}>
+          {tr("Branch name")}
+        </label>
+        <input id={`bn-${branch.id}`} value={name} onChange={(e) => setName(e.target.value)} style={field()} />
       </div>
 
       <div style={{ borderTop: `1px solid ${C.canvas}`, marginTop: S[4], paddingTop: S[4] }}>
@@ -302,7 +292,10 @@ function BranchCard({
                   autoComplete={f.secret ? "new-password" : "off"}
                   placeholder={f.placeholder ? tr(f.placeholder) : undefined}
                   value={posConfig[f.key] ?? ""}
-                  onChange={(e) => setPosConfig((c) => ({ ...c, [f.key]: e.target.value }))}
+                  onChange={(e) => {
+                    setPosConfig((c) => ({ ...c, [f.key]: e.target.value }));
+                    setTest(null);
+                  }}
                   style={field()}
                 />
               </div>

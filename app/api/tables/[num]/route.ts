@@ -91,7 +91,10 @@ export async function PATCH(
     if (typeof id !== "string" || !id || !qty || typeof token !== "string") {
       return NextResponse.json({ error: "invalid sync" }, { status: 400 });
     }
-    if (!allow(`sync|${clientIp(req)}|${num}`, 40, 60_000)) {
+    // Key the throttle on the capability token (the real table identity), NOT
+    // the URL `num` — which the resolver ignores and an attacker can rotate to
+    // mint unlimited fresh rate-limit buckets for the same table.
+    if (!allow(`sync|${clientIp(req)}|${token}`, 40, 60_000)) {
       return NextResponse.json({ error: "rate limited" }, { status: 429 });
     }
     const updated = await syncReservation(num, id, qty, token);
@@ -108,7 +111,8 @@ export async function PATCH(
     if (typeof body.token !== "string" || !body.token) {
       return NextResponse.json({ error: "invalid token" }, { status: 400 });
     }
-    if (!allow(`pay|${clientIp(req)}|${num}`, 15, 60_000)) {
+    // Throttle on the capability token, not the spoofable URL `num` (see sync).
+    if (!allow(`pay|${clientIp(req)}|${body.token}`, 15, 60_000)) {
       return NextResponse.json({ error: "rate limited" }, { status: 429 });
     }
     const id = typeof body.id === "string" ? body.id : undefined;

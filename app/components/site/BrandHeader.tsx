@@ -44,7 +44,10 @@ export function BrandHeader() {
           maxWidth: 1080,
           margin: "0 auto",
           height: 60,
-          padding: `0 ${S[3]}px 0 ${S[5]}px`,
+          // Logical padding so the wider logo-side gap follows the writing
+          // direction (flips correctly under RTL).
+          paddingBlock: 0,
+          paddingInline: `${S[5]}px ${S[3]}px`,
           borderRadius: R.pill,
           border: `1px solid ${scrolled ? C.border : "rgba(229,232,236,0.7)"}`,
           background: scrolled ? "rgba(255,255,255,0.86)" : "rgba(255,255,255,0.62)",

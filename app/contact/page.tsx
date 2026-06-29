@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BrandHeader } from "../components/site/BrandHeader";
 import { ContactForm } from "../components/site/ContactForm";
-import { SalesDropdown } from "../components/site/SalesDropdown";
 import { getServerLocale } from "../lib/i18n-server";
 import { t } from "../lib/i18n";
 import { C, R, S, T, card } from "../lib/theme";
@@ -164,23 +163,7 @@ export default async function ContactPage() {
             ))}
           </div>
 
-          {/* Prefer a call? The existing sales card carries the number. */}
-          <div style={{ marginTop: 36, maxWidth: 360 }}>
-            <div
-              style={{
-                ...T.label,
-                color: C.muted,
-                marginBottom: S[3],
-                textTransform: "uppercase",
-                letterSpacing: "0.1em",
-              }}
-            >
-              {tr("Prefer to call?")}
-            </div>
-            <SalesDropdown />
-          </div>
-
-          <p style={{ fontSize: 14, color: C.faint, marginTop: 28 }}>
+          <p style={{ fontSize: 14, color: C.faint, marginTop: 36 }}>
             {tr("Just want to try it yourself?")}{" "}
             <Link
               href="/demo"

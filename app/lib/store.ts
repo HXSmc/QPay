@@ -126,6 +126,21 @@ function settingsFor(s: Store, owner: string): RestaurantSettings {
   return coerceSettings(s.settings[owner]);
 }
 
+/**
+ * Like settingsFor but DECRYPTS the stored POS secrets before coercing. The raw
+ * stored posConfig holds ciphertext; coerceSettings/sanitizePosConfig clamps
+ * field values to 400 chars, which would corrupt a long ciphertext token if
+ * applied first — so decrypt the raw value, THEN coerce. (Mirrors the relational
+ * backend, which also decrypts before coercing.)
+ */
+async function diskSettings(s: Store, owner: string): Promise<RestaurantSettings> {
+  const raw = s.settings[owner];
+  if (!raw) return coerceSettings(null);
+  const sys = typeof raw.posSystem === "string" ? raw.posSystem : "";
+  const cfg = raw.posConfig ? await decryptPosConfig(sys, raw.posConfig) : {};
+  return coerceSettings({ ...raw, posConfig: cfg });
+}
+
 function normalize(s: Store): Store {
   return {
     tables: (s.tables ?? [])
@@ -363,7 +378,8 @@ export async function payTable(
     const t = s.tables.find((x) => constantTimeEqual(x.token, opts.token));
     if (!t) return { result: null, write: false };
     if (t.items.length === 0) return { result: t, write: false };
-    const { txn } = applyPayment(t, amount, opts, settingsFor(s, t.owner).taxRate);
+    const set = settingsFor(s, t.owner);
+    const { txn } = applyPayment(t, amount, opts, set.taxRate, set.currency);
     if (txn) {
       s.transactions.unshift(txn);
       if (s.transactions.length > MAX_TXN_HISTORY) {
@@ -546,6 +562,11 @@ export async function renewAdmin(
   id: string,
   days: number = RENEW_DAYS,
 ): Promise<PublicUser | null> {
+  // Renew extends a TRIAL's expiry. A never-expiring (manual) admin has no
+  // expiry to extend — renewing must NOT silently impose one. No-op for those.
+  const target = await getUserById(id);
+  if (!target || target.role !== "admin") return null;
+  if (target.expiresAt == null) return publicUser(target);
   if (useSupabase) {
     const u = await rel.renewAdmin(id, days);
     return u ? publicUser(u) : null;
@@ -691,9 +712,7 @@ export async function clearMenu(owner: string): Promise<void> {
 
 export async function getSettings(owner: string): Promise<RestaurantSettings> {
   if (useSupabase) return rel.getSettings(owner);
-  const cur = settingsFor(await readStoreBlob(), owner);
-  // Decrypt secret POS fields for the authenticated owner (stored encrypted).
-  return { ...cur, posConfig: await decryptPosConfig(cur.posSystem, cur.posConfig) };
+  return diskSettings(await readStoreBlob(), owner);
 }
 
 export async function setSettings(
@@ -705,8 +724,7 @@ export async function setSettings(
     next = await rel.setSettings(owner, patch);
   } else {
     // Merge against the DECRYPTED current config, then encrypt secrets for storage.
-    const cur0 = settingsFor(await readStoreBlob(), owner);
-    const cur = { ...cur0, posConfig: await decryptPosConfig(cur0.posSystem, cur0.posConfig) };
+    const cur = await diskSettings(await readStoreBlob(), owner);
     next = mergeSettings(cur, patch);
     const encConfig = await encryptPosConfig(next.posSystem, next.posConfig);
     await mutateBlob((s) => {
