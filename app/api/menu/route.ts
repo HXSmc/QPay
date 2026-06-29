@@ -10,6 +10,7 @@ import {
   UPLOAD_DIR,
 } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
+import { allowDistributed } from "@/app/lib/ratelimit";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { MenuMeta } from "@/app/lib/types";
 
@@ -60,6 +61,16 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   if (!isSameOrigin(req)) {
     return NextResponse.json({ error: "bad origin" }, { status: 403 });
+  }
+  // Throttle the upload/token-mint write per owner (the other abuse-prone writes
+  // are all limited). Trial admins are auto-provisioned, so this caps Blob
+  // egress/cost amplification from a cheaply-obtained session.
+  const limiter = await authedUser(req);
+  if (!limiter) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (!(await allowDistributed(`menu|${limiter.id}`, 12, 60_000))) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
 
   const contentType = req.headers.get("content-type") || "";
