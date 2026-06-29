@@ -700,17 +700,44 @@ export async function setSettings(
   owner: string,
   patch: Partial<RestaurantSettings>,
 ): Promise<RestaurantSettings> {
-  if (useSupabase) return rel.setSettings(owner, patch);
-  // Merge against the DECRYPTED current config, then encrypt secrets for storage.
-  const cur0 = settingsFor(await readStoreBlob(), owner);
-  const cur = { ...cur0, posConfig: await decryptPosConfig(cur0.posSystem, cur0.posConfig) };
-  const next = mergeSettings(cur, patch);
-  const encConfig = await encryptPosConfig(next.posSystem, next.posConfig);
-  await mutateBlob((s) => {
-    s.settings[owner] = { ...next, posConfig: encConfig };
-    return { result: undefined, write: true };
-  });
+  let next: RestaurantSettings;
+  if (useSupabase) {
+    next = await rel.setSettings(owner, patch);
+  } else {
+    // Merge against the DECRYPTED current config, then encrypt secrets for storage.
+    const cur0 = settingsFor(await readStoreBlob(), owner);
+    const cur = { ...cur0, posConfig: await decryptPosConfig(cur0.posSystem, cur0.posConfig) };
+    next = mergeSettings(cur, patch);
+    const encConfig = await encryptPosConfig(next.posSystem, next.posConfig);
+    await mutateBlob((s) => {
+      s.settings[owner] = { ...next, posConfig: encConfig };
+      return { result: undefined, write: true };
+    });
+  }
+  // Keep branch rows in sync with the configured branch count: raising "number
+  // of branches" to N provisions branch rows up to N (so the Branches section
+  // and the per-branch table tabs appear immediately). Non-destructive: lowering
+  // the count never deletes branches that may hold tables.
+  await reconcileBranches(owner, next.branches);
   return next;
+}
+
+/** Max branches we'll auto-provision from the settings count (guards typos). */
+const MAX_AUTO_BRANCHES = 50;
+
+async function reconcileBranches(owner: string, count: number | undefined): Promise<void> {
+  const target = Math.min(count ?? 1, MAX_AUTO_BRANCHES);
+  if (target <= 1) return;
+  const existing = await listBranches(owner); // also ensures the default "Main"
+  for (let k = existing.length; k < target; k++) {
+    await createBranch(owner, `Branch ${k + 1}`);
+  }
+}
+
+/** Owner's table cap from settings (0 = unlimited). Used to limit creation. */
+export async function tableCap(owner: string): Promise<number> {
+  const s = await getSettings(owner);
+  return s.tables ?? 0;
 }
 
 export async function getPublicRestaurant(

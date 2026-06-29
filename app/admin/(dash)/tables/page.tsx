@@ -37,6 +37,7 @@ export default function TablesPage() {
   const [tables, setTables] = useState<LiveTable[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>("");
+  const [multiBranch, setMultiBranch] = useState(false);
   const [qrFor, setQrFor] = useState<LiveTable | null>(null);
   const [orderFor, setOrderFor] = useState<LiveTable | null>(null);
   const [busy, setBusy] = useState(false);
@@ -79,6 +80,7 @@ export default function TablesPage() {
     getSettings()
       .then(async (s) => {
         setCurrency(s.currency);
+        setMultiBranch((s.branches ?? 1) > 1);
         if (s.name) return setRestaurantName(s.name);
         const me = await getMe();
         setRestaurantName(me.email.split("@")[0]);
@@ -95,9 +97,9 @@ export default function TablesPage() {
     return () => clearInterval(id);
   }, []);
 
-  const multiBranch = branches.length > 1;
   const defaultBranchId = branches[0]?.id;
-  const visibleTables = multiBranch
+  const showBranches = multiBranch && branches.length > 1;
+  const visibleTables = showBranches
     ? tables.filter(
         (t) =>
           t.branchId === selectedBranch ||
@@ -109,10 +111,11 @@ export default function TablesPage() {
     setBusy(true);
     setError("");
     try {
-      const t = await createTable(multiBranch ? selectedBranch : undefined);
+      const t = await createTable(showBranches ? selectedBranch : undefined);
       setTables((prev) => [...prev, t]);
-    } catch {
-      setError(tr("Couldn't add a table. Please retry."));
+    } catch (e) {
+      // Surface the server message (e.g. the table-cap limit) when present.
+      setError(e instanceof Error ? e.message : tr("Couldn't add a table. Please retry."));
     } finally {
       setBusy(false);
     }
@@ -173,7 +176,7 @@ export default function TablesPage() {
         </button>
       </div>
 
-      {multiBranch && (
+      {showBranches && (
         <div
           className="qp-scroll-x"
           style={{ display: "flex", gap: S[2], marginBottom: S[5], flexWrap: "wrap" }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getMe, getSettings, saveSettings, testPosConnection, type PosTestResult } from "../../../lib/api";
 import { C, R, S, T, STATUS, SHADOW, btn, card, field } from "../../../lib/theme";
 import { Alert, Spinner, Toast } from "../../../components/ui/Primitives";
@@ -86,10 +86,14 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [taxError, setTaxError] = useState("");
+  // Branch count at load — if it changes on save we reload so the Branches nav
+  // and per-branch table tabs (driven by this count) update immediately.
+  const branchesAtLoad = useRef(0);
 
   useEffect(() => {
     getSettings()
       .then(async (s) => {
+        branchesAtLoad.current = s.branches ?? 0;
         let name = s.name;
         if (!name) {
           try {
@@ -135,6 +139,13 @@ export default function SettingsPage() {
         posConfig,
       });
       setSaved(true);
+      const nb = branches ? Number(branches) : 0;
+      if (nb !== branchesAtLoad.current) {
+        // Branch count changed → server provisioned/updated branches; reload so
+        // the sidebar Branches link and the Tables branch tabs reflect it.
+        branchesAtLoad.current = nb;
+        window.location.reload();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't save. Please retry.");
     } finally {

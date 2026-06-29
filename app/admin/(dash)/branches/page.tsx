@@ -23,6 +23,7 @@ export default function BranchesPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [tables, setTables] = useState<LiveTable[]>([]);
   const [defaultPos, setDefaultPos] = useState("");
+  const [branchCap, setBranchCap] = useState(0);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState("");
@@ -39,6 +40,7 @@ export default function BranchesPage() {
         setBranches(b);
         setTables(t);
         setDefaultPos(s.posSystem ?? "");
+        setBranchCap(s.branches ?? 0);
       })
       .catch(() => setError(tr("Couldn't load your branches. Please refresh.")))
       .finally(() => setLoading(false));
@@ -84,8 +86,13 @@ export default function BranchesPage() {
         <button
           className="qp-cta-lift"
           onClick={addBranch}
-          disabled={adding}
-          style={btn("primary", { size: "sm", disabled: adding })}
+          disabled={adding || (branchCap > 0 && branches.length >= branchCap)}
+          title={
+            branchCap > 0 && branches.length >= branchCap
+              ? tr("Raise the branch count in Settings to add more.")
+              : undefined
+          }
+          style={btn("primary", { size: "sm", disabled: adding || (branchCap > 0 && branches.length >= branchCap) })}
         >
           {adding && <Spinner size={14} color="#fff" />}
           {tr("+ Add branch")}

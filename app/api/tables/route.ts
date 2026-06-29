@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authedUser, createTable, listBranches, listTables } from "@/app/lib/store";
+import { authedUser, createTable, listBranches, listTables, tableCap } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +21,17 @@ export async function POST(req: Request) {
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  // Enforce the overall table cap (across all branches) from Settings. 0 = off.
+  const cap = await tableCap(user.id);
+  if (cap > 0) {
+    const existing = await listTables(user.id);
+    if (existing.length >= cap) {
+      return NextResponse.json(
+        { error: `Table limit reached (${cap}). Raise it in Settings.` },
+        { status: 409 },
+      );
+    }
   }
   const body = (await req.json().catch(() => ({}))) as { branchId?: unknown };
   let branchId: string | null = null;
