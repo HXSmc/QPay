@@ -147,7 +147,7 @@ function OrderCard({ order, currency, onAdvance }: { order: Order; currency: Cur
         <div style={{ ...T.h3 }}>{tr("Table")} {order.tableNum}</div>
         <span style={badge(STATUS_BADGE[order.status])}>{tr(order.status)}</span>
       </div>
-      <div style={{ ...T.caption, color: C.faint }}>{time}</div>
+      <div style={{ ...T.caption, color: C.muted }}>{time}</div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>
         {order.lines.map((l) => (

@@ -288,7 +288,7 @@ export function ContactForm() {
           tr("Request a callback")
         )}
       </button>
-      <p style={{ ...T.caption, color: C.faint, marginTop: S[3], marginBottom: 0 }}>
+      <p style={{ ...T.caption, color: C.muted, marginTop: S[3], marginBottom: 0 }}>
         {tr("We only use these details to set up your walkthrough. No spam.")}
       </p>
     </form>

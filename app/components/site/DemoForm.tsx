@@ -278,7 +278,7 @@ export function DemoForm({ open }: { open: boolean }) {
       <p
         style={{
           ...T.caption,
-          color: C.faint,
+          color: C.muted,
           marginTop: S[3],
           marginBottom: 0,
         }}

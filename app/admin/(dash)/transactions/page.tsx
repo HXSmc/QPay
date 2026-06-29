@@ -131,7 +131,7 @@ export default function TransactionsPage() {
       </div>
 
       {!loading && txns.length > 0 && (
-        <p style={{ ...T.caption, color: C.faint, marginTop: S[3], textAlign: "center" }}>
+        <p style={{ ...T.caption, color: C.muted, marginTop: S[3], textAlign: "center" }}>
           {tr("On smaller screens, scroll the table sideways to see every column.")}
         </p>
       )}

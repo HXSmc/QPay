@@ -161,7 +161,7 @@ export default async function DemoPage() {
             ))}
           </div>
 
-          <p style={{ fontSize: 14, color: C.faint, marginTop: 36 }}>
+          <p style={{ fontSize: 14, color: C.muted, marginTop: 36 }}>
             {tr("Already have an account?")}{" "}
             <Link
               href="/admin/login"

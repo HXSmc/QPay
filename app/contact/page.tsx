@@ -163,7 +163,7 @@ export default async function ContactPage() {
             ))}
           </div>
 
-          <p style={{ fontSize: 14, color: C.faint, marginTop: 36 }}>
+          <p style={{ fontSize: 14, color: C.muted, marginTop: 36 }}>
             {tr("Just want to try it yourself?")}{" "}
             <Link
               href="/demo"

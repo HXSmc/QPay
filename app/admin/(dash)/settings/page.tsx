@@ -40,11 +40,14 @@ function Toggle({
       }}
       style={{
         display: "inline-block",
+        boxSizing: "border-box",
         width: 46,
         height: 26,
         borderRadius: R.pill,
         cursor: "pointer",
-        background: on ? C.brand : C.borderStrong,
+        background: on ? C.brand : C.surfaceAlt,
+        // Off-track needs a 3:1 boundary vs the white card (WCAG 1.4.11).
+        border: on ? "1px solid transparent" : "1px solid #8A93A0",
         position: "relative",
         transition: "background .15s",
         flexShrink: 0,
@@ -208,7 +211,10 @@ export default function SettingsPage() {
               aria-invalid={!!taxError}
               style={{
                 ...field(),
-                borderColor: taxError ? STATUS.danger.border : C.border,
+                // Override the whole `border` shorthand (not borderColor) so it
+                // doesn't mix shorthand+longhand, and keep field()'s AA border
+                // when there's no error.
+                ...(taxError ? { border: `1px solid ${STATUS.danger.border}` } : {}),
               }}
             />
           </div>

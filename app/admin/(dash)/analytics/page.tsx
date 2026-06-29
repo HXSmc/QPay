@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
           : STATS.map((s) => (
               <div key={s.label} style={card({ pad: S[5], radius: R.lg })}>
                 {"notTracked" in s ? (
-                  <div style={{ ...T.h3, color: C.faint }}>{tr("Not tracked yet")}</div>
+                  <div style={{ ...T.h3, color: C.muted }}>{tr("Not tracked yet")}</div>
                 ) : (
                   <div style={{ ...T.h1, fontSize: 28, color: C.text, ...NUM }}>{s.value}</div>
                 )}

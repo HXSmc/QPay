@@ -167,7 +167,7 @@ export function Sidebar() {
           color: "#fff",
         }}
       >
-        <LogoMark size={30} onDark />
+        <LogoMark size={30} onDark decorative />
         <span style={{ ...T.h2, fontWeight: 700 }}>Nuqra</span>
       </Link>
 

@@ -10,10 +10,14 @@ export function LogoMark({
   size = 30,
   onDark = false,
   radius = 8,
+  decorative = false,
 }: {
   size?: number;
   onDark?: boolean;
   radius?: number;
+  /** When the mark sits next to the "Nuqra" wordmark, hide it from a11y so the
+   *  accessible name isn't "Nuqra Nuqra" (label-content-name-mismatch). */
+  decorative?: boolean;
 }) {
   void onDark; // background-agnostic (ember tile reads on light + dark)
   const tile = `qp-tile-${size}`;
@@ -23,8 +27,9 @@ export function LogoMark({
       height={size}
       viewBox="0 0 32 32"
       fill="none"
-      role="img"
-      aria-label="Nuqra"
+      role={decorative ? undefined : "img"}
+      aria-label={decorative ? undefined : "Nuqra"}
+      aria-hidden={decorative ? true : undefined}
       style={{ display: "block", borderRadius: radius, flexShrink: 0 }}
     >
       <defs>
@@ -57,7 +62,7 @@ export function Wordmark({
 }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-      <LogoMark size={markSize} />
+      <LogoMark size={markSize} decorative />
       <span
         style={{
           fontSize: size,

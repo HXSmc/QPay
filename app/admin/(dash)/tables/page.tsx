@@ -194,7 +194,7 @@ export default function TablesPage() {
         <div
           className="qp-scroll-x"
           style={{ display: "flex", gap: S[2], marginBottom: S[5], flexWrap: "wrap" }}
-          role="tablist"
+          role="group"
           aria-label={tr("Branches")}
         >
           {branches.map((b) => {
@@ -202,8 +202,7 @@ export default function TablesPage() {
             return (
               <button
                 key={b.id}
-                role="tab"
-                aria-selected={active}
+                aria-pressed={active}
                 onClick={() => setSelectedBranch(b.id)}
                 className="qp-press"
                 style={{

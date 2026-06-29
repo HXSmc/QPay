@@ -156,7 +156,9 @@ export function field(): CSSProperties {
   return {
     width: "100%",
     padding: "11px 13px",
-    border: `1px solid ${C.borderStrong}`,
+    // Input border must reach 3:1 vs the white fill (WCAG 1.4.11 non-text
+    // contrast) since the border is the only thing delimiting the control.
+    border: `1px solid #8A93A0`,
     borderRadius: R.sm,
     fontFamily: "inherit",
     fontSize: 15,

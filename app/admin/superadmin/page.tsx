@@ -175,9 +175,10 @@ export default function SuperadminPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: S[3] }}>
-          <LogoMark size={30} onDark />
+          <LogoMark size={30} onDark decorative />
           <div>
             <div style={{ ...T.h3, color: "#fff" }}>{tr("Nuqra · Super Admin")}</div>
+            {/* C.faint (not C.muted) — passes AA on this dark ink bar (~7.3:1). */}
             <div style={{ ...T.caption, color: C.faint }}>{me?.email ?? "."}</div>
           </div>
         </div>

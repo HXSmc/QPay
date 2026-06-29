@@ -235,7 +235,7 @@ export default function DashboardPage() {
                         {m.value}
                       </div>
                     ) : (
-                      <div style={{ ...T.h2, color: C.faint }}>{tr("Not tracked yet")}</div>
+                      <div style={{ ...T.h2, color: C.muted }}>{tr("Not tracked yet")}</div>
                     )}
                   </div>
                 </div>

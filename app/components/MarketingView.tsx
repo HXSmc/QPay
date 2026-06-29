@@ -535,7 +535,7 @@ export function MarketingView() {
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: C.faint,
+                  color: C.muted,
                   letterSpacing: "0.02em",
                 }}
               >
