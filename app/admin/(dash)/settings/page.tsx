@@ -80,6 +80,9 @@ export default function SettingsPage() {
   const [tipPrompts, setTipPrompts] = useState(true);
   const [tables, setTables] = useState("");
   const [branches, setBranches] = useState("");
+  // Read-only caps set by the super admin (admin can't edit these).
+  const [maxTables, setMaxTables] = useState(0);
+  const [maxBranches, setMaxBranches] = useState(0);
   const [posSystem, setPosSystem] = useState("");
   const [posConfig, setPosConfig] = useState<Record<string, string>>({});
   const [testing, setTesting] = useState(false);
@@ -113,6 +116,8 @@ export default function SettingsPage() {
         setTipPrompts(s.tipPrompts);
         setTables(s.tables ? String(s.tables) : "");
         setBranches(s.branches ? String(s.branches) : "");
+        setMaxTables(s.maxTables ?? 0);
+        setMaxBranches(s.maxBranches ?? 0);
         setPosSystem(s.posSystem ?? "");
         setPosConfig(s.posConfig ?? {});
       })
@@ -244,11 +249,13 @@ export default function SettingsPage() {
             <div>
               <label htmlFor="set-tables" style={labelStyle}>
                 {tr("Number of tables")}
+                {maxTables > 0 ? ` (${tr("max")} ${maxTables})` : ""}
               </label>
               <input
                 id="set-tables"
                 type="number"
                 min={0}
+                max={maxTables || undefined}
                 inputMode="numeric"
                 disabled={loading}
                 value={tables}
@@ -259,11 +266,13 @@ export default function SettingsPage() {
             <div>
               <label htmlFor="set-branches" style={labelStyle}>
                 {tr("Number of branches")}
+                {maxBranches > 0 ? ` (${tr("max")} ${maxBranches})` : ""}
               </label>
               <input
                 id="set-branches"
                 type="number"
                 min={0}
+                max={maxBranches || undefined}
                 inputMode="numeric"
                 disabled={loading}
                 value={branches}

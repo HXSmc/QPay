@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hashPassword, isSameOrigin } from "@/app/lib/auth";
-import { authedUser, createAdmin, listAdmins } from "@/app/lib/store";
+import { authedUser, createAdmin, listAdmins, seedAdminAccount } from "@/app/lib/store";
+import { isPosSystem } from "@/app/lib/pos";
 import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,13 @@ export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as {
     email?: unknown;
     password?: unknown;
+    name?: unknown;
+    tables?: unknown;
+    maxTables?: unknown;
+    branches?: unknown;
+    maxBranches?: unknown;
+    posSystem?: unknown;
+    posApiKey?: unknown;
   };
   const email = typeof body.email === "string" ? body.email.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
@@ -53,6 +61,27 @@ export async function POST(req: Request) {
       { error: "an account with that email already exists" },
       { status: 409 },
     );
+  }
+
+  // Seed the new account's config from the create form (name, table/branch
+  // counts + caps, POS + its primary API key). Best-effort — never fail the
+  // already-created account on a seed error.
+  const num = (v: unknown) => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined;
+  };
+  try {
+    await seedAdminAccount(created.id, {
+      name: typeof body.name === "string" ? body.name : undefined,
+      tables: num(body.tables),
+      maxTables: num(body.maxTables),
+      branches: num(body.branches),
+      maxBranches: num(body.maxBranches),
+      posSystem: isPosSystem(body.posSystem) ? body.posSystem : undefined,
+      posApiKey: typeof body.posApiKey === "string" ? body.posApiKey : undefined,
+    });
+  } catch {
+    /* account exists; config can be set later in admin settings */
   }
   return NextResponse.json(created, { status: 201 });
 }

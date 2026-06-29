@@ -2,7 +2,9 @@ import { NextResponse } from "next/server";
 import {
   authedUser,
   deleteAdmin,
+  getAdmin,
   renewAdmin,
+  setSettings,
   updateAdmin,
   RENEW_DAYS,
 } from "@/app/lib/store";
@@ -57,6 +59,10 @@ export async function PATCH(
     days?: unknown;
     email?: unknown;
     password?: unknown;
+    tables?: unknown;
+    branches?: unknown;
+    maxTables?: unknown;
+    maxBranches?: unknown;
   };
 
   // Renew --------------------------------------------------------------------
@@ -70,7 +76,9 @@ export async function PATCH(
     return NextResponse.json({ ok: true, account: acct });
   }
 
-  // Edit email and/or password ----------------------------------------------
+  // Edit email/password and/or the super-editable config (table/branch counts +
+  // caps). The super CANNOT edit name or POS here (those are create-only / the
+  // account holder's to edit) — they're ignored if sent.
   const patch: { email?: string; passwordHash?: string } = {};
   if (body.email !== undefined) {
     const email = typeof body.email === "string" ? body.email.trim() : "";
@@ -89,17 +97,39 @@ export async function PATCH(
     }
     patch.passwordHash = await hashPassword(password);
   }
-  if (!patch.email && !patch.passwordHash) {
+
+  const num = (v: unknown) => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : undefined;
+  };
+  const settingsPatch: Record<string, number | undefined> = {};
+  if (body.tables !== undefined) settingsPatch.tables = num(body.tables);
+  if (body.branches !== undefined) settingsPatch.branches = num(body.branches);
+  if (body.maxTables !== undefined) settingsPatch.maxTables = num(body.maxTables);
+  if (body.maxBranches !== undefined) settingsPatch.maxBranches = num(body.maxBranches);
+  const hasSettings = Object.keys(settingsPatch).length > 0;
+  const hasCreds = !!(patch.email || patch.passwordHash);
+
+  if (!hasCreds && !hasSettings) {
     return NextResponse.json({ error: "nothing to update" }, { status: 400 });
   }
 
-  const result = await updateAdmin(id, patch);
-  if (result === "duplicate") {
-    return NextResponse.json(
-      { error: "an account with that email already exists" },
-      { status: 409 },
-    );
+  // Target must be an admin (super-only mutation; never edit the super itself here).
+  const target = await getAdmin(id);
+  if (!target) return NextResponse.json({ error: "not found" }, { status: 404 });
+
+  let account = target;
+  if (hasCreds) {
+    const result = await updateAdmin(id, patch);
+    if (result === "duplicate") {
+      return NextResponse.json(
+        { error: "an account with that email already exists" },
+        { status: 409 },
+      );
+    }
+    if (!result) return NextResponse.json({ error: "not found" }, { status: 404 });
+    account = result;
   }
-  if (!result) return NextResponse.json({ error: "not found" }, { status: 404 });
-  return NextResponse.json({ ok: true, account: result });
+  if (hasSettings) await setSettings(id, settingsPatch);
+  return NextResponse.json({ ok: true, account });
 }

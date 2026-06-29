@@ -78,6 +78,18 @@ export const ar: Record<string, string> = {
   None: "لا يوجد",
   "(optional)": "(اختياري)",
   "Test connection": "اختبر الاتصال",
+  // Super console — account provisioning
+  "Login email": "بريد تسجيل الدخول",
+  "the owner can edit this later": "يمكن للمالك تعديله لاحقًا",
+  "the owner finishes setup later": "يكمل المالك الإعداد لاحقًا",
+  "POS API key": "مفتاح واجهة نقاط البيع",
+  "Paste the POS API key": "الصق مفتاح واجهة نقاط البيع",
+  Tables: "الطاولات",
+  "Max tables": "الحد الأقصى للطاولات",
+  "Max branches": "الحد الأقصى للفروع",
+  "super only": "للمسؤول الرئيسي فقط",
+  max: "الحد الأقصى",
+  "The Copper Kitchen": "مطبخ النحاس",
   // Branches
   Branches: "الفروع",
   Branch: "فرع",

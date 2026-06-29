@@ -33,6 +33,26 @@ export interface AdminAccount {
   source: "manual" | "demo";
   /** False once the expiry has passed. */
   active: boolean;
+  /** Per-account config the super console displays/edits. */
+  config?: {
+    name: string;
+    tables: number;
+    branches: number;
+    maxTables: number;
+    maxBranches: number;
+    posSystem: string;
+  };
+}
+
+/** Fields the super sets when creating an account (name + POS are create-only). */
+export interface NewAdminOptions {
+  name?: string;
+  tables?: number;
+  maxTables?: number;
+  branches?: number;
+  maxBranches?: number;
+  posSystem?: string;
+  posApiKey?: string;
 }
 
 async function json<T>(res: Response): Promise<T> {
@@ -316,11 +336,12 @@ export async function listAdmins(): Promise<AdminAccount[]> {
 export async function createAdmin(
   email: string,
   password: string,
+  opts: NewAdminOptions = {},
 ): Promise<{ ok: true; account: AdminAccount } | { ok: false; error: string }> {
   const res = await fetch("/api/admins", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, ...opts }),
   });
   const data = (await res.json().catch(() => ({}))) as
     | AdminAccount
@@ -356,10 +377,18 @@ export async function renewAdmin(
   return { ok: true, account: data.account };
 }
 
-/** Edit an admin's email and/or password (super only). */
+/** Edit an admin's email/password and/or the super-editable config (counts +
+ *  caps). Name + POS are NOT editable here (create-only / account-holder only). */
 export async function updateAdmin(
   id: string,
-  patch: { email?: string; password?: string },
+  patch: {
+    email?: string;
+    password?: string;
+    tables?: number;
+    branches?: number;
+    maxTables?: number;
+    maxBranches?: number;
+  },
 ): Promise<{ ok: true; account: AdminAccount } | { ok: false; error: string }> {
   const res = await fetch(`/api/admins/${id}`, {
     method: "PATCH",

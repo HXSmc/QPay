@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authedUser, createBranch, listBranches } from "@/app/lib/store";
+import { authedUser, branchCap, createBranch, listBranches } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,17 @@ export async function POST(req: Request) {
       { error: "Multi-branch isn't available on trial accounts." },
       { status: 403 },
     );
+  }
+  // Enforce the branch cap (maxBranches, super-set). 0 = unlimited.
+  const cap = await branchCap(user.id);
+  if (cap > 0) {
+    const existing = await listBranches(user.id);
+    if (existing.length >= cap) {
+      return NextResponse.json(
+        { error: `Branch limit reached (${cap}). Ask your administrator to raise it.` },
+        { status: 409 },
+      );
+    }
   }
   const body = (await req.json().catch(() => ({}))) as { name?: unknown };
   const name = typeof body.name === "string" ? body.name.trim() : "";

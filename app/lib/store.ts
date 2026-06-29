@@ -14,7 +14,7 @@ import { constantTimeEqual, getSession, hashPassword, passwordFingerprint } from
 import { useSupabase } from "./supabase";
 import * as rel from "./store-sb";
 import { fmt, type Currency } from "./data";
-import { sanitizePosConfig } from "./pos";
+import { posSecretKeys, sanitizePosConfig } from "./pos";
 import { decryptPosConfig, encryptPosConfig } from "./pos-secrets";
 import {
   applyPayment,
@@ -69,6 +69,15 @@ export interface PublicUser {
   source: AccountSource;
   /** Derived: false once an expiry has passed. */
   active: boolean;
+  /** Per-account config the super console displays/edits (attached by listAdmins). */
+  config?: {
+    name: string;
+    tables: number;
+    branches: number;
+    maxTables: number;
+    maxBranches: number;
+    posSystem: string;
+  };
 }
 
 function publicUser(u: AdminUser): PublicUser {
@@ -453,6 +462,12 @@ export async function getUserById(id: string): Promise<AdminUser | null> {
   return (await readStoreBlob()).users.find((u) => u.id === id) ?? null;
 }
 
+/** Public view of an admin account by id, or null if not an admin (super only). */
+export async function getAdmin(id: string): Promise<PublicUser | null> {
+  const u = await getUserById(id);
+  return u && u.role === "admin" ? publicUser(u) : null;
+}
+
 /**
  * Resolve the live account behind a request's session, or null. Re-validates the
  * account every call, so a deleted, role-changed, OR EXPIRED account loses access
@@ -519,12 +534,29 @@ export async function clearLoginFailures(key: string): Promise<void> {
 // ===========================================================================
 
 export async function listAdmins(): Promise<PublicUser[]> {
-  if (useSupabase) {
-    await rel.ensureSuperadmin();
-    return (await rel.listAdmins()).map(publicUser);
-  }
-  const s = await readStoreBlob();
-  return s.users.filter((u) => u.role === "admin").map(publicUser);
+  const base = useSupabase
+    ? (await (async () => {
+        await rel.ensureSuperadmin();
+        return rel.listAdmins();
+      })()).map(publicUser)
+    : (await readStoreBlob()).users.filter((u) => u.role === "admin").map(publicUser);
+  // Attach each admin's config (name/counts/caps/POS) for the super console.
+  return Promise.all(
+    base.map(async (u) => {
+      const s = await getSettings(u.id);
+      return {
+        ...u,
+        config: {
+          name: s.name,
+          tables: s.tables ?? 0,
+          branches: s.branches ?? 0,
+          maxTables: s.maxTables ?? 0,
+          maxBranches: s.maxBranches ?? 0,
+          posSystem: s.posSystem ?? "",
+        },
+      };
+    }),
+  );
 }
 
 export async function createAdmin(
@@ -734,6 +766,10 @@ export async function setSettings(
   owner: string,
   patch: Partial<RestaurantSettings>,
 ): Promise<RestaurantSettings> {
+  // Snapshot current counts so we only reconcile rows when a count actually
+  // changes (avoids refilling a deliberately-deleted table/branch on an
+  // unrelated save).
+  const prev = await getSettings(owner);
   let next: RestaurantSettings;
   if (useSupabase) {
     next = await rel.setSettings(owner, patch);
@@ -747,33 +783,97 @@ export async function setSettings(
       return { result: undefined, write: true };
     });
   }
-  // Keep branch rows in sync with the configured branch count: raising "number
-  // of branches" to N provisions branch rows up to N (so the Branches section
-  // and the per-branch table tabs appear immediately). Non-destructive: lowering
-  // the count never deletes branches that may hold tables.
-  await reconcileBranches(owner, next.branches);
+  // Provision rows up to the configured counts (capped by max), only when the
+  // count changed. Non-destructive: lowering a count never deletes rows.
+  if ((next.branches ?? 0) !== (prev.branches ?? 0)) {
+    await reconcileBranches(owner, next.branches);
+  }
+  if ((next.tables ?? 0) !== (prev.tables ?? 0)) {
+    await reconcileTables(owner, next.tables, next.maxTables);
+  }
   return next;
 }
 
-/** Max branches we'll auto-provision from the settings count (guards typos). */
+/** Max rows we'll auto-provision from a settings count (guards typos). */
 const MAX_AUTO_BRANCHES = 50;
+const MAX_AUTO_TABLES = 500;
 
 async function reconcileBranches(owner: string, count: number | undefined): Promise<void> {
   const target = Math.min(count ?? 1, MAX_AUTO_BRANCHES);
   if (target <= 1) return;
   const existing = await listBranches(owner); // also ensures the default "Main"
-  if (existing.length >= target) return; // common case: nothing to add (1 read)
-  // ensureDefault:false — the list above already guaranteed the default, so the
-  // creates don't each re-list (avoids write-amplification on raise).
+  if (existing.length >= target) return;
   for (let k = existing.length; k < target; k++) {
     await createBranch(owner, `Branch ${k + 1}`, false);
   }
 }
 
-/** Owner's table cap from settings (0 = unlimited). Used to limit creation. */
+/** Provision tables in the default branch up to `count`, capped by `max` and
+ *  MAX_AUTO_TABLES. Non-destructive; only ever creates the missing rows. */
+async function reconcileTables(
+  owner: string,
+  count: number | undefined,
+  max: number | undefined,
+): Promise<void> {
+  let target = count ?? 0;
+  if (max && max > 0) target = Math.min(target, max);
+  target = Math.min(target, MAX_AUTO_TABLES);
+  if (target <= 0) return;
+  const existing = (await listTables(owner)).length;
+  if (existing >= target) return;
+  const branches = await listBranches(owner);
+  const defaultBranchId = branches[0]?.id;
+  for (let k = existing; k < target; k++) {
+    await createTable(owner, defaultBranchId);
+  }
+}
+
+/** Owner's hard table cap (0 = unlimited): the super-set maxTables, falling back
+ *  to the legacy `tables` number for accounts created before maxTables existed. */
 export async function tableCap(owner: string): Promise<number> {
   const s = await getSettings(owner);
-  return s.tables ?? 0;
+  return s.maxTables || s.tables || 0;
+}
+
+/** Owner's hard branch cap (0 = unlimited): maxBranches, falling back to the
+ *  branch count. Used to limit branch creation. */
+export async function branchCap(owner: string): Promise<number> {
+  const s = await getSettings(owner);
+  return s.maxBranches || s.branches || 0;
+}
+
+/**
+ * Provision a newly-created admin's account from the super console: restaurant
+ * name, table/branch counts + caps, and the chosen POS + its primary API key.
+ * Best-effort — a failure here must not invalidate the created account.
+ */
+export async function seedAdminAccount(
+  owner: string,
+  opts: {
+    name?: string;
+    tables?: number;
+    maxTables?: number;
+    branches?: number;
+    maxBranches?: number;
+    posSystem?: string;
+    posApiKey?: string;
+  },
+): Promise<void> {
+  // Map the single provided API key onto the chosen POS's primary secret field.
+  let posConfig: Record<string, string> | undefined;
+  if (opts.posSystem && opts.posApiKey?.trim()) {
+    const secretKey = posSecretKeys(opts.posSystem)[0];
+    if (secretKey) posConfig = { [secretKey]: opts.posApiKey.trim() };
+  }
+  await setSettings(owner, {
+    name: opts.name,
+    tables: opts.tables,
+    maxTables: opts.maxTables,
+    branches: opts.branches,
+    maxBranches: opts.maxBranches,
+    posSystem: opts.posSystem,
+    posConfig,
+  });
 }
 
 export async function getPublicRestaurant(

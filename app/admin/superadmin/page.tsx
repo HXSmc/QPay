@@ -17,6 +17,29 @@ import { C, R, S, T, STATUS, btn, card, field, badge } from "../../lib/theme";
 import { Alert, EmptyState, Skeleton, Spinner } from "../../components/ui/Primitives";
 import { LogoMark } from "../../components/site/Logo";
 import { useT } from "../../lib/i18n-client";
+import { POS_SYSTEMS, posName } from "../../lib/pos";
+
+// Small labeled-field wrapper for the super console forms (label above input,
+// optional hint to clarify who can edit what).
+function Labeled({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: S[2], marginBottom: 5 }}>
+        <span style={{ ...T.label, color: C.text }}>{label}</span>
+        {hint && <span style={{ ...T.caption, color: C.faint }}>· {hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
 
 export default function SuperadminPage() {
   const router = useRouter();
@@ -26,13 +49,25 @@ export default function SuperadminPage() {
   const [loaded, setLoaded] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  // Create-form config (name + POS are create-only; counts/caps super-set).
+  const [cName, setCName] = useState("");
+  const [cTables, setCTables] = useState("");
+  const [cMaxTables, setCMaxTables] = useState("");
+  const [cBranches, setCBranches] = useState("");
+  const [cMaxBranches, setCMaxBranches] = useState("");
+  const [cPos, setCPos] = useState("");
+  const [cPosKey, setCPosKey] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
-  // Per-row inline editing of an admin's email + password.
+  // Per-row inline editing of an admin's email/password + counts/caps.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editEmail, setEditEmail] = useState("");
   const [editPassword, setEditPassword] = useState("");
+  const [editTables, setEditTables] = useState("");
+  const [editBranches, setEditBranches] = useState("");
+  const [editMaxTables, setEditMaxTables] = useState("");
+  const [editMaxBranches, setEditMaxBranches] = useState("");
   const [rowBusy, setRowBusy] = useState<string | null>(null);
   // Two-step inline delete confirm (replaces window.confirm).
   const [confirmId, setConfirmId] = useState<string | null>(null);
@@ -54,11 +89,27 @@ export default function SuperadminPage() {
     setNotice("");
     setBusy(true);
     try {
-      const res = await createAdmin(email.trim(), password);
+      const numOrU = (s: string) => (s.trim() ? Number(s) : undefined);
+      const res = await createAdmin(email.trim(), password, {
+        name: cName.trim() || undefined,
+        tables: numOrU(cTables),
+        maxTables: numOrU(cMaxTables),
+        branches: numOrU(cBranches),
+        maxBranches: numOrU(cMaxBranches),
+        posSystem: cPos || undefined,
+        posApiKey: cPosKey.trim() || undefined,
+      });
       if (res.ok) {
         setNotice(`${tr("Created admin")} ${res.account.email}.`);
         setEmail("");
         setPassword("");
+        setCName("");
+        setCTables("");
+        setCMaxTables("");
+        setCBranches("");
+        setCMaxBranches("");
+        setCPos("");
+        setCPosKey("");
         refresh();
       } else {
         setError(res.error);
@@ -109,6 +160,10 @@ export default function SuperadminPage() {
     setEditingId(a.id);
     setEditEmail(a.email);
     setEditPassword("");
+    setEditTables(a.config?.tables ? String(a.config.tables) : "");
+    setEditBranches(a.config?.branches ? String(a.config.branches) : "");
+    setEditMaxTables(a.config?.maxTables ? String(a.config.maxTables) : "");
+    setEditMaxBranches(a.config?.maxBranches ? String(a.config.maxBranches) : "");
     setError("");
     setNotice("");
   };
@@ -122,11 +177,28 @@ export default function SuperadminPage() {
   const saveEdit = async (a: AdminAccount) => {
     setError("");
     setNotice("");
-    const patch: { email?: string; password?: string } = {};
+    const numOr = (s: string, fallback: number) => (s.trim() ? Number(s) : fallback);
+    const patch: {
+      email?: string;
+      password?: string;
+      tables?: number;
+      branches?: number;
+      maxTables?: number;
+      maxBranches?: number;
+    } = {};
     const trimmed = editEmail.trim();
     if (trimmed && trimmed !== a.email) patch.email = trimmed;
     if (editPassword) patch.password = editPassword;
-    if (!patch.email && !patch.password) {
+    // Counts + caps: send when changed from the loaded values.
+    const t = numOr(editTables, 0);
+    const b = numOr(editBranches, 0);
+    const mt = numOr(editMaxTables, 0);
+    const mb = numOr(editMaxBranches, 0);
+    if (t !== (a.config?.tables ?? 0)) patch.tables = t;
+    if (b !== (a.config?.branches ?? 0)) patch.branches = b;
+    if (mt !== (a.config?.maxTables ?? 0)) patch.maxTables = mt;
+    if (mb !== (a.config?.maxBranches ?? 0)) patch.maxBranches = mb;
+    if (Object.keys(patch).length === 0) {
       cancelEdit();
       return;
     }
@@ -200,35 +272,88 @@ export default function SuperadminPage() {
         {/* Create form */}
         <div style={{ ...card({ pad: S[5] }), marginBottom: S[5] }}>
           <h2 style={{ ...T.h3, margin: `0 0 ${S[4]}px` }}>{tr("Create a new admin")}</h2>
-          <form
-            onSubmit={submit}
-            className="qp-grid-2"
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: S[3], alignItems: "start" }}
-          >
-            <input
-              type="email"
-              required
-              aria-label={tr("New admin email")}
-              placeholder="admin@restaurant.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={field()}
-            />
-            <input
-              type="password"
-              required
-              minLength={8}
-              aria-label={tr("New admin password")}
-              placeholder={tr("Password (min 8 chars)")}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={field()}
-            />
+          <form onSubmit={submit} style={{ display: "grid", gap: S[4] }}>
+            <div className="qp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[3] }}>
+              <Labeled label={tr("Login email")}>
+                <input
+                  type="email"
+                  required
+                  aria-label={tr("New admin email")}
+                  placeholder="admin@restaurant.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  style={field()}
+                />
+              </Labeled>
+              <Labeled label={tr("Password (min 8 chars)")}>
+                <input
+                  type="password"
+                  required
+                  minLength={8}
+                  aria-label={tr("New admin password")}
+                  placeholder={tr("Password (min 8 chars)")}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  style={field()}
+                />
+              </Labeled>
+            </div>
+
+            {/* Create-only: restaurant name + POS (the admin edits these later;
+                the super cannot edit them after creation). */}
+            <Labeled label={tr("Restaurant name")} hint={tr("the owner can edit this later")}>
+              <input
+                aria-label={tr("Restaurant name")}
+                placeholder={tr("The Copper Kitchen")}
+                value={cName}
+                onChange={(e) => setCName(e.target.value)}
+                style={field()}
+              />
+            </Labeled>
+            <div className="qp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[3] }}>
+              <Labeled label={tr("POS system")} hint={tr("the owner finishes setup later")}>
+                <select value={cPos} onChange={(e) => setCPos(e.target.value)} style={field()}>
+                  <option value="">{tr("None")}</option>
+                  {POS_SYSTEMS.filter((p) => p.id !== "none").map((p) => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </Labeled>
+              <Labeled label={tr("POS API key")}>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  aria-label={tr("POS API key")}
+                  placeholder={tr("Paste the POS API key")}
+                  value={cPosKey}
+                  onChange={(e) => setCPosKey(e.target.value)}
+                  disabled={!cPos}
+                  style={field()}
+                />
+              </Labeled>
+            </div>
+
+            {/* Counts (owner + super editable) + caps (super only). */}
+            <div className="qp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: S[3] }}>
+              <Labeled label={tr("Tables")}>
+                <input type="number" min={0} inputMode="numeric" value={cTables} onChange={(e) => setCTables(e.target.value)} style={field()} />
+              </Labeled>
+              <Labeled label={tr("Max tables")} hint={tr("super only")}>
+                <input type="number" min={0} inputMode="numeric" value={cMaxTables} onChange={(e) => setCMaxTables(e.target.value)} style={field()} />
+              </Labeled>
+              <Labeled label={tr("Branches")}>
+                <input type="number" min={0} inputMode="numeric" value={cBranches} onChange={(e) => setCBranches(e.target.value)} style={field()} />
+              </Labeled>
+              <Labeled label={tr("Max branches")} hint={tr("super only")}>
+                <input type="number" min={0} inputMode="numeric" value={cMaxBranches} onChange={(e) => setCMaxBranches(e.target.value)} style={field()} />
+              </Labeled>
+            </div>
+
             <button
               type="submit"
               disabled={busy}
               className="qp-cta"
-              style={{ ...btn("primary", { disabled: busy }), whiteSpace: "nowrap" }}
+              style={{ ...btn("primary", { disabled: busy }), whiteSpace: "nowrap", justifySelf: "start" }}
             >
               {busy && <Spinner size={15} color="#fff" />}
               {busy ? tr("Creating.") : tr("Create admin")}
@@ -316,6 +441,16 @@ export default function SuperadminPage() {
                           ).toLocaleDateString()}`
                         : `, ${tr("no expiry")}`}
                     </div>
+                    {a.config && (
+                      <div style={{ ...T.caption, color: C.muted, marginTop: S[1] }}>
+                        {a.config.name ? `${a.config.name} · ` : ""}
+                        {tr("Tables")} {a.config.tables}
+                        {a.config.maxTables ? `/${a.config.maxTables}` : ""} · {tr("Branches")}{" "}
+                        {a.config.branches}
+                        {a.config.maxBranches ? `/${a.config.maxBranches}` : ""}
+                        {a.config.posSystem ? ` · ${posName(a.config.posSystem)}` : ""}
+                      </div>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: S[2], flexWrap: "wrap" }}>
                     <button
@@ -372,39 +507,52 @@ export default function SuperadminPage() {
                 )}
                 {editingId === a.id && (
                   <div
-                    className="qp-grid-2"
                     style={{
                       display: "grid",
-                      gridTemplateColumns: "1fr 1fr auto",
                       gap: S[3],
                       marginTop: S[3],
                       padding: S[4],
                       background: C.surfaceAlt,
                       borderRadius: R.md,
-                      alignItems: "center",
                     }}
                   >
-                    <input
-                      type="email"
-                      aria-label={`${tr("New email for")} ${a.email}`}
-                      placeholder={tr("New email")}
-                      value={editEmail}
-                      onChange={(e) => setEditEmail(e.target.value)}
-                      style={field()}
-                    />
-                    <input
-                      type="password"
-                      aria-label={`${tr("New password for")} ${a.email}`}
-                      placeholder={tr("New password (min 8, blank = unchanged)")}
-                      value={editPassword}
-                      onChange={(e) => setEditPassword(e.target.value)}
-                      style={field()}
-                    />
+                    <div className="qp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[3] }}>
+                      <input
+                        type="email"
+                        aria-label={`${tr("New email for")} ${a.email}`}
+                        placeholder={tr("New email")}
+                        value={editEmail}
+                        onChange={(e) => setEditEmail(e.target.value)}
+                        style={field()}
+                      />
+                      <input
+                        type="password"
+                        aria-label={`${tr("New password for")} ${a.email}`}
+                        placeholder={tr("New password (min 8, blank = unchanged)")}
+                        value={editPassword}
+                        onChange={(e) => setEditPassword(e.target.value)}
+                        style={field()}
+                      />
+                    </div>
+                    <div className="qp-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: S[3] }}>
+                      <Labeled label={tr("Tables")}>
+                        <input type="number" min={0} inputMode="numeric" value={editTables} onChange={(e) => setEditTables(e.target.value)} style={field()} />
+                      </Labeled>
+                      <Labeled label={tr("Max tables")} hint={tr("super only")}>
+                        <input type="number" min={0} inputMode="numeric" value={editMaxTables} onChange={(e) => setEditMaxTables(e.target.value)} style={field()} />
+                      </Labeled>
+                      <Labeled label={tr("Branches")}>
+                        <input type="number" min={0} inputMode="numeric" value={editBranches} onChange={(e) => setEditBranches(e.target.value)} style={field()} />
+                      </Labeled>
+                      <Labeled label={tr("Max branches")} hint={tr("super only")}>
+                        <input type="number" min={0} inputMode="numeric" value={editMaxBranches} onChange={(e) => setEditMaxBranches(e.target.value)} style={field()} />
+                      </Labeled>
+                    </div>
                     <button
                       onClick={() => saveEdit(a)}
                       disabled={rowBusy === a.id}
                       className="qp-cta"
-                      style={{ ...btn("primary", { disabled: rowBusy === a.id }), whiteSpace: "nowrap" }}
+                      style={{ ...btn("primary", { disabled: rowBusy === a.id }), whiteSpace: "nowrap", justifySelf: "start" }}
                     >
                       {rowBusy === a.id && <Spinner size={15} color="#fff" />}
                       {rowBusy === a.id ? tr("Saving.") : tr("Save")}

@@ -85,6 +85,8 @@ export function coerceSettings(
     tipPrompts: v?.tipPrompts ?? true,
     tables: coerceCount(v?.tables),
     branches: coerceCount(v?.branches),
+    maxTables: coerceCount(v?.maxTables),
+    maxBranches: coerceCount(v?.maxBranches),
     posSystem,
     posConfig: posSystem ? sanitizePosConfig(posSystem, v?.posConfig) : {},
   };
@@ -122,11 +124,21 @@ export function mergeSettings(
         : cur.autoReceipts,
     tipPrompts:
       typeof patch.tipPrompts === "boolean" ? patch.tipPrompts : cur.tipPrompts,
-    tables: coerceCount(patch.tables) ?? cur.tables,
-    branches: coerceCount(patch.branches) ?? cur.branches,
+    // Caps (super-only at the API layer); clamp the counts to them below.
+    maxTables: coerceCount(patch.maxTables) ?? cur.maxTables,
+    maxBranches: coerceCount(patch.maxBranches) ?? cur.maxBranches,
+    tables: clampToMax(coerceCount(patch.tables) ?? cur.tables, coerceCount(patch.maxTables) ?? cur.maxTables),
+    branches: clampToMax(coerceCount(patch.branches) ?? cur.branches, coerceCount(patch.maxBranches) ?? cur.maxBranches),
     posSystem,
     posConfig,
   };
+}
+
+/** Clamp a count to a cap (0/undefined cap = unlimited). */
+function clampToMax(n: number | undefined, max: number | undefined): number | undefined {
+  if (n === undefined) return undefined;
+  if (!max) return n;
+  return Math.min(n, max);
 }
 
 export function orderAmount(

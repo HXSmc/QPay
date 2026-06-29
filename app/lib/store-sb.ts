@@ -180,6 +180,8 @@ async function settingsRow(owner: string): Promise<RestaurantSettings> {
     // New columns: absent on a not-yet-migrated DB → coerceSettings defaults.
     tables: typeof data.num_tables === "number" ? data.num_tables : undefined,
     branches: typeof data.num_branches === "number" ? data.num_branches : undefined,
+    maxTables: typeof data.max_tables === "number" ? data.max_tables : undefined,
+    maxBranches: typeof data.max_branches === "number" ? data.max_branches : undefined,
     posSystem,
     posConfig,
   });
@@ -242,6 +244,8 @@ export async function setSettings(
       currency: next.currency,
       num_tables: next.tables ?? null,
       num_branches: next.branches ?? null,
+      max_tables: next.maxTables ?? null,
+      max_branches: next.maxBranches ?? null,
       pos_system: next.posSystem ?? null,
       pos_config: encConfig,
     },

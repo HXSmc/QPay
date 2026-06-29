@@ -188,10 +188,14 @@ export interface RestaurantSettings {
   currency: Currency;
   autoReceipts: boolean;
   tipPrompts: boolean;
-  /** Number of tables in the restaurant (0 = unset). Captured at signup. */
+  /** Number of tables in the restaurant (0 = unset). Editable by admin + super. */
   tables?: number;
-  /** Number of branches/locations (0 = unset). Captured at signup. */
+  /** Number of branches/locations (0 = unset). Editable by admin + super. */
   branches?: number;
+  /** Hard cap on total tables (0 = unlimited). SUPER-ONLY editable. */
+  maxTables?: number;
+  /** Hard cap on branches (0 = unlimited). SUPER-ONLY editable. */
+  maxBranches?: number;
   /** Chosen POS system id (see app/lib/pos.ts); "" / "none" = none. */
   posSystem?: string;
   /** Per-POS integration credentials the admin filled in (keyed by field key). */
