@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authedUser, createTable, listBranches, listTables, tableCap } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
+import { rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,11 @@ export async function POST(req: Request) {
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  // Throttle the insert per owner (consistent with the other authed writes) so a
+  // cheaply-obtained trial can't mass-create rows even when no cap is set.
+  if (!(await rateLimit("tableCreate", user.id))) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
   // Enforce the overall table cap (across all branches) from Settings. 0 = off.
   const cap = await tableCap(user.id);

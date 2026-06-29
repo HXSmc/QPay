@@ -90,6 +90,7 @@ export const LIMITS = {
   sync: { max: 40, windowMs: 60_000 },
   order: { max: 12, windowMs: 60_000 },
   menu: { max: 12, windowMs: 60_000 },
+  tableCreate: { max: 30, windowMs: 60_000 },
   posTest: { max: 10, windowMs: 60_000 },
   adminCreate: { max: 20, windowMs: 60_000 },
   adminEdit: { max: 30, windowMs: 60_000 },

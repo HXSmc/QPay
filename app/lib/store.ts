@@ -676,6 +676,10 @@ export interface TrialProvision {
  * is created or renewed — the caller emails a "contact sales" note instead.
  * Self-service renewal is intentionally impossible; only the superadmin renews.
  */
+/** Default table ceiling for self-service trials (super-created accounts get
+ *  whatever the super sets). Caps cost-abuse without limiting evaluation. */
+const TRIAL_MAX_TABLES = 50;
+
 export async function provisionTrialAdmin(
   email: string,
   restaurant: string,
@@ -709,6 +713,9 @@ export async function provisionTrialAdmin(
       // so the super can later lift it per account. Form branch count still on lead.
       branches: 1,
       maxBranches: 1,
+      // Default table ceiling for self-service trials (a super-created account
+      // gets whatever the super sets). Plenty to evaluate; caps cost-abuse.
+      maxTables: TRIAL_MAX_TABLES,
       posSystem: profile?.posSystem,
     });
   } catch (e) {
