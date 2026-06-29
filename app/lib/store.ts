@@ -10,7 +10,7 @@
 
 import { promises as fs } from "fs";
 import path from "path";
-import { constantTimeEqual, getSession, hashPassword } from "./auth";
+import { constantTimeEqual, getSession, hashPassword, passwordFingerprint } from "./auth";
 import { useSupabase } from "./supabase";
 import * as rel from "./store-sb";
 import { fmt, type Currency } from "./data";
@@ -455,6 +455,12 @@ export async function authedUser(req: Request): Promise<AdminUser | null> {
   const u = await getUserById(session.sub);
   if (!u || u.role !== session.role) return null;
   if (isExpired(u)) return null; // trial lapsed → no access
+  // Revocation: a token minted with a password fingerprint is rejected once the
+  // password changes (fingerprint no longer matches), so a reset cuts every
+  // outstanding session. Legacy tokens without `pv` are tolerated until expiry.
+  if (session.pv && session.pv !== (await passwordFingerprint(u.passwordHash))) {
+    return null;
+  }
   return u;
 }
 

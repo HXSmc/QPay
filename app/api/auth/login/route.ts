@@ -1,5 +1,11 @@
 import { NextResponse } from "next/server";
-import { AUTH_COOKIE, createSessionToken, isSameOrigin, verifyPassword } from "@/app/lib/auth";
+import {
+  AUTH_COOKIE,
+  createSessionToken,
+  isSameOrigin,
+  passwordFingerprint,
+  verifyPassword,
+} from "@/app/lib/auth";
 import {
   clearLoginFailures,
   findUserByEmail,
@@ -63,7 +69,8 @@ export async function POST(req: Request) {
 
   await clearLoginFailures(key);
   const res = NextResponse.json({ ok: true, role: user.role });
-  res.cookies.set(AUTH_COOKIE, await createSessionToken(user.id, user.role), {
+  const pv = await passwordFingerprint(user.passwordHash);
+  res.cookies.set(AUTH_COOKIE, await createSessionToken(user.id, user.role, pv), {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

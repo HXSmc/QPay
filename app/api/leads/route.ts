@@ -9,14 +9,19 @@ export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Absolute /admin/login URL for the email link, derived from the request. */
+/** Absolute /admin/login URL for the email link. Uses the configured canonical
+ *  origin so a forged Host header on this public endpoint can't poison the link
+ *  (host-header injection); only localhost dev falls back to the request host. */
 function loginUrl(req: Request): string {
   try {
     const u = new URL(req.url);
-    return `${u.protocol}//${u.host}/admin/login`;
+    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") {
+      return `${u.protocol}//${u.host}/admin/login`;
+    }
   } catch {
-    return "/admin/login";
+    /* fall through to the canonical base */
   }
+  return `${SITE.appUrl}/admin/login`;
 }
 
 // Public demo request → provisions a 7-day trial admin and emails the password.

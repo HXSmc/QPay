@@ -151,15 +151,32 @@ export interface Session {
   role: Role;
   /** Expiry, ms epoch. */
   exp: number;
+  /**
+   * Password-binding fingerprint (optional for legacy tokens). Tokens minted at
+   * login carry a short HMAC of the account's password hash; authedUser rejects
+   * the token if it no longer matches, so a password reset revokes every
+   * outstanding session immediately (real revocation on a stateless token).
+   */
+  pv?: string;
+}
+
+/**
+ * Short, non-reversible fingerprint of a password hash, embedded in the session
+ * so changing the password invalidates old tokens. It's an HMAC under the server
+ * signing secret (not the raw hash), so the cookie never carries hash material.
+ */
+export async function passwordFingerprint(passwordHash: string): Promise<string> {
+  return (await sign(`pv:${passwordHash}`)).slice(0, 16);
 }
 
 /** Mint a signed session token for a user. */
 export async function createSessionToken(
   sub: string,
   role: Role,
+  pv?: string,
 ): Promise<string> {
   const payload = b64url(
-    enc.encode(JSON.stringify({ sub, role, exp: Date.now() + TTL_MS })),
+    enc.encode(JSON.stringify({ sub, role, exp: Date.now() + TTL_MS, ...(pv ? { pv } : {}) })),
   );
   return `${payload}.${await sign(payload)}`;
 }
@@ -190,11 +207,11 @@ export async function verifySession(
     return null;
   }
   if (!data || typeof data !== "object") return null;
-  const { sub, role, exp } = data as Record<string, unknown>;
+  const { sub, role, exp, pv } = data as Record<string, unknown>;
   if (typeof sub !== "string" || !sub) return null;
   if (role !== "super" && role !== "admin") return null;
   if (typeof exp !== "number" || exp < Date.now()) return null;
-  return { sub, role, exp };
+  return { sub, role, exp, ...(typeof pv === "string" ? { pv } : {}) };
 }
 
 /** Constant-time equality for opaque tokens (e.g. the per-table capability). */

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authedUser, getSettings, listBranches } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
+import { allow, clientIp } from "@/app/lib/ratelimit";
 import { verifyPosConnection } from "@/app/lib/integrations/pos";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,10 @@ export async function POST(req: Request) {
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  // Throttle: this triggers an outbound call to the POS API; cap abuse/egress.
+  if (!allow(`pos-test|${clientIp(req)}`, 10, 60_000)) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
   const body = (await req.json().catch(() => ({}))) as { branchId?: unknown };
 
