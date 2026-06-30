@@ -73,8 +73,14 @@ export interface Transaction {
   owner: string;
 }
 
-/** A login role. The single `super` account manages `admin` accounts. */
-export type Role = "super" | "admin";
+/**
+ * A login role. Three-level hierarchy:
+ *   `super`   — site owner; provisions + edits MANAGER credentials, sets caps.
+ *   `manager` — chain owner; owns all data, runs the full dashboard, creates
+ *               branch-admin logins, contacts super.
+ *   `admin`   — branch operator; scoped to one branch (its tables/orders/menu).
+ */
+export type Role = "super" | "manager" | "admin";
 
 /** Failed-login counter for one `email|ip` key, used for lockout. */
 export interface LoginAttempt {
@@ -107,6 +113,17 @@ export interface AdminUser {
   expiresAt?: string | null;
   /** Provenance — `demo` accounts are self-service trials. Defaults to `manual`. */
   source?: AccountSource;
+  /**
+   * Parent account id. Set ONLY on branch-admins (role `admin`) → their owning
+   * manager. null/absent for super + managers. A branch-admin's data lives under
+   * its parent manager; this is the "effective owner" for every scoped query.
+   */
+  parentId?: string | null;
+  /**
+   * The single branch a branch-admin manages (role `admin`). null/absent for
+   * super + managers. Scopes the admin's tables/orders/menu/analytics.
+   */
+  branchId?: string | null;
 }
 
 export interface MenuMeta {
@@ -125,6 +142,8 @@ export interface MenuItem {
   id: string;
   /** Owning admin id. */
   owner: string;
+  /** Branch this item belongs to (null = shared chain-wide item). */
+  branchId?: string | null;
   name: string;
   /** Unit price (currency-major, e.g. 12.5). */
   price: number;
@@ -159,6 +178,8 @@ export interface OrderLine {
 export interface Order {
   id: string;
   owner: string;
+  /** Branch this order's table belongs to (null = chain default). */
+  branchId?: string | null;
   /** Surrogate table id (relational) — stable across number reuse. */
   tableId: string;
   /** Display table number at order time. */
@@ -233,6 +254,18 @@ export interface Lead {
   ts: string;
 }
 
+/** A contact message a chain manager sends to the super admin. */
+export interface ManagerMessage {
+  id: string;
+  managerId: string;
+  /** Sender email, attached for the super console (not stored on the row). */
+  managerEmail?: string;
+  subject: string;
+  body: string;
+  status: "open" | "resolved";
+  createdAt: string;
+}
+
 export interface Store {
   tables: LiveTable[];
   /** Branches per owner (the disk fallback keeps them in one array). */
@@ -240,6 +273,8 @@ export interface Store {
   transactions: Transaction[];
   /** Demo-request leads from the marketing site (newest first). */
   leads: Lead[];
+  /** Manager → super contact messages (newest first). */
+  managerMessages?: ManagerMessage[];
   /** Menu per owning admin (keyed by user id) — each restaurant is independent. */
   menus: Record<string, MenuMeta>;
   /** Structured orderable items (optional feature). */

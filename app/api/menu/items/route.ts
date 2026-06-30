@@ -3,7 +3,9 @@ import {
   authedUser,
   createMenuItem,
   getPublicMenuItems,
+  listBranches,
   listMenuItems,
+  scopeFor,
 } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
 
@@ -32,7 +34,11 @@ export async function GET(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(await listMenuItems(user.id));
+  // Branch-admin → only its branch's items (+ shared chain items). A manager may
+  // scope to one branch via ?branch=<id>, else sees all.
+  const scope = scopeFor(user);
+  const branchId = scope.branchId ?? new URL(req.url).searchParams.get("branch") ?? null;
+  return NextResponse.json(await listMenuItems(scope.ownerId, branchId));
 }
 
 export async function POST(req: Request) {
@@ -43,12 +49,23 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const scope = scopeFor(user);
   const body = (await req.json().catch(() => ({}))) as {
     name?: unknown;
     price?: unknown;
     category?: unknown;
     description?: unknown;
+    branchId?: unknown;
   };
+  // Resolve the branch this item belongs to: a branch-admin is pinned to its own
+  // branch; a manager may target one of its branches (else a shared chain item).
+  let branchId: string | null = null;
+  if (scope.role === "admin") {
+    branchId = scope.branchId;
+  } else if (typeof body.branchId === "string" && body.branchId) {
+    const branches = await listBranches(scope.ownerId);
+    if (branches.some((b) => b.id === body.branchId)) branchId = body.branchId;
+  }
   const name = typeof body.name === "string" ? body.name.trim().slice(0, MAX_NAME) : "";
   if (!name) {
     return NextResponse.json({ error: "name required" }, { status: 400 });
@@ -63,11 +80,15 @@ export async function POST(req: Request) {
     typeof body.description === "string"
       ? body.description.trim().slice(0, MAX_DESC)
       : "";
-  const item = await createMenuItem(user.id, {
-    name,
-    price: +price.toFixed(2),
-    category,
-    description,
-  });
+  const item = await createMenuItem(
+    scope.ownerId,
+    {
+      name,
+      price: +price.toFixed(2),
+      category,
+      description,
+    },
+    branchId,
+  );
   return NextResponse.json(item);
 }

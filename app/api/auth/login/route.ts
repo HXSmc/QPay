@@ -9,6 +9,7 @@ import {
 import {
   clearLoginFailures,
   findUserByEmail,
+  getUserById,
   isLoginLocked,
   recordLoginFailure,
 } from "@/app/lib/store";
@@ -65,6 +66,22 @@ export async function POST(req: Request) {
   if (user.expiresAt && new Date(user.expiresAt).getTime() <= Date.now()) {
     await clearLoginFailures(key);
     return NextResponse.json({ error: "invalid credentials" }, { status: 401 });
+  }
+
+  // A branch-admin inherits its chain manager's lifecycle: deny the login if it's
+  // orphaned (no branch) or its parent manager is missing / not a manager /
+  // expired. Otherwise a lapsed chain could keep operating via its staff logins.
+  // Same generic 401 so it can't be used as an expiry oracle.
+  if (user.role === "admin") {
+    const parent = user.parentId ? await getUserById(user.parentId) : null;
+    const parentExpired =
+      !parent ||
+      parent.role !== "manager" ||
+      (!!parent.expiresAt && new Date(parent.expiresAt).getTime() <= Date.now());
+    if (!user.branchId || parentExpired) {
+      await clearLoginFailures(key);
+      return NextResponse.json({ error: "invalid credentials" }, { status: 401 });
+    }
   }
 
   await clearLoginFailures(key);

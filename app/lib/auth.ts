@@ -209,7 +209,7 @@ export async function verifySession(
   if (!data || typeof data !== "object") return null;
   const { sub, role, exp, pv } = data as Record<string, unknown>;
   if (typeof sub !== "string" || !sub) return null;
-  if (role !== "super" && role !== "admin") return null;
+  if (role !== "super" && role !== "manager" && role !== "admin") return null;
   if (typeof exp !== "number" || exp < Date.now()) return null;
   return { sub, role, exp, ...(typeof pv === "string" ? { pv } : {}) };
 }

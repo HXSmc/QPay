@@ -15,6 +15,10 @@ export async function PATCH(
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // Editing a branch (incl. its POS) is a chain-owner action, not a branch-admin's.
+  if (user.role === "admin") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as {
     name?: unknown;
@@ -51,6 +55,9 @@ export async function DELETE(
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (user.role === "admin") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   const { id } = await params;
   const res = await deleteBranch(user.id, id);

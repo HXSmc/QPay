@@ -7,10 +7,13 @@ import {
   deleteAdmin,
   getMe,
   listAdmins,
+  listContactMessages,
   logout,
   renewAdmin,
+  resolveContactMessage,
   updateAdmin,
   type AdminAccount,
+  type ContactMessage,
   type Me,
 } from "../../lib/api";
 import { C, R, S, T, STATUS, btn, card, field, badge } from "../../lib/theme";
@@ -265,14 +268,14 @@ export default function SuperadminPage() {
       </div>
 
       <div style={{ maxWidth: 880, margin: "0 auto", padding: `${S[6]}px ${S[5]}px` }}>
-        <h1 style={{ ...T.h1, margin: `0 0 ${S[1]}px` }}>{tr("Admin accounts")}</h1>
+        <h1 style={{ ...T.h1, margin: `0 0 ${S[1]}px` }}>{tr("Manager accounts")}</h1>
         <p style={{ ...T.body, color: C.muted, margin: `0 0 ${S[5]}px` }}>
-          {tr("Issue credentials for restaurant admins. Each admin sees only their own tables and receipts.")}
+          {tr("Issue credentials for chain managers. A manager owns its whole chain — branches, POS, and the branch-admin logins beneath it — within the table and branch caps you set here.")}
         </p>
 
         {/* Create form */}
         <div style={{ ...card({ pad: S[5] }), marginBottom: S[5] }}>
-          <h2 style={{ ...T.h3, margin: `0 0 ${S[4]}px` }}>{tr("Create a new admin")}</h2>
+          <h2 style={{ ...T.h3, margin: `0 0 ${S[4]}px` }}>{tr("Create a new manager")}</h2>
           <form onSubmit={submit} style={{ display: "grid", gap: S[4] }}>
             <div className="qp-grid-2" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[3] }}>
               <Labeled label={tr("Login email")}>
@@ -564,7 +567,109 @@ export default function SuperadminPage() {
             ))
           )}
         </div>
+
+        <ManagerInbox />
       </div>
+    </div>
+  );
+}
+
+// Inbox of manager → super contact messages, with a resolve toggle.
+function ManagerInbox() {
+  const tr = useT();
+  const [messages, setMessages] = useState<ContactMessage[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const refresh = () =>
+    listContactMessages()
+      .then(setMessages)
+      .catch(() => {})
+      .finally(() => setLoaded(true));
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const toggle = async (m: ContactMessage) => {
+    setBusyId(m.id);
+    try {
+      await resolveContactMessage(m.id, m.status === "resolved" ? "open" : "resolved");
+      await refresh();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const openCount = messages.filter((m) => m.status === "open").length;
+
+  return (
+    <div style={{ marginTop: S[7] }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: S[3],
+          margin: `0 0 ${S[4]}px`,
+        }}
+      >
+        <h2 style={{ ...T.h2, margin: 0 }}>{tr("Manager messages")}</h2>
+        {loaded && openCount > 0 && <span style={badge("warn")}>{openCount} {tr("open")}</span>}
+      </div>
+
+      {!loaded ? (
+        <div style={{ display: "grid", gap: S[3] }}>
+          {Array.from({ length: 2 }).map((_, i) => (
+            <Skeleton key={i} h={84} radius={R.lg} />
+          ))}
+        </div>
+      ) : messages.length === 0 ? (
+        <EmptyState
+          title={tr("No messages")}
+          body={tr("When a manager contacts you, it appears here.")}
+        />
+      ) : (
+        <div style={{ display: "grid", gap: S[3] }}>
+          {messages.map((m) => (
+            <div key={m.id} style={card({ pad: S[4] })}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: S[3],
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ ...T.h3, color: C.text, overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {m.subject}
+                  </div>
+                  <div style={{ ...T.caption, color: C.muted, marginTop: 3 }}>
+                    {m.managerEmail || tr("Manager")} · {new Date(m.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: S[2] }}>
+                  <span style={badge(m.status === "resolved" ? "success" : "warn")}>
+                    {m.status === "resolved" ? tr("Resolved") : tr("Open")}
+                  </span>
+                  <button
+                    onClick={() => toggle(m)}
+                    disabled={busyId === m.id}
+                    className="qp-cta-lift"
+                    style={btn("secondary", { size: "sm", disabled: busyId === m.id })}
+                  >
+                    {busyId === m.id && <Spinner size={14} />}
+                    {m.status === "resolved" ? tr("Reopen") : tr("Resolve")}
+                  </button>
+                </div>
+              </div>
+              <p style={{ ...T.body, color: C.muted, margin: `${S[3]}px 0 0`, whiteSpace: "pre-wrap" }}>
+                {m.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

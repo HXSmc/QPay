@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { deleteMenu, getMenu, uploadMenu } from "../../../lib/api";
-import type { MenuMeta } from "../../../lib/types";
-import { C, R, S, T, SHADOW, btn } from "../../../lib/theme";
+import { deleteMenu, getMe, getMenu, listBranches, uploadMenu } from "../../../lib/api";
+import type { Branch, MenuMeta } from "../../../lib/types";
+import { C, R, S, T, SHADOW, btn, field } from "../../../lib/theme";
 import { Alert, EmptyState, Spinner } from "../../../components/ui/Primitives";
 import { MenuItemsEditor } from "../../../components/admin/MenuItemsEditor";
 import { useT } from "../../../lib/i18n-client";
@@ -13,6 +13,26 @@ type Tab = "file" | "items";
 export default function MenuPage() {
   const tr = useT();
   const [tab, setTab] = useState<Tab>("file");
+  // Per-branch menu: a manager picks which branch's menu to edit (empty = the
+  // shared chain menu). A branch-admin never sees this — the API pins its branch.
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [isManager, setIsManager] = useState(false);
+  const [branchId, setBranchId] = useState("");
+
+  useEffect(() => {
+    getMe()
+      .then((me) => {
+        if (me.role === "manager") {
+          setIsManager(true);
+          listBranches().then(setBranches).catch(() => {});
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const showSelector = isManager && branches.length > 1;
+  // Pass undefined (not "") so the client wrappers omit the branch query.
+  const branchArg = branchId || undefined;
 
   return (
     <div className="qp-page" style={{ padding: "30px 36px", maxWidth: 820 }}>
@@ -20,6 +40,27 @@ export default function MenuPage() {
       <p style={{ ...T.body, color: C.muted, margin: "6px 0 20px" }}>
         {tr("Upload a menu file diners can view, and optionally add orderable items so they can order from their phone.")}
       </p>
+
+      {showSelector && (
+        <div style={{ marginBottom: S[5], maxWidth: 360 }}>
+          <label htmlFor="menu-branch" style={{ ...T.label, color: C.muted, display: "block", marginBottom: S[2] }}>
+            {tr("Editing menu for")}
+          </label>
+          <select
+            id="menu-branch"
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            style={field()}
+          >
+            <option value="">{tr("All branches (shared)")}</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div
         role="tablist"
@@ -34,7 +75,11 @@ export default function MenuPage() {
         </TabButton>
       </div>
 
-      {tab === "file" ? <FileTab /> : <MenuItemsEditor />}
+      {tab === "file" ? (
+        <FileTab branchId={branchArg} />
+      ) : (
+        <MenuItemsEditor branchId={branchArg} />
+      )}
     </div>
   );
 }
@@ -72,7 +117,7 @@ function TabButton({
   );
 }
 
-function FileTab() {
+function FileTab({ branchId }: { branchId?: string }) {
   const tr = useT();
   const [meta, setMeta] = useState<MenuMeta | null>(null);
   const [busy, setBusy] = useState(false);
@@ -81,8 +126,9 @@ function FileTab() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    getMenu().then(setMeta).catch(() => {});
-  }, []);
+    setMeta(null);
+    getMenu(undefined, undefined, branchId).then(setMeta).catch(() => {});
+  }, [branchId]);
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -91,7 +137,7 @@ function FileTab() {
     setProgress(0);
     setError("");
     try {
-      setMeta(await uploadMenu(file, (pct) => setProgress(pct)));
+      setMeta(await uploadMenu(file, (pct) => setProgress(pct), branchId));
     } catch {
       setError(tr("Upload failed. Use an image or PDF (max 20MB)."));
     } finally {
@@ -104,7 +150,7 @@ function FileTab() {
   const remove = async () => {
     setBusy(true);
     try {
-      await deleteMenu();
+      await deleteMenu(branchId);
       setMeta(null);
     } finally {
       setBusy(false);

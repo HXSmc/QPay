@@ -17,6 +17,10 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // POS configuration is chain-owner territory — a branch-admin can't test it.
+  if (user.role === "admin") {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
   // Throttle: this triggers an outbound call to the POS API; cap abuse/egress.
   if (!(await rateLimit("posTest", clientIp(req)))) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });

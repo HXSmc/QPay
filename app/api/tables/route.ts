@@ -1,18 +1,22 @@
 import { NextResponse } from "next/server";
-import { authedUser, createTable, listBranches, listTables, tableCap } from "@/app/lib/store";
+import { authedUser, createTable, listBranches, listTables, scopeFor, tableCap } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
 import { rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
-// The table list is scoped to the calling admin; customers read a single table
-// via /api/tables/[num]. Tables carry a branchId; the client filters per branch.
+// The table list is scoped to the calling account: a manager sees the whole
+// chain; a branch-admin sees only its own branch. Customers read a single table
+// via /api/tables/[num].
 export async function GET(req: Request) {
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(await listTables(user.id));
+  const scope = scopeFor(user);
+  return NextResponse.json(
+    await listTables(scope.ownerId, scope.branchId ? { branchId: scope.branchId } : {}),
+  );
 }
 
 export async function POST(req: Request) {
@@ -23,15 +27,16 @@ export async function POST(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  const scope = scopeFor(user);
   // Throttle the insert per owner (consistent with the other authed writes) so a
   // cheaply-obtained trial can't mass-create rows even when no cap is set.
-  if (!(await rateLimit("tableCreate", user.id))) {
+  if (!(await rateLimit("tableCreate", scope.ownerId))) {
     return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
   // Enforce the overall table cap (across all branches) from Settings. 0 = off.
-  const cap = await tableCap(user.id);
+  const cap = await tableCap(scope.ownerId);
   if (cap > 0) {
-    const existing = await listTables(user.id);
+    const existing = await listTables(scope.ownerId);
     if (existing.length >= cap) {
       return NextResponse.json(
         { error: `Table limit reached (${cap}). Raise it in Settings.` },
@@ -41,10 +46,13 @@ export async function POST(req: Request) {
   }
   const body = (await req.json().catch(() => ({}))) as { branchId?: unknown };
   let branchId: string | null = null;
-  if (typeof body.branchId === "string" && body.branchId) {
-    // Only accept a branch the caller actually owns; otherwise leave unassigned.
-    const branches = await listBranches(user.id);
+  if (scope.role === "admin") {
+    // A branch-admin can only ever create tables in its OWN branch.
+    branchId = scope.branchId;
+  } else if (typeof body.branchId === "string" && body.branchId) {
+    // Manager: only accept a branch it actually owns; else leave unassigned.
+    const branches = await listBranches(scope.ownerId);
     if (branches.some((b) => b.id === body.branchId)) branchId = body.branchId;
   }
-  return NextResponse.json(await createTable(user.id, branchId));
+  return NextResponse.json(await createTable(scope.ownerId, branchId));
 }

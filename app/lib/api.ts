@@ -20,6 +20,30 @@ export interface Me {
   id: string;
   email: string;
   role: Role;
+  /** Branch a branch-admin manages (role 'admin'); null otherwise. */
+  branchId?: string | null;
+  /** Display name of that branch, for the scoped dashboard header. */
+  branchName?: string | null;
+}
+
+/** A branch-admin login, as the manager's team console sees it. */
+export interface TeamAdmin {
+  id: string;
+  email: string;
+  createdAt: string;
+  active: boolean;
+  branchId: string | null;
+}
+
+/** A manager → super contact message. */
+export interface ContactMessage {
+  id: string;
+  managerId: string;
+  managerEmail?: string;
+  subject: string;
+  body: string;
+  status: "open" | "resolved";
+  createdAt: string;
 }
 
 export interface AdminAccount {
@@ -167,14 +191,18 @@ export async function listTransactions(): Promise<Transaction[]> {
   return json(await fetch("/api/transactions", { cache: "no-store" }));
 }
 
-/** num+token → public menu for that table's owner (customer); omit → admin's own. */
+/** num+token → public menu for that table's owner (customer); omit → admin's own.
+ *  A manager may pass `branchId` (3rd arg) to read a specific branch's menu. */
 export async function getMenu(
   num?: string,
   token?: string,
+  branchId?: string,
 ): Promise<MenuMeta | null> {
   const qs = num
     ? `?num=${encodeURIComponent(num)}&t=${encodeURIComponent(token ?? "")}`
-    : "";
+    : branchId
+      ? `?branch=${encodeURIComponent(branchId)}`
+      : "";
   return json(await fetch(`/api/menu${qs}`, { cache: "no-store" }));
 }
 
@@ -241,7 +269,9 @@ async function downscaleImage(file: File): Promise<File> {
 export async function uploadMenu(
   file: File,
   onProgress?: (pct: number) => void,
+  branchId?: string,
 ): Promise<MenuMeta> {
+  const branchQs = branchId ? `?branch=${encodeURIComponent(branchId)}` : "";
   // Shrink big phone photos (and convert HEIC→JPEG) before sending so uploads
   // don't crawl on mobile data.
   file = await downscaleImage(file);
@@ -251,7 +281,7 @@ export async function uploadMenu(
     const { upload } = await import("@vercel/blob/client");
     const blob = await upload(`menu/${file.name}`, file, {
       access: "public",
-      handleUploadUrl: "/api/menu",
+      handleUploadUrl: `/api/menu${branchQs}`,
       contentType: file.type,
       clientPayload: JSON.stringify({ originalName: file.name }),
       onUploadProgress: onProgress
@@ -274,20 +304,22 @@ export async function uploadMenu(
     // Otherwise fall back to the server multipart path (local dev / no Blob).
     const fd = new FormData();
     fd.append("file", file);
-    return json(await fetch("/api/menu", { method: "POST", body: fd }));
+    return json(await fetch(`/api/menu${branchQs}`, { method: "POST", body: fd }));
   }
 }
 
-export async function deleteMenu(): Promise<void> {
-  const res = await fetch("/api/menu", { method: "DELETE" });
+export async function deleteMenu(branchId?: string): Promise<void> {
+  const qs = branchId ? `?branch=${encodeURIComponent(branchId)}` : "";
+  const res = await fetch(`/api/menu${qs}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`${res.status}`);
 }
 
 // --- Structured menu items + ordering (optional feature) ---
 
-/** Admin: list own orderable items. */
-export async function listMenuItems(): Promise<MenuItem[]> {
-  return json(await fetch("/api/menu/items", { cache: "no-store" }));
+/** Admin: list own orderable items. A manager may scope to one branch. */
+export async function listMenuItems(branchId?: string): Promise<MenuItem[]> {
+  const qs = branchId ? `?branch=${encodeURIComponent(branchId)}` : "";
+  return json(await fetch(`/api/menu/items${qs}`, { cache: "no-store" }));
 }
 
 /** Customer: list orderable items for a table (token-gated). */
@@ -303,17 +335,20 @@ export async function getPublicMenuItems(
   );
 }
 
-export async function createMenuItem(input: {
-  name: string;
-  price: number;
-  category?: string;
-  description?: string;
-}): Promise<MenuItem> {
+export async function createMenuItem(
+  input: {
+    name: string;
+    price: number;
+    category?: string;
+    description?: string;
+  },
+  branchId?: string,
+): Promise<MenuItem> {
   return json(
     await fetch("/api/menu/items", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify(branchId ? { ...input, branchId } : input),
     }),
   );
 }
@@ -350,12 +385,18 @@ export async function placeOrder(
   );
 }
 
-/** Admin: list own orders (optionally only active = placed/preparing). */
-export async function listOrders(activeOnly = false): Promise<Order[]> {
+/** Admin: list own orders (optionally only active = placed/preparing). A manager
+ *  may scope to one branch via `branchId`. */
+export async function listOrders(
+  activeOnly = false,
+  branchId?: string,
+): Promise<Order[]> {
+  const params = new URLSearchParams();
+  if (activeOnly) params.set("active", "1");
+  if (branchId) params.set("branch", branchId);
+  const qs = params.toString();
   return json(
-    await fetch(`/api/orders${activeOnly ? "?active=1" : ""}`, {
-      cache: "no-store",
-    }),
+    await fetch(`/api/orders${qs ? `?${qs}` : ""}`, { cache: "no-store" }),
   );
 }
 
@@ -569,4 +610,85 @@ export async function submitLead(
       body: JSON.stringify(input),
     }),
   );
+}
+
+// --- Manager: branch-admin (team) management ---
+
+export async function listTeamAdmins(): Promise<TeamAdmin[]> {
+  return json(await fetch("/api/managers/admins", { cache: "no-store" }));
+}
+
+export async function createTeamAdmin(
+  email: string,
+  password: string,
+  branchId: string,
+): Promise<{ ok: true; account: TeamAdmin } | { ok: false; error: string }> {
+  const res = await fetch("/api/managers/admins", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password, branchId }),
+  });
+  const data = (await res.json().catch(() => ({}))) as TeamAdmin | { error?: string };
+  if (!res.ok) {
+    return { ok: false, error: (data as { error?: string }).error || "failed" };
+  }
+  return { ok: true, account: data as TeamAdmin };
+}
+
+export async function updateTeamAdmin(
+  id: string,
+  patch: { email?: string; password?: string; branchId?: string },
+): Promise<{ ok: true; account: TeamAdmin } | { ok: false; error: string }> {
+  const res = await fetch(`/api/managers/admins/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    account?: TeamAdmin;
+    error?: string;
+  };
+  if (!res.ok || !data.account) {
+    return { ok: false, error: data.error || "failed" };
+  }
+  return { ok: true, account: data.account };
+}
+
+export async function deleteTeamAdmin(id: string): Promise<void> {
+  const res = await fetch(`/api/managers/admins/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`${res.status}`);
+}
+
+// --- Contact channel (manager ↔ super) ---
+
+export async function listContactMessages(): Promise<ContactMessage[]> {
+  return json(await fetch("/api/contact", { cache: "no-store" }));
+}
+
+export async function sendContactMessage(
+  subject: string,
+  body: string,
+): Promise<{ ok: true; message: ContactMessage } | { ok: false; error: string }> {
+  const res = await fetch("/api/contact", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ subject, body }),
+  });
+  const data = (await res.json().catch(() => ({}))) as ContactMessage | { error?: string };
+  if (!res.ok) {
+    return { ok: false, error: (data as { error?: string }).error || "failed" };
+  }
+  return { ok: true, message: data as ContactMessage };
+}
+
+export async function resolveContactMessage(
+  id: string,
+  status: "open" | "resolved",
+): Promise<void> {
+  const res = await fetch(`/api/contact/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(`${res.status}`);
 }

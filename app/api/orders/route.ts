@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authedUser, listOrders, placeOrder } from "@/app/lib/store";
+import { authedUser, listOrders, placeOrder, scopeFor } from "@/app/lib/store";
 import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -7,13 +7,20 @@ export const dynamic = "force-dynamic";
 const MAX_LINES = 40;
 
 // GET → admin: the caller's own orders (optionally active only via ?active=1).
+// A manager may scope to one branch via ?branch=<id>; a branch-admin is always
+// pinned to its own branch.
 export async function GET(req: Request) {
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const activeOnly = new URL(req.url).searchParams.get("active") === "1";
-  return NextResponse.json(await listOrders(user.id, { activeOnly }));
+  const url = new URL(req.url);
+  const activeOnly = url.searchParams.get("active") === "1";
+  const scope = scopeFor(user);
+  const branchId = scope.branchId ?? url.searchParams.get("branch") ?? null;
+  return NextResponse.json(
+    await listOrders(scope.ownerId, { activeOnly, branchId }),
+  );
 }
 
 // POST → public (customer). The unguessable table `token` is the capability, so

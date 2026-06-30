@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authedUser, deleteMenuItem, updateMenuItem } from "@/app/lib/store";
+import { authedUser, deleteMenuItem, scopeFor, updateMenuItem } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
 import type { MenuItem } from "@/app/lib/types";
 
@@ -41,7 +41,8 @@ export async function PATCH(
     patch.description = body.description.trim().slice(0, MAX_DESC);
   if (typeof body.available === "boolean") patch.available = body.available;
 
-  const updated = await updateMenuItem(user.id, id, patch);
+  const scope = scopeFor(user);
+  const updated = await updateMenuItem(scope.ownerId, id, patch, scope.branchId);
   if (!updated) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }
@@ -60,7 +61,8 @@ export async function DELETE(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { id } = await params;
-  const ok = await deleteMenuItem(user.id, id);
+  const scope = scopeFor(user);
+  const ok = await deleteMenuItem(scope.ownerId, id, scope.branchId);
   if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

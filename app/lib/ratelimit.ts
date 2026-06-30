@@ -94,6 +94,7 @@ export const LIMITS = {
   posTest: { max: 10, windowMs: 60_000 },
   adminCreate: { max: 20, windowMs: 60_000 },
   adminEdit: { max: 30, windowMs: 60_000 },
+  contact: { max: 6, windowMs: 60_000 },
 } as const;
 
 /** Check a named rate limit for `key`. Returns true if the action is allowed. */

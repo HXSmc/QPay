@@ -4,6 +4,7 @@ import {
   deleteTable,
   getTableByToken,
   payTable,
+  scopeFor,
   setTableItems,
   setTableStatus,
   syncReservation,
@@ -152,8 +153,10 @@ export async function PATCH(
       return NextResponse.json({ error: "invalid items" }, { status: 400 });
     }
     // Scoped to the caller's own tables — a 404 covers both "no such table" and
-    // "not yours" so ownership isn't leaked.
-    const updated = await setTableItems(num, items, user.id);
+    // "not yours" so ownership isn't leaked. A branch-admin is further pinned to
+    // its branch (data lives under its parent manager).
+    const scope = scopeFor(user);
+    const updated = await setTableItems(num, items, scope.ownerId, scope.branchId);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -171,7 +174,8 @@ export async function PATCH(
     if (!VALID.includes(body.status)) {
       return NextResponse.json({ error: "invalid status" }, { status: 400 });
     }
-    const updated = await setTableStatus(num, body.status, user.id);
+    const scope = scopeFor(user);
+    const updated = await setTableStatus(num, body.status, scope.ownerId, scope.branchId);
     if (!updated) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
@@ -193,7 +197,8 @@ export async function DELETE(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const { num } = await params;
-  const ok = await deleteTable(num, user.id);
+  const scope = scopeFor(user);
+  const ok = await deleteTable(num, scope.ownerId, scope.branchId);
   if (!ok) return NextResponse.json({ error: "not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }

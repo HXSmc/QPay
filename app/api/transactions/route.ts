@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authedUser, listTransactions } from "@/app/lib/store";
+import { authedUser, listTransactions, scopeFor } from "@/app/lib/store";
 
 export const dynamic = "force-dynamic";
 
@@ -8,5 +8,9 @@ export async function GET(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(await listTransactions(user.id));
+  // Manager → whole-chain ledger; branch-admin → its branch only.
+  const scope = scopeFor(user);
+  return NextResponse.json(
+    await listTransactions(scope.ownerId, { branchId: scope.branchId }),
+  );
 }

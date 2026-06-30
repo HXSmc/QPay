@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authedUser, updateOrderStatus } from "@/app/lib/store";
+import { authedUser, scopeFor, updateOrderStatus } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
 import type { OrderStatus } from "@/app/lib/types";
 
@@ -24,7 +24,13 @@ export async function PATCH(
   if (typeof body.status !== "string" || !VALID.includes(body.status as OrderStatus)) {
     return NextResponse.json({ error: "invalid status" }, { status: 400 });
   }
-  const updated = await updateOrderStatus(user.id, id, body.status as OrderStatus);
+  const scope = scopeFor(user);
+  const updated = await updateOrderStatus(
+    scope.ownerId,
+    id,
+    body.status as OrderStatus,
+    scope.branchId,
+  );
   if (!updated) {
     return NextResponse.json({ error: "not found" }, { status: 404 });
   }

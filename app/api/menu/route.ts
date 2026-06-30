@@ -6,15 +6,31 @@ import {
   clearMenu,
   getMenu,
   getMenuForTable,
+  listBranches,
+  scopeFor,
   setMenu,
   UPLOAD_DIR,
 } from "@/app/lib/store";
+import type { Scope } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
 import { rateLimit } from "@/app/lib/ratelimit";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import type { MenuMeta } from "@/app/lib/types";
 
 export const dynamic = "force-dynamic";
+
+// Resolve which branch's menu this request targets: a branch-admin is pinned to
+// its own branch; a manager may pass ?branch=<id> (validated), else the chain
+// (null-branch) menu.
+async function targetBranch(scope: Scope, req: Request): Promise<string | null> {
+  if (scope.role === "admin") return scope.branchId;
+  const requested = new URL(req.url).searchParams.get("branch");
+  if (requested) {
+    const branches = await listBranches(scope.ownerId);
+    if (branches.some((b) => b.id === requested)) return requested;
+  }
+  return null;
+}
 
 const EXT: Record<string, string> = {
   "image/png": "png",
@@ -55,7 +71,9 @@ export async function GET(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  return NextResponse.json(await getMenu(user.id));
+  const scope = scopeFor(user);
+  const branchId = await targetBranch(scope, req);
+  return NextResponse.json(await getMenu(scope.ownerId, branchId));
 }
 
 export async function POST(req: Request) {
@@ -90,6 +108,8 @@ export async function POST(req: Request) {
           // Auth is enforced HERE — only a signed-in admin can get a token.
           const user = await authedUser(req);
           if (!user) throw new Error("unauthorized");
+          const scope = scopeFor(user);
+          const branchId = await targetBranch(scope, req);
           const originalName =
             (() => {
               try {
@@ -103,23 +123,36 @@ export async function POST(req: Request) {
             allowedContentTypes: ALLOWED_TYPES,
             maximumSizeInBytes: MAX_BYTES,
             addRandomSuffix: true,
-            tokenPayload: JSON.stringify({ userId: user.id, originalName }),
+            // Persist the resolved (owner, branch) so the completion hook writes
+            // the menu to the right per-branch slot.
+            tokenPayload: JSON.stringify({
+              userId: scope.ownerId,
+              branchId,
+              originalName,
+            }),
           };
         },
         onUploadCompleted: async ({ blob, tokenPayload }) => {
           // Fired server-to-server by Vercel Blob after the upload lands.
-          const { userId, originalName } = JSON.parse(tokenPayload || "{}") as {
+          const { userId, branchId, originalName } = JSON.parse(
+            tokenPayload || "{}",
+          ) as {
             userId: string;
+            branchId: string | null;
             originalName: string;
           };
-          const previous = await getMenu(userId);
-          await setMenu(userId, {
-            filename: blob.pathname,
-            url: blob.url,
-            mime: blob.contentType || "application/octet-stream",
-            originalName: originalName || "menu",
-            uploadedAt: new Date().toISOString(),
-          });
+          const previous = await getMenu(userId, branchId);
+          await setMenu(
+            userId,
+            {
+              filename: blob.pathname,
+              url: blob.url,
+              mime: blob.contentType || "application/octet-stream",
+              originalName: originalName || "menu",
+              uploadedAt: new Date().toISOString(),
+            },
+            branchId,
+          );
           await removeFile(previous);
         },
       });
@@ -167,8 +200,10 @@ export async function POST(req: Request) {
     );
   }
 
-  const previous = await getMenu(user.id);
-  const filename = `menu-${user.id}-${Date.now()}.${ext}`;
+  const scope = scopeFor(user);
+  const branchId = await targetBranch(scope, req);
+  const previous = await getMenu(scope.ownerId, branchId);
+  const filename = `menu-${scope.ownerId}-${Date.now()}.${ext}`;
   const bytes = Buffer.from(await file.arrayBuffer());
 
   let url: string;
@@ -194,7 +229,7 @@ export async function POST(req: Request) {
   };
   // Persist the new menu BEFORE deleting the old file, so a failure can never
   // leave the admin with no menu at all.
-  await setMenu(user.id, meta);
+  await setMenu(scope.ownerId, meta, branchId);
   await removeFile(previous);
   return NextResponse.json(meta);
 }
@@ -207,8 +242,10 @@ export async function DELETE(req: Request) {
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  const previous = await getMenu(user.id);
-  await clearMenu(user.id);
+  const scope = scopeFor(user);
+  const branchId = await targetBranch(scope, req);
+  const previous = await getMenu(scope.ownerId, branchId);
+  await clearMenu(scope.ownerId, branchId);
   await removeFile(previous);
   return NextResponse.json({ ok: true });
 }

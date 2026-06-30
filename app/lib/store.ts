@@ -36,6 +36,7 @@ import type {
   Branch,
   Lead,
   LiveTable,
+  ManagerMessage,
   MenuItem,
   MenuMeta,
   Order,
@@ -69,6 +70,10 @@ export interface PublicUser {
   source: AccountSource;
   /** Derived: false once an expiry has passed. */
   active: boolean;
+  /** Branch a branch-admin manages (role 'admin'); null for super/manager. */
+  branchId?: string | null;
+  /** Owning manager id for a branch-admin; null for super/manager. */
+  parentId?: string | null;
   /** Per-account config the super console displays/edits (attached by listAdmins). */
   config?: {
     name: string;
@@ -90,7 +95,40 @@ function publicUser(u: AdminUser): PublicUser {
     expiresAt,
     source: u.source ?? "manual",
     active: !expiresAt || new Date(expiresAt).getTime() > Date.now(),
+    branchId: u.branchId ?? null,
+    parentId: u.parentId ?? null,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Effective data scope for a request's account.
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the (ownerId, branchId) a user's data queries run under.
+ *   • super   → not a data owner (handled by the super console separately).
+ *   • manager → owns its own data across the whole chain (branchId = null).
+ *   • admin   → a branch operator: data lives under its parent MANAGER, scoped to
+ *               its single branch. ownerId = parentId, branchId = its branch.
+ */
+export interface Scope {
+  ownerId: string;
+  branchId: string | null;
+  role: Role;
+  /** The account's own id (distinct from ownerId for branch-admins). */
+  selfId: string;
+}
+
+export function scopeFor(u: AdminUser): Scope {
+  if (u.role === "admin") {
+    return {
+      ownerId: u.parentId ?? u.id,
+      branchId: u.branchId ?? null,
+      role: "admin",
+      selfId: u.id,
+    };
+  }
+  return { ownerId: u.id, branchId: null, role: u.role, selfId: u.id };
 }
 
 /** True once an account's expiry has passed (trial lapsed). */
@@ -120,6 +158,7 @@ function seed(): Store {
     branches: [],
     transactions: [],
     leads: [],
+    managerMessages: [],
     menus: {},
     menuItems: [],
     orders: [],
@@ -172,6 +211,7 @@ function normalize(s: Store): Store {
     ),
     branches: Array.isArray(s.branches) ? s.branches : [],
     leads: Array.isArray(s.leads) ? s.leads : [],
+    managerMessages: Array.isArray(s.managerMessages) ? s.managerMessages : [],
     menus:
       s.menus && typeof s.menus === "object" && !Array.isArray(s.menus)
         ? s.menus
@@ -351,10 +391,13 @@ export async function setTableItems(
   num: string,
   items: OrderItem[],
   owner: string,
+  branchId?: string | null,
 ): Promise<LiveTable | null> {
-  if (useSupabase) return rel.setTableItems(num, items, owner);
+  if (useSupabase) return rel.setTableItems(num, items, owner, branchId);
   return mutateBlob((s) => {
-    const t = s.tables.find((x) => x.num === num && x.owner === owner);
+    const t = s.tables.find(
+      (x) => x.num === num && x.owner === owner && (!branchId || x.branchId === branchId),
+    );
     if (!t) return { result: null, write: false };
     t.items = items;
     const setForAmount = settingsFor(s, owner);
@@ -412,10 +455,13 @@ export async function setTableStatus(
   num: string,
   status: TableStatus,
   owner: string,
+  branchId?: string | null,
 ): Promise<LiveTable | null> {
-  if (useSupabase) return rel.setTableStatus(num, status, owner);
+  if (useSupabase) return rel.setTableStatus(num, status, owner, branchId);
   return mutateBlob((s) => {
-    const t = s.tables.find((x) => x.num === num && x.owner === owner);
+    const t = s.tables.find(
+      (x) => x.num === num && x.owner === owner && (!branchId || x.branchId === branchId),
+    );
     if (!t) return { result: null, write: false };
     t.status = status;
     if (status === "open") t.amount = "—";
@@ -427,18 +473,25 @@ export async function setTableStatus(
 export async function deleteTable(
   num: string,
   owner: string,
+  branchId?: string | null,
 ): Promise<boolean> {
-  if (useSupabase) return rel.deleteTable(num, owner);
+  if (useSupabase) return rel.deleteTable(num, owner, branchId);
   return mutateBlob((s) => {
     const before = s.tables.length;
-    s.tables = s.tables.filter((x) => !(x.num === num && x.owner === owner));
+    s.tables = s.tables.filter(
+      (x) => !(x.num === num && x.owner === owner && (!branchId || x.branchId === branchId)),
+    );
     if (s.tables.length === before) return { result: false, write: false };
     return { result: true, write: true };
   });
 }
 
-export async function listTransactions(owner: string): Promise<Transaction[]> {
-  if (useSupabase) return rel.listTransactions(owner);
+export async function listTransactions(
+  owner: string,
+  opts: { branchId?: string | null } = {},
+): Promise<Transaction[]> {
+  if (useSupabase) return rel.listTransactions(owner, opts);
+  // Disk backend has no per-txn branch dimension; branch filter is a no-op there.
   return (await readStoreBlob()).transactions.filter((t) => t.owner === owner);
 }
 
@@ -462,10 +515,10 @@ export async function getUserById(id: string): Promise<AdminUser | null> {
   return (await readStoreBlob()).users.find((u) => u.id === id) ?? null;
 }
 
-/** Public view of an admin account by id, or null if not an admin (super only). */
+/** Public view of a MANAGER account by id, or null (super console target). */
 export async function getAdmin(id: string): Promise<PublicUser | null> {
   const u = await getUserById(id);
-  return u && u.role === "admin" ? publicUser(u) : null;
+  return u && u.role === "manager" ? publicUser(u) : null;
 }
 
 /**
@@ -484,6 +537,17 @@ export async function authedUser(req: Request): Promise<AdminUser | null> {
   // outstanding session. Legacy tokens without `pv` are tolerated until expiry.
   if (session.pv && session.pv !== (await passwordFingerprint(u.passwordHash))) {
     return null;
+  }
+  // A branch-admin inherits its chain manager's lifecycle + scope. Fail closed
+  // unless it has a branch AND a live, non-expired manager parent:
+  //   • no branchId  → orphaned (its branch was deleted) → would resolve to an
+  //     UNBRANCHED chain-wide scope (privilege escalation) → deny.
+  //   • parent missing / not a manager / expired → the chain's trial lapsed, so
+  //     a staff login must not keep the chain operating past the owner's gate.
+  if (u.role === "admin") {
+    if (!u.parentId || !u.branchId) return null;
+    const parent = await getUserById(u.parentId);
+    if (!parent || parent.role !== "manager" || isExpired(parent)) return null;
   }
   return u;
 }
@@ -539,7 +603,7 @@ export async function listAdmins(): Promise<PublicUser[]> {
         await rel.ensureSuperadmin();
         return rel.listAdmins();
       })()).map(publicUser)
-    : (await readStoreBlob()).users.filter((u) => u.role === "admin").map(publicUser);
+    : (await readStoreBlob()).users.filter((u) => u.role === "manager").map(publicUser);
   // Attach each admin's config (name/counts/caps/POS) for the super console.
   return Promise.all(
     base.map(async (u) => {
@@ -577,7 +641,7 @@ export async function createAdmin(
       id: globalThis.crypto.randomUUID(),
       email: norm,
       passwordHash,
-      role: "admin",
+      role: "manager",
       createdAt: new Date().toISOString(),
       source: opts?.source ?? "manual",
       expiresAt: opts?.expiresAt ?? null,
@@ -591,8 +655,9 @@ export async function deleteAdmin(id: string): Promise<boolean> {
   if (useSupabase) return rel.deleteAdmin(id);
   return mutateBlob((s) => {
     const u = s.users.find((x) => x.id === id);
-    if (!u || u.role !== "admin") return { result: false, write: false };
-    s.users = s.users.filter((x) => x.id !== id);
+    if (!u || u.role !== "manager") return { result: false, write: false };
+    // Cascade the manager's data AND its child branch-admins.
+    s.users = s.users.filter((x) => x.id !== id && x.parentId !== id);
     s.tables = s.tables.filter((t) => t.owner !== id);
     s.branches = (s.branches ?? []).filter((b) => b.owner !== id);
     s.transactions = s.transactions.filter((t) => t.owner !== id);
@@ -612,14 +677,16 @@ export async function renewAdmin(
   // Renew extends a TRIAL's expiry. A never-expiring (manual) admin has no
   // expiry to extend — renewing must NOT silently impose one. No-op for those.
   const target = await getUserById(id);
-  if (!target || target.role !== "admin") return null;
+  if (!target || (target.role !== "manager" && target.role !== "admin")) return null;
   if (target.expiresAt == null) return publicUser(target);
   if (useSupabase) {
     const u = await rel.renewAdmin(id, days);
     return u ? publicUser(u) : null;
   }
   return mutateBlob((s) => {
-    const u = s.users.find((x) => x.id === id && x.role === "admin");
+    const u = s.users.find(
+      (x) => x.id === id && (x.role === "manager" || x.role === "admin"),
+    );
     if (!u) return { result: null, write: false };
     const base = Math.max(
       Date.now(),
@@ -646,7 +713,7 @@ export async function updateAdmin(
   const newEmail =
     typeof patch.email === "string" ? patch.email.trim().toLowerCase() : undefined;
   return mutateBlob<PublicUser | null | "duplicate">((s) => {
-    const u = s.users.find((x) => x.id === id && x.role === "admin");
+    const u = s.users.find((x) => x.id === id && x.role === "manager");
     if (!u) return { result: null, write: false };
     if (newEmail && s.users.some((x) => x.id !== id && x.email === newEmail)) {
       return { result: "duplicate", write: false };
@@ -728,12 +795,171 @@ export async function provisionTrialAdmin(
 }
 
 // ===========================================================================
+// BRANCH-ADMINS (managed by a chain manager)
+// ===========================================================================
+
+export async function listBranchAdmins(parentId: string): Promise<PublicUser[]> {
+  if (useSupabase) return (await rel.listBranchAdmins(parentId)).map(publicUser);
+  return (await readStoreBlob()).users
+    .filter((u) => u.role === "admin" && u.parentId === parentId)
+    .map(publicUser);
+}
+
+export async function getBranchAdmin(
+  parentId: string,
+  id: string,
+): Promise<PublicUser | null> {
+  if (useSupabase) {
+    const u = await rel.getBranchAdmin(parentId, id);
+    return u ? publicUser(u) : null;
+  }
+  const u = (await readStoreBlob()).users.find(
+    (x) => x.id === id && x.role === "admin" && x.parentId === parentId,
+  );
+  return u ? publicUser(u) : null;
+}
+
+export async function createBranchAdmin(
+  parentId: string,
+  branchId: string,
+  email: string,
+  passwordHash: string,
+): Promise<PublicUser | null> {
+  if (useSupabase) {
+    const u = await rel.createBranchAdmin(parentId, branchId, email, passwordHash);
+    return u ? publicUser(u) : null;
+  }
+  const norm = email.trim().toLowerCase();
+  return mutateBlob((s) => {
+    if (s.users.some((u) => u.email === norm)) return { result: null, write: false };
+    const user: AdminUser = {
+      id: globalThis.crypto.randomUUID(),
+      email: norm,
+      passwordHash,
+      role: "admin",
+      createdAt: new Date().toISOString(),
+      source: "manual",
+      expiresAt: null,
+      parentId,
+      branchId,
+    };
+    s.users.push(user);
+    return { result: publicUser(user), write: true };
+  });
+}
+
+export async function updateBranchAdmin(
+  parentId: string,
+  id: string,
+  patch: { email?: string; passwordHash?: string; branchId?: string },
+): Promise<PublicUser | null | "duplicate"> {
+  if (useSupabase) {
+    const r = await rel.updateBranchAdmin(parentId, id, patch);
+    if (r === "duplicate") return "duplicate";
+    return r ? publicUser(r) : null;
+  }
+  const newEmail =
+    typeof patch.email === "string" ? patch.email.trim().toLowerCase() : undefined;
+  return mutateBlob<PublicUser | null | "duplicate">((s) => {
+    const u = s.users.find(
+      (x) => x.id === id && x.role === "admin" && x.parentId === parentId,
+    );
+    if (!u) return { result: null, write: false };
+    if (newEmail && s.users.some((x) => x.id !== id && x.email === newEmail)) {
+      return { result: "duplicate", write: false };
+    }
+    if (newEmail) u.email = newEmail;
+    if (typeof patch.passwordHash === "string") u.passwordHash = patch.passwordHash;
+    if (typeof patch.branchId === "string") u.branchId = patch.branchId;
+    return { result: publicUser(u), write: true };
+  });
+}
+
+export async function deleteBranchAdmin(
+  parentId: string,
+  id: string,
+): Promise<boolean> {
+  if (useSupabase) return rel.deleteBranchAdmin(parentId, id);
+  return mutateBlob((s) => {
+    const before = s.users.length;
+    s.users = s.users.filter(
+      (x) => !(x.id === id && x.role === "admin" && x.parentId === parentId),
+    );
+    return { result: s.users.length < before, write: s.users.length < before };
+  });
+}
+
+// ===========================================================================
+// CONTACT CHANNEL (manager → super messages)
+// ===========================================================================
+
+export async function createManagerMessage(
+  managerId: string,
+  subject: string,
+  body: string,
+): Promise<ManagerMessage> {
+  if (useSupabase) return rel.createManagerMessage(managerId, subject, body);
+  return mutateBlob((s) => {
+    const msg: ManagerMessage = {
+      id: globalThis.crypto.randomUUID(),
+      managerId,
+      subject,
+      body,
+      status: "open",
+      createdAt: new Date().toISOString(),
+    };
+    s.managerMessages = [msg, ...(s.managerMessages ?? [])];
+    return { result: msg, write: true };
+  });
+}
+
+export async function listManagerMessages(): Promise<ManagerMessage[]> {
+  if (useSupabase) return rel.listManagerMessages();
+  const s = await readStoreBlob();
+  return (s.managerMessages ?? []).map((m) => ({
+    ...m,
+    managerEmail: s.users.find((u) => u.id === m.managerId)?.email ?? "",
+  }));
+}
+
+export async function listManagerMessagesFor(
+  managerId: string,
+): Promise<ManagerMessage[]> {
+  if (useSupabase) return rel.listManagerMessagesFor(managerId);
+  return ((await readStoreBlob()).managerMessages ?? []).filter(
+    (m) => m.managerId === managerId,
+  );
+}
+
+export async function setManagerMessageStatus(
+  id: string,
+  status: "open" | "resolved",
+): Promise<boolean> {
+  if (useSupabase) return rel.setManagerMessageStatus(id, status);
+  return mutateBlob((s) => {
+    const m = (s.managerMessages ?? []).find((x) => x.id === id);
+    if (!m) return { result: false, write: false };
+    m.status = status;
+    return { result: true, write: true };
+  });
+}
+
+// ===========================================================================
 // MENUS
 // ===========================================================================
 
-export async function getMenu(owner: string): Promise<MenuMeta | null> {
-  if (useSupabase) return rel.getMenu(owner);
-  return (await readStoreBlob()).menus[owner] ?? null;
+// Disk backend: menus are keyed per (owner, branch). A null branch is the chain
+// default and keeps the bare-owner key for backward compatibility.
+function diskMenuKey(owner: string, branchId?: string | null): string {
+  return branchId ? `${owner}:${branchId}` : owner;
+}
+
+export async function getMenu(
+  owner: string,
+  branchId?: string | null,
+): Promise<MenuMeta | null> {
+  if (useSupabase) return rel.getMenu(owner, branchId);
+  return (await readStoreBlob()).menus[diskMenuKey(owner, branchId)] ?? null;
 }
 
 export async function getMenuForTable(
@@ -743,21 +969,31 @@ export async function getMenuForTable(
   if (useSupabase) return rel.getMenuForTable(num, token);
   const s = await readStoreBlob();
   const t = s.tables.find((x) => constantTimeEqual(x.token, token));
-  return t ? s.menus[t.owner] ?? null : null;
+  if (!t) return null;
+  return (
+    s.menus[diskMenuKey(t.owner, t.branchId)] ?? s.menus[t.owner] ?? null
+  );
 }
 
-export async function setMenu(owner: string, meta: MenuMeta): Promise<void> {
-  if (useSupabase) return rel.setMenu(owner, meta);
+export async function setMenu(
+  owner: string,
+  meta: MenuMeta,
+  branchId?: string | null,
+): Promise<void> {
+  if (useSupabase) return rel.setMenu(owner, meta, branchId);
   await mutateBlob((s) => {
-    s.menus[owner] = meta;
+    s.menus[diskMenuKey(owner, branchId)] = meta;
     return { result: undefined, write: true };
   });
 }
 
-export async function clearMenu(owner: string): Promise<void> {
-  if (useSupabase) return rel.clearMenu(owner);
+export async function clearMenu(
+  owner: string,
+  branchId?: string | null,
+): Promise<void> {
+  if (useSupabase) return rel.clearMenu(owner, branchId);
   await mutateBlob((s) => {
-    delete s.menus[owner];
+    delete s.menus[diskMenuKey(owner, branchId)];
     return { result: undefined, write: true };
   });
 }
@@ -1036,18 +1272,27 @@ export async function deleteBranch(
 // MENU ITEMS + ORDERS (optional in-app ordering)
 // ===========================================================================
 
-export async function listMenuItems(owner: string): Promise<MenuItem[]> {
-  if (useSupabase) return rel.listMenuItems(owner);
+export async function listMenuItems(
+  owner: string,
+  branchId?: string | null,
+): Promise<MenuItem[]> {
+  if (useSupabase) return rel.listMenuItems(owner, branchId);
   return (await readStoreBlob()).menuItems!
-    .filter((m) => m.owner === owner && !m.archived)
+    .filter(
+      (m) =>
+        m.owner === owner &&
+        !m.archived &&
+        (!branchId || m.branchId === branchId || m.branchId == null),
+    )
     .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
 }
 
 export async function createMenuItem(
   owner: string,
   input: { name: string; price: number; category?: string; description?: string },
+  branchId?: string | null,
 ): Promise<MenuItem> {
-  if (useSupabase) return rel.createMenuItem(owner, input);
+  if (useSupabase) return rel.createMenuItem(owner, input, branchId);
   return mutateBlob((s) => {
     const now = new Date().toISOString();
     const maxSort = (s.menuItems ?? [])
@@ -1056,6 +1301,7 @@ export async function createMenuItem(
     const item: MenuItem = {
       id: globalThis.crypto.randomUUID(),
       owner,
+      branchId: branchId ?? null,
       name: input.name,
       price: input.price,
       category: input.category ?? "",
@@ -1075,10 +1321,13 @@ export async function updateMenuItem(
   owner: string,
   id: string,
   patch: Partial<Pick<MenuItem, "name" | "price" | "category" | "description" | "available" | "sortOrder">>,
+  branchId?: string | null,
 ): Promise<MenuItem | null> {
-  if (useSupabase) return rel.updateMenuItem(owner, id, patch);
+  if (useSupabase) return rel.updateMenuItem(owner, id, patch, branchId);
   return mutateBlob((s) => {
-    const m = (s.menuItems ?? []).find((x) => x.id === id && x.owner === owner);
+    const m = (s.menuItems ?? []).find(
+      (x) => x.id === id && x.owner === owner && (!branchId || x.branchId === branchId),
+    );
     if (!m) return { result: null, write: false };
     if (patch.name !== undefined) m.name = patch.name;
     if (patch.price !== undefined) m.price = patch.price;
@@ -1091,12 +1340,16 @@ export async function updateMenuItem(
   });
 }
 
-export async function deleteMenuItem(owner: string, id: string): Promise<boolean> {
-  if (useSupabase) return rel.deleteMenuItem(owner, id);
+export async function deleteMenuItem(
+  owner: string,
+  id: string,
+  branchId?: string | null,
+): Promise<boolean> {
+  if (useSupabase) return rel.deleteMenuItem(owner, id, branchId);
   return mutateBlob((s) => {
     const before = (s.menuItems ?? []).length;
     s.menuItems = (s.menuItems ?? []).filter(
-      (m) => !(m.id === id && m.owner === owner),
+      (m) => !(m.id === id && m.owner === owner && (!branchId || m.branchId === branchId)),
     );
     return { result: s.menuItems.length < before, write: s.menuItems.length < before };
   });
@@ -1108,8 +1361,16 @@ export async function getPublicMenuItems(token: string): Promise<MenuItem[]> {
   const s = await readStoreBlob();
   const t = s.tables.find((x) => constantTimeEqual(x.token, token));
   if (!t) return [];
+  // Scope the diner to this table's branch items + shared (null-branch) items,
+  // mirroring the relational backend so the two never drift.
   return (s.menuItems ?? [])
-    .filter((m) => m.owner === t.owner && m.available && !m.archived)
+    .filter(
+      (m) =>
+        m.owner === t.owner &&
+        m.available &&
+        !m.archived &&
+        (!t.branchId || m.branchId === t.branchId || m.branchId == null),
+    )
     .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
 }
 
@@ -1128,6 +1389,7 @@ export async function placeOrder(
     const order: Order = {
       id: globalThis.crypto.randomUUID(),
       owner: t.owner,
+      branchId: t.branchId ?? null,
       tableId: t.token, // disk backend has no surrogate id; token is stable enough
       tableNum: t.num,
       status: "placed",
@@ -1142,12 +1404,13 @@ export async function placeOrder(
 
 export async function listOrders(
   owner: string,
-  opts: { activeOnly?: boolean } = {},
+  opts: { activeOnly?: boolean; branchId?: string | null } = {},
 ): Promise<Order[]> {
   if (useSupabase) return rel.listOrders(owner, opts);
-  const all = (await readStoreBlob()).orders!
+  let all = (await readStoreBlob()).orders!
     .filter((o) => o.owner === owner)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  if (opts.branchId) all = all.filter((o) => o.branchId === opts.branchId);
   return opts.activeOnly
     ? all.filter((o) => o.status === "placed" || o.status === "preparing")
     : all;
@@ -1157,10 +1420,13 @@ export async function updateOrderStatus(
   owner: string,
   id: string,
   status: OrderStatus,
+  branchId?: string | null,
 ): Promise<Order | null> {
-  if (useSupabase) return rel.updateOrderStatus(owner, id, status);
+  if (useSupabase) return rel.updateOrderStatus(owner, id, status, branchId);
   return mutateBlob((s) => {
-    const o = (s.orders ?? []).find((x) => x.id === id && x.owner === owner);
+    const o = (s.orders ?? []).find(
+      (x) => x.id === id && x.owner === owner && (!branchId || x.branchId === branchId),
+    );
     if (!o) return { result: null, write: false };
     o.status = status;
     return { result: o, write: true };

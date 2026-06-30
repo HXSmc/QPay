@@ -18,7 +18,7 @@ import { Alert, EmptyState, Skeleton, Spinner } from "../ui/Primitives";
 import type { MenuItem } from "../../lib/types";
 import { useT } from "../../lib/i18n-client";
 
-export function MenuItemsEditor() {
+export function MenuItemsEditor({ branchId }: { branchId?: string } = {}) {
   const tr = useT();
   const [items, setItems] = useState<MenuItem[] | null>(null);
   const [currency, setCurrency] = useState<Currency>("USD");
@@ -28,11 +28,12 @@ export function MenuItemsEditor() {
   const [editId, setEditId] = useState<string | null>(null);
 
   useEffect(() => {
-    listMenuItems()
+    setItems(null);
+    listMenuItems(branchId)
       .then(setItems)
       .catch(() => setItems([]));
     getSettings().then((s) => setCurrency(s.currency)).catch(() => {});
-  }, []);
+  }, [branchId]);
 
   const add = async () => {
     const price = parseFloat(form.price);
@@ -43,12 +44,15 @@ export function MenuItemsEditor() {
     setAdding(true);
     setError("");
     try {
-      const created = await createMenuItem({
-        name: form.name.trim(),
-        price: +price.toFixed(2),
-        category: form.category.trim(),
-        description: form.description.trim(),
-      });
+      const created = await createMenuItem(
+        {
+          name: form.name.trim(),
+          price: +price.toFixed(2),
+          category: form.category.trim(),
+          description: form.description.trim(),
+        },
+        branchId,
+      );
       setItems((cur) => [...(cur ?? []), created]);
       setForm({ name: "", price: "", category: "", description: "" });
     } catch (e) {

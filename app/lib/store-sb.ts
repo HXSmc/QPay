@@ -37,6 +37,7 @@ import type {
   Branch,
   Lead,
   LiveTable,
+  ManagerMessage,
   MenuItem,
   MenuMeta,
   Order,
@@ -93,10 +94,12 @@ type AccountRow = {
   id: string;
   email: string;
   password_hash: string;
-  role: "super" | "admin";
+  role: "super" | "manager" | "admin";
   created_at: string;
   expires_at: string | null;
   source: AccountSource | null;
+  parent_id?: string | null;
+  branch_id?: string | null;
 };
 
 function rowToUser(r: AccountRow): AdminUser {
@@ -108,6 +111,8 @@ function rowToUser(r: AccountRow): AdminUser {
     createdAt: r.created_at,
     expiresAt: r.expires_at ?? null,
     source: r.source ?? "manual",
+    parentId: r.parent_id ?? null,
+    branchId: r.branch_id ?? null,
   };
 }
 
@@ -346,6 +351,9 @@ async function casTable(
           time: res.txn.time,
           amount: res.txn.amount,
           method: res.txn.method,
+          // Stamp the ledger row with the table's branch so branch-scoped revenue
+          // analytics need no join. Empty string → null in the RPC.
+          branch_id: t.branchId ?? "",
         }
       : null;
     const { data, error } = await client.rpc("commit_table_update", {
@@ -439,9 +447,13 @@ export async function setTableItems(
   num: string,
   items: OrderItem[],
   owner: string,
+  branchId?: string | null,
 ): Promise<LiveTable | null> {
-  // Located by (owner, num) — unique per owner.
-  return casTable([["owner", owner], ["num", Number(num)]], (t, { taxRate, currency }) => {
+  // Located by (owner, num) — unique per owner. A branch-admin additionally pins
+  // the branch so it can't touch another branch's table that shares a number.
+  const eqs: Eq[] = [["owner", owner], ["num", Number(num)]];
+  if (branchId) eqs.push(["branch_id", branchId]);
+  return casTable(eqs, (t, { taxRate, currency }) => {
     t.items = items;
     t.amount = orderAmount(items, taxRate, currency);
     // Editing the order resets per-item locks, holds, and carried principal.
@@ -487,8 +499,11 @@ export async function setTableStatus(
   num: string,
   status: TableStatus,
   owner: string,
+  branchId?: string | null,
 ): Promise<LiveTable | null> {
-  return casTable([["owner", owner], ["num", Number(num)]], (t, { currency }) => {
+  const eqs: Eq[] = [["owner", owner], ["num", Number(num)]];
+  if (branchId) eqs.push(["branch_id", branchId]);
+  return casTable(eqs, (t, { currency }) => {
     t.status = status;
     if (status === "open") t.amount = "—";
     else if (t.amount === "—") t.amount = fmt(0, currency);
@@ -499,14 +514,12 @@ export async function setTableStatus(
 export async function deleteTable(
   num: string,
   owner: string,
+  branchId?: string | null,
 ): Promise<boolean> {
   const client = await sb();
-  const { data, error } = await client
-    .from("tables")
-    .delete()
-    .eq("owner", owner)
-    .eq("num", Number(num))
-    .select("id");
+  let q = client.from("tables").delete().eq("owner", owner).eq("num", Number(num));
+  if (branchId) q = q.eq("branch_id", branchId);
+  const { data, error } = await q.select("id");
   if (error) throw new Error(`store: table delete failed — ${error.message}`);
   return (data?.length ?? 0) > 0;
 }
@@ -515,14 +528,19 @@ export async function deleteTable(
 // Transactions (ledger) — writes happen atomically inside commit_table_update.
 // ---------------------------------------------------------------------------
 
-export async function listTransactions(owner: string): Promise<Transaction[]> {
+export async function listTransactions(
+  owner: string,
+  opts: { branchId?: string | null } = {},
+): Promise<Transaction[]> {
   const client = await sb();
-  const { data, error } = await client
+  let q = client
     .from("transactions")
     .select("owner, table_num, time, amount, method, created_at")
     .eq("owner", owner)
     .order("created_at", { ascending: false })
     .limit(MAX_TXN_HISTORY);
+  if (opts.branchId) q = q.eq("branch_id", opts.branchId);
+  const { data, error } = await q;
   if (error) throw new Error(`store: txns read failed — ${error.message}`);
   return (data ?? []).map((r) => ({
     time: r.time,
@@ -562,12 +580,15 @@ export async function getUserById(id: string): Promise<AdminUser | null> {
   return data ? rowToUser(data as AccountRow) : null;
 }
 
+// The super console provisions MANAGER accounts (chain owners). These functions
+// operate on role 'manager'. Branch-admins (role 'admin') are managed by their
+// owning manager via the listBranchAdmins/createBranchAdmin/... set below.
 export async function listAdmins(): Promise<AdminUser[]> {
   const client = await sb();
   const { data, error } = await client
     .from("accounts")
     .select("*")
-    .eq("role", "admin")
+    .eq("role", "manager")
     .order("created_at", { ascending: false });
   if (error) throw new Error(`store: accounts read failed — ${error.message}`);
   return (data ?? []).map((r) => rowToUser(r as AccountRow));
@@ -585,7 +606,7 @@ export async function createAdmin(
     .insert({
       email: norm,
       password_hash: passwordHash,
-      role: "admin",
+      role: "manager",
       source: opts?.source ?? "manual",
       expires_at: opts?.expiresAt ?? null,
     })
@@ -601,15 +622,118 @@ export async function createAdmin(
 
 export async function deleteAdmin(id: string): Promise<boolean> {
   const client = await sb();
-  // Cascade (tables/transactions/menus/settings) is enforced by FK ON DELETE
-  // CASCADE; the super account can't be deleted (role filter).
+  // Cascade (tables/transactions/menus/settings/branches + child branch-admins)
+  // is enforced by FK ON DELETE CASCADE; the super account can't be deleted.
+  const { data, error } = await client
+    .from("accounts")
+    .delete()
+    .eq("id", id)
+    .eq("role", "manager")
+    .select("id");
+  if (error) throw new Error(`store: account delete failed — ${error.message}`);
+  return (data?.length ?? 0) > 0;
+}
+
+// --- Branch-admins (role 'admin', owned by a manager) -----------------------
+
+/** All branch-admins owned by a manager, newest first. */
+export async function listBranchAdmins(parentId: string): Promise<AdminUser[]> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("accounts")
+    .select("*")
+    .eq("role", "admin")
+    .eq("parent_id", parentId)
+    .order("created_at", { ascending: false });
+  if (error) throw new Error(`store: branch-admins read failed — ${error.message}`);
+  return (data ?? []).map((r) => rowToUser(r as AccountRow));
+}
+
+/** One branch-admin, only if owned by `parentId` (ownership 404 otherwise). */
+export async function getBranchAdmin(
+  parentId: string,
+  id: string,
+): Promise<AdminUser | null> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("accounts")
+    .select("*")
+    .eq("id", id)
+    .eq("role", "admin")
+    .eq("parent_id", parentId)
+    .maybeSingle();
+  if (error) throw new Error(`store: branch-admin read failed — ${error.message}`);
+  return data ? rowToUser(data as AccountRow) : null;
+}
+
+export async function createBranchAdmin(
+  parentId: string,
+  branchId: string,
+  email: string,
+  passwordHash: string,
+): Promise<AdminUser | null> {
+  const norm = email.trim().toLowerCase();
+  const client = await sb();
+  const { data, error } = await client
+    .from("accounts")
+    .insert({
+      email: norm,
+      password_hash: passwordHash,
+      role: "admin",
+      source: "manual",
+      expires_at: null,
+      parent_id: parentId,
+      branch_id: branchId,
+    })
+    .select("*")
+    .maybeSingle();
+  if (error) {
+    if (error.code === "23505") return null;
+    throw new Error(`store: branch-admin create failed — ${error.message}`);
+  }
+  return data ? rowToUser(data as AccountRow) : null;
+}
+
+/** Edit a branch-admin owned by `parentId`: email, password, and/or its branch. */
+export async function updateBranchAdmin(
+  parentId: string,
+  id: string,
+  patch: { email?: string; passwordHash?: string; branchId?: string },
+): Promise<AdminUser | null | "duplicate"> {
+  const client = await sb();
+  const fields: Record<string, unknown> = {};
+  if (typeof patch.email === "string") fields.email = patch.email.trim().toLowerCase();
+  if (typeof patch.passwordHash === "string") fields.password_hash = patch.passwordHash;
+  if (typeof patch.branchId === "string") fields.branch_id = patch.branchId;
+  if (Object.keys(fields).length === 0) return getBranchAdmin(parentId, id);
+  const { data, error } = await client
+    .from("accounts")
+    .update(fields)
+    .eq("id", id)
+    .eq("role", "admin")
+    .eq("parent_id", parentId)
+    .select("*")
+    .maybeSingle();
+  if (error) {
+    if (error.code === "23505") return "duplicate";
+    throw new Error(`store: branch-admin update failed — ${error.message}`);
+  }
+  return data ? rowToUser(data as AccountRow) : null;
+}
+
+export async function deleteBranchAdmin(
+  parentId: string,
+  id: string,
+): Promise<boolean> {
+  const client = await sb();
   const { data, error } = await client
     .from("accounts")
     .delete()
     .eq("id", id)
     .eq("role", "admin")
+    .eq("parent_id", parentId)
     .select("id");
-  if (error) throw new Error(`store: account delete failed — ${error.message}`);
+  if (error) throw new Error(`store: branch-admin delete failed — ${error.message}`);
   return (data?.length ?? 0) > 0;
 }
 
@@ -642,7 +766,7 @@ export async function setAdminExpiry(
     .from("accounts")
     .update({ expires_at: iso })
     .eq("id", id)
-    .eq("role", "admin");
+    .eq("role", "manager");
   if (error) throw new Error(`store: set expiry failed — ${error.message}`);
 }
 
@@ -660,7 +784,7 @@ export async function updateAdmin(
     .from("accounts")
     .update(fields)
     .eq("id", id)
-    .eq("role", "admin")
+    .eq("role", "manager")
     .select("*")
     .maybeSingle();
   if (error) {
@@ -729,46 +853,107 @@ function rowToMenu(r: {
   };
 }
 
-export async function getMenu(owner: string): Promise<MenuMeta | null> {
+/** Apply a (owner, branch_id) match, treating null branchId as the chain menu. */
+function branchEq<Q extends { eq: (c: string, v: string) => Q; is: (c: string, v: null) => Q }>(
+  q: Q,
+  branchId: string | null | undefined,
+): Q {
+  return branchId ? q.eq("branch_id", branchId) : q.is("branch_id", null);
+}
+
+export async function getMenu(
+  owner: string,
+  branchId?: string | null,
+): Promise<MenuMeta | null> {
   const client = await sb();
-  const { data, error } = await client
-    .from("menus")
-    .select("*")
-    .eq("owner", owner)
-    .maybeSingle();
-  if (error) throw new Error(`store: menu read failed — ${error.message}`);
-  return data ? rowToMenu(data) : null;
+  const q = branchEq(
+    client.from("menus").select("*").eq("owner", owner),
+    branchId,
+  );
+  // limit(1)+[0] (not maybeSingle) so a stray duplicate row can never make the
+  // read THROW — the unique indexes prevent dups, this is belt-and-suspenders.
+  const { data, error } = await q.order("uploaded_at", { ascending: false }).limit(1);
+  if (error) {
+    // Pre-migration schema (no branch_id column): fall back to the owner menu so
+    // new code can run before migration 0010 lands.
+    if (/branch_id/i.test(error.message)) {
+      const { data: d2, error: e2 } = await client
+        .from("menus")
+        .select("*")
+        .eq("owner", owner)
+        .limit(1);
+      if (e2) throw new Error(`store: menu read failed — ${e2.message}`);
+      return d2 && d2[0] ? rowToMenu(d2[0]) : null;
+    }
+    throw new Error(`store: menu read failed — ${error.message}`);
+  }
+  return data && data[0] ? rowToMenu(data[0]) : null;
 }
 
 export async function getMenuForTable(
   num: string,
   token: string,
 ): Promise<MenuMeta | null> {
-  // Resolve by the unique token (num is now per-owner / ambiguous).
+  // Resolve by the unique token (num is now per-owner / ambiguous), then return
+  // that table's BRANCH menu, falling back to the chain (null-branch) menu.
   const t = await rawTableBy([["token", token]]);
   if (!t) return null;
-  return getMenu(t.owner);
+  const branchId = (t as TableRow & { branch_id?: string | null }).branch_id ?? null;
+  return (await getMenu(t.owner, branchId)) ?? (await getMenu(t.owner, null));
 }
 
-export async function setMenu(owner: string, meta: MenuMeta): Promise<void> {
+export async function setMenu(
+  owner: string,
+  meta: MenuMeta,
+  branchId?: string | null,
+): Promise<void> {
   const client = await sb();
-  const { error } = await client.from("menus").upsert(
-    {
-      owner,
-      filename: meta.filename,
-      url: meta.url,
-      mime: meta.mime,
-      original_name: meta.originalName,
-      uploaded_at: meta.uploadedAt,
-    },
-    { onConflict: "owner" },
-  );
-  if (error) throw new Error(`store: menu write failed — ${error.message}`);
+  const row = {
+    owner,
+    branch_id: branchId ?? null,
+    filename: meta.filename,
+    url: meta.url,
+    mime: meta.mime,
+    original_name: meta.originalName,
+    uploaded_at: meta.uploadedAt,
+  };
+  // menus is per-(owner, branch). Update-then-insert keyed on (owner, branch_id);
+  // the partial UNIQUE indexes (migration 0010) serialize a concurrent first
+  // upload — the loser's INSERT hits a 23505 and we fall back to UPDATE, so two
+  // racing uploads can never leave duplicate rows (which would break getMenu).
+  const tryUpdate = async () => {
+    const upd = branchEq(client.from("menus").update(row).eq("owner", owner), branchId);
+    return upd.select("owner");
+  };
+  const { data, error } = await tryUpdate();
+  if (error && !/branch_id/i.test(error.message)) {
+    throw new Error(`store: menu write failed — ${error.message}`);
+  }
+  if (data && data.length > 0) return;
+  let { error: insErr } = await client.from("menus").insert(row);
+  if (insErr && /branch_id/i.test(insErr.message)) {
+    // Pre-migration schema: collapse to the legacy owner-keyed upsert.
+    const { branch_id: _omit, ...legacy } = row;
+    void _omit;
+    ({ error: insErr } = await client
+      .from("menus")
+      .upsert(legacy, { onConflict: "owner" }));
+  } else if (insErr && insErr.code === "23505") {
+    // Concurrent writer won the insert — the row now exists; update it.
+    const { error: updErr } = await tryUpdate();
+    if (updErr) throw new Error(`store: menu write failed — ${updErr.message}`);
+    return;
+  }
+  if (insErr) throw new Error(`store: menu write failed — ${insErr.message}`);
 }
 
-export async function clearMenu(owner: string): Promise<void> {
+export async function clearMenu(
+  owner: string,
+  branchId?: string | null,
+): Promise<void> {
   const client = await sb();
-  const { error } = await client.from("menus").delete().eq("owner", owner);
+  const q = branchEq(client.from("menus").delete().eq("owner", owner), branchId);
+  const { error } = await q;
   if (error) throw new Error(`store: menu clear failed — ${error.message}`);
 }
 
@@ -993,6 +1178,7 @@ type MenuItemRow = {
   available: boolean;
   sort_order: number | null;
   archived: boolean;
+  branch_id?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -1001,6 +1187,7 @@ function rowToMenuItem(r: MenuItemRow): MenuItem {
   return {
     id: r.id,
     owner: r.owner,
+    branchId: r.branch_id ?? null,
     name: r.name,
     price: Number(r.price) || 0,
     category: r.category ?? "",
@@ -1021,6 +1208,7 @@ type OrderRow = {
   status: OrderStatus;
   lines: OrderLine[] | null;
   total: number | string | null;
+  branch_id?: string | null;
   created_at: string;
 };
 
@@ -1029,6 +1217,7 @@ function rowToOrder(r: OrderRow): Order {
   return {
     id: r.id,
     owner: r.owner,
+    branchId: r.branch_id ?? null,
     tableId: r.table_id,
     tableNum: String(r.table_num),
     status: r.status,
@@ -1045,14 +1234,20 @@ function rowToOrder(r: OrderRow): Order {
   };
 }
 
-/** Admin: all of an owner's non-archived items, in menu order. */
-export async function listMenuItems(owner: string): Promise<MenuItem[]> {
+/** Admin: an owner's non-archived items, in menu order. When `branchId` is given
+ *  (branch-admin), restrict to that branch + shared (null-branch) chain items. */
+export async function listMenuItems(
+  owner: string,
+  branchId?: string | null,
+): Promise<MenuItem[]> {
   const client = await sb();
-  const { data, error } = await client
+  let q = client
     .from("menu_items")
     .select("*")
     .eq("owner", owner)
-    .eq("archived", false)
+    .eq("archived", false);
+  if (branchId) q = q.or(`branch_id.eq.${branchId},branch_id.is.null`);
+  const { data, error } = await q
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) throw new Error(`store: menu items read failed — ${error.message}`);
@@ -1062,6 +1257,7 @@ export async function listMenuItems(owner: string): Promise<MenuItem[]> {
 export async function createMenuItem(
   owner: string,
   input: { name: string; price: number; category?: string; description?: string },
+  branchId?: string | null,
 ): Promise<MenuItem> {
   const client = await sb();
   // Append after the current max sort_order.
@@ -1073,26 +1269,29 @@ export async function createMenuItem(
     .limit(1)
     .maybeSingle();
   const sort = (Number(maxRow?.sort_order) || 0) + 1;
-  const { data, error } = await client
-    .from("menu_items")
-    .insert({
-      owner,
-      name: input.name,
-      price: input.price,
-      category: input.category ?? "",
-      description: input.description ?? "",
-      sort_order: sort,
-    })
-    .select("*")
-    .single();
-  if (error) throw new Error(`store: menu item create failed — ${error.message}`);
-  return rowToMenuItem(data as MenuItemRow);
+  const row: Record<string, unknown> = {
+    owner,
+    name: input.name,
+    price: input.price,
+    category: input.category ?? "",
+    description: input.description ?? "",
+    sort_order: sort,
+  };
+  if (branchId) row.branch_id = branchId;
+  let res = await client.from("menu_items").insert(row).select("*").single();
+  if (res.error && /branch_id/i.test(res.error.message) && "branch_id" in row) {
+    delete row.branch_id;
+    res = await client.from("menu_items").insert(row).select("*").single();
+  }
+  if (res.error) throw new Error(`store: menu item create failed — ${res.error.message}`);
+  return rowToMenuItem(res.data as MenuItemRow);
 }
 
 export async function updateMenuItem(
   owner: string,
   id: string,
   patch: Partial<Pick<MenuItem, "name" | "price" | "category" | "description" | "available" | "sortOrder">>,
+  branchId?: string | null,
 ): Promise<MenuItem | null> {
   const client = await sb();
   const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -1102,25 +1301,23 @@ export async function updateMenuItem(
   if (patch.description !== undefined) row.description = patch.description;
   if (patch.available !== undefined) row.available = patch.available;
   if (patch.sortOrder !== undefined) row.sort_order = patch.sortOrder;
-  const { data, error } = await client
-    .from("menu_items")
-    .update(row)
-    .eq("id", id)
-    .eq("owner", owner)
-    .select("*")
-    .maybeSingle();
+  let q = client.from("menu_items").update(row).eq("id", id).eq("owner", owner);
+  // A branch-admin may only edit its own branch's items.
+  if (branchId) q = q.eq("branch_id", branchId);
+  const { data, error } = await q.select("*").maybeSingle();
   if (error) throw new Error(`store: menu item update failed — ${error.message}`);
   return data ? rowToMenuItem(data as MenuItemRow) : null;
 }
 
-export async function deleteMenuItem(owner: string, id: string): Promise<boolean> {
+export async function deleteMenuItem(
+  owner: string,
+  id: string,
+  branchId?: string | null,
+): Promise<boolean> {
   const client = await sb();
-  const { data, error } = await client
-    .from("menu_items")
-    .delete()
-    .eq("id", id)
-    .eq("owner", owner)
-    .select("id");
+  let q = client.from("menu_items").delete().eq("id", id).eq("owner", owner);
+  if (branchId) q = q.eq("branch_id", branchId);
+  const { data, error } = await q.select("id");
   if (error) throw new Error(`store: menu item delete failed — ${error.message}`);
   return !!data && data.length > 0;
 }
@@ -1131,13 +1328,17 @@ export async function getPublicMenuItems(
 ): Promise<MenuItem[]> {
   const t = await rawTableBy([["token", token]]);
   if (!t) return [];
+  const branchId = (t as TableRow & { branch_id?: string | null }).branch_id ?? null;
   const client = await sb();
-  const { data, error } = await client
+  let q = client
     .from("menu_items")
     .select("*")
     .eq("owner", t.owner)
     .eq("available", true)
-    .eq("archived", false)
+    .eq("archived", false);
+  // Diners see this table's branch items + shared (null-branch) chain items.
+  if (branchId) q = q.or(`branch_id.eq.${branchId},branch_id.is.null`);
+  const { data, error } = await q
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) throw new Error(`store: public items read failed — ${error.message}`);
@@ -1157,25 +1358,28 @@ export async function placeOrder(
   if (lines.length === 0) return null;
   const client = await sb();
   const withIds = lines.map((l, i) => ({ id: `${i}`, ...l }));
-  const { data, error } = await client
-    .from("orders")
-    .insert({
-      owner: t.owner,
-      table_id: t.id,
-      table_num: Number(t.num),
-      status: "placed",
-      lines: withIds,
-      total,
-    })
-    .select("*")
-    .single();
-  if (error) throw new Error(`store: order create failed — ${error.message}`);
-  return rowToOrder(data as OrderRow);
+  const branchId = (t as TableRow & { branch_id?: string | null }).branch_id ?? null;
+  const orderRow: Record<string, unknown> = {
+    owner: t.owner,
+    table_id: t.id,
+    table_num: Number(t.num),
+    status: "placed",
+    lines: withIds,
+    total,
+  };
+  if (branchId) orderRow.branch_id = branchId;
+  let res = await client.from("orders").insert(orderRow).select("*").single();
+  if (res.error && /branch_id/i.test(res.error.message) && "branch_id" in orderRow) {
+    delete orderRow.branch_id;
+    res = await client.from("orders").insert(orderRow).select("*").single();
+  }
+  if (res.error) throw new Error(`store: order create failed — ${res.error.message}`);
+  return rowToOrder(res.data as OrderRow);
 }
 
 export async function listOrders(
   owner: string,
-  opts: { activeOnly?: boolean } = {},
+  opts: { activeOnly?: boolean; branchId?: string | null } = {},
 ): Promise<Order[]> {
   const client = await sb();
   let q = client
@@ -1185,6 +1389,7 @@ export async function listOrders(
     .order("created_at", { ascending: false })
     .limit(200);
   if (opts.activeOnly) q = q.in("status", ["placed", "preparing"]);
+  if (opts.branchId) q = q.eq("branch_id", opts.branchId);
   const { data, error } = await q;
   if (error) throw new Error(`store: orders read failed — ${error.message}`);
   return (data ?? []).map((r) => rowToOrder(r as OrderRow));
@@ -1194,15 +1399,100 @@ export async function updateOrderStatus(
   owner: string,
   id: string,
   status: OrderStatus,
+  branchId?: string | null,
 ): Promise<Order | null> {
   const client = await sb();
-  const { data, error } = await client
-    .from("orders")
-    .update({ status })
-    .eq("id", id)
-    .eq("owner", owner)
-    .select("*")
-    .maybeSingle();
+  let q = client.from("orders").update({ status }).eq("id", id).eq("owner", owner);
+  // A branch-admin may only touch its own branch's orders.
+  if (branchId) q = q.eq("branch_id", branchId);
+  const { data, error } = await q.select("*").maybeSingle();
   if (error) throw new Error(`store: order status update failed — ${error.message}`);
   return data ? rowToOrder(data as OrderRow) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Contact channel: manager → super messages
+// ---------------------------------------------------------------------------
+
+type ManagerMessageRow = {
+  id: string;
+  manager_id: string;
+  subject: string | null;
+  body: string | null;
+  status: "open" | "resolved";
+  created_at: string;
+};
+
+function rowToManagerMessage(r: ManagerMessageRow): ManagerMessage {
+  return {
+    id: r.id,
+    managerId: r.manager_id,
+    subject: r.subject ?? "",
+    body: r.body ?? "",
+    status: r.status === "resolved" ? "resolved" : "open",
+    createdAt: r.created_at,
+  };
+}
+
+export async function createManagerMessage(
+  managerId: string,
+  subject: string,
+  body: string,
+): Promise<ManagerMessage> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("manager_messages")
+    .insert({ manager_id: managerId, subject, body })
+    .select("*")
+    .single();
+  if (error) throw new Error(`store: message create failed — ${error.message}`);
+  return rowToManagerMessage(data as ManagerMessageRow);
+}
+
+/** Super: every manager message (newest first), with the sender's email joined. */
+export async function listManagerMessages(): Promise<ManagerMessage[]> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("manager_messages")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (error) throw new Error(`store: messages read failed — ${error.message}`);
+  const rows = (data ?? []).map((r) => rowToManagerMessage(r as ManagerMessageRow));
+  // Attach the manager email for display (best-effort; small N).
+  return Promise.all(
+    rows.map(async (m) => {
+      const u = await getUserById(m.managerId);
+      return { ...m, managerEmail: u?.email ?? "" };
+    }),
+  );
+}
+
+/** Manager: its own outbound messages. */
+export async function listManagerMessagesFor(
+  managerId: string,
+): Promise<ManagerMessage[]> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("manager_messages")
+    .select("*")
+    .eq("manager_id", managerId)
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw new Error(`store: messages read failed — ${error.message}`);
+  return (data ?? []).map((r) => rowToManagerMessage(r as ManagerMessageRow));
+}
+
+export async function setManagerMessageStatus(
+  id: string,
+  status: "open" | "resolved",
+): Promise<boolean> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("manager_messages")
+    .update({ status })
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(`store: message update failed — ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }

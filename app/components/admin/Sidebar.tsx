@@ -46,6 +46,7 @@ const NAV = [
     href: "/admin/branches",
     label: "Branches",
     multiBranchOnly: true,
+    managerOnly: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M3 21h18" />
@@ -72,6 +73,7 @@ const NAV = [
   {
     href: "/admin/transactions",
     label: "Transactions",
+    managerOnly: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <rect width="20" height="14" x="2" y="5" rx="2" />
@@ -101,8 +103,33 @@ const NAV = [
     ),
   },
   {
+    href: "/admin/team",
+    label: "Team",
+    managerOnly: true,
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    href: "/admin/contact",
+    label: "Contact",
+    managerOnly: true,
+    icon: (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2Z" />
+        <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1" />
+      </svg>
+    ),
+  },
+  {
     href: "/admin/settings",
     label: "Settings",
+    managerOnly: true,
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
@@ -118,10 +145,11 @@ export function Sidebar() {
   const tr = useT();
   const [me, setMe] = useState<Me | null>(null);
   const [multiBranch, setMultiBranch] = useState(false);
+  const isBranchAdmin = me?.role === "admin";
 
   useEffect(() => {
     getMe().then(setMe).catch(() => {});
-    // The Branches section only appears for multi-branch accounts.
+    // The Branches section only appears for multi-branch managers.
     getSettings()
       .then((s) => setMultiBranch((s.branches ?? 1) > 1))
       .catch(() => {});
@@ -191,7 +219,13 @@ export function Sidebar() {
         aria-label="Admin"
         style={{ display: "flex", flexDirection: "column", gap: 2 }}
       >
-        {NAV.filter((item) => multiBranch || !("multiBranchOnly" in item)).map((item) => {
+        {NAV.filter((item) => {
+          // Branch-admins get a reduced nav (no chain-level sections).
+          if (isBranchAdmin && "managerOnly" in item) return false;
+          // The Branches section only shows for multi-branch managers.
+          if ("multiBranchOnly" in item && !multiBranch) return false;
+          return true;
+        }).map((item) => {
           const active =
             item.href === "/admin"
               ? pathname === "/admin"
@@ -275,7 +309,13 @@ export function Sidebar() {
             {me?.email ?? "..."}
           </div>
           <div style={{ ...T.caption, color: C.faint }}>
-            {me?.role === "super" ? tr("Super Admin") : tr("Administrator")}
+            {me?.role === "super"
+              ? tr("Super Admin")
+              : me?.role === "manager"
+                ? tr("Manager")
+                : me?.branchName
+                  ? `${tr("Branch admin")} · ${me.branchName}`
+                  : tr("Branch admin")}
           </div>
         </div>
         <LanguageToggle onDark />
