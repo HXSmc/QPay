@@ -30,7 +30,7 @@ const SITE_DESCRIPTION =
   "Turn tables faster with QR payments. Diners scan, split, tip, and pay in under 30 seconds.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://nuqra.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://nuqra.org"),
   title: SITE_TITLE,
   description: SITE_DESCRIPTION,
   openGraph: {
