@@ -20,6 +20,12 @@ export const SITE = {
   /** Dedicated contact for privacy / data requests. */
   privacyEmail: "privacy@nuqra.com",
   salesHours: "Sun-Thu · 9am-6pm",
+  /** Trial-account limits, surfaced to prospects at signup so the demo form is
+   *  honest about what a trial actually includes. These are the SINGLE SOURCE:
+   *  store.ts imports them to ENFORCE the caps and DemoForm imports them to
+   *  MESSAGE them, so the copy can never drift from the real limit. Bigger
+   *  needs are a sales conversation, not a self-service toggle. */
+  trial: { maxTables: 16, maxBranches: 1 },
   /** Hero risk-reversal microline (honest, matches the /demo free trial). */
   heroBadge: "7-day free trial · No card · Live in minutes",
   /** Honest capability line (no unverifiable certifications). */

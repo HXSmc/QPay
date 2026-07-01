@@ -55,6 +55,7 @@ const MAX_LEADS = 1000;
 // keep working (single source of truth lives in ./constants).
 export { TRIAL_DAYS, RENEW_DAYS } from "./constants";
 import { RENEW_DAYS, SUPER_EMAIL, SUPER_PASSWORD, TRIAL_DAYS } from "./constants";
+import { SITE } from "./site";
 
 // ---------------------------------------------------------------------------
 // Public (non-secret) account view
@@ -743,9 +744,11 @@ export interface TrialProvision {
  * is created or renewed — the caller emails a "contact sales" note instead.
  * Self-service renewal is intentionally impossible; only the superadmin renews.
  */
-/** Default table ceiling for self-service trials (super-created accounts get
- *  whatever the super sets). Caps cost-abuse without limiting evaluation. */
-const TRIAL_MAX_TABLES = 16;
+/** Trial caps for self-service signups (super-created accounts get whatever the
+ *  super sets). Sourced from SITE so the /demo signup copy states the SAME
+ *  numbers we enforce here — a prospect is never surprised by a silent cap. */
+const TRIAL_MAX_TABLES = SITE.trial.maxTables;
+const TRIAL_MAX_BRANCHES = SITE.trial.maxBranches;
 
 export async function provisionTrialAdmin(
   email: string,
@@ -776,10 +779,10 @@ export async function provisionTrialAdmin(
       name: restaurant.trim().slice(0, 80),
       tables: profile?.tables,
       // Trial accounts are capped to a single branch (multi-branch is a paid
-      // capability). maxBranches=1 enforces it through the normal cap mechanism,
+      // capability). maxBranches enforces it through the normal cap mechanism,
       // so the super can later lift it per account. Form branch count still on lead.
-      branches: 1,
-      maxBranches: 1,
+      branches: TRIAL_MAX_BRANCHES,
+      maxBranches: TRIAL_MAX_BRANCHES,
       // Default table ceiling for self-service trials (a super-created account
       // gets whatever the super sets). Plenty to evaluate; caps cost-abuse.
       maxTables: TRIAL_MAX_TABLES,

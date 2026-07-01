@@ -6,10 +6,15 @@ import { C, S, STATUS, T, btn, field } from "../../lib/theme";
 import { Alert, Spinner } from "../ui/Primitives";
 import { useT } from "../../lib/i18n-client";
 import { POS_SYSTEMS } from "../../lib/pos";
+import { SITE } from "../../lib/site";
 
 // Basic format check (local-part@domain.tld). Catches obvious typos before we
 // hit the network, without trying to be an RFC-complete validator.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Trial ceilings, from the single source in SITE (store.ts enforces the SAME
+// numbers). Shown so a prospect who asks for more isn't silently capped.
+const { maxTables: TRIAL_TABLES, maxBranches: TRIAL_BRANCHES } = SITE.trial;
 
 // Inline demo-request form (no popup, no overlay). It lives in the normal page
 // flow inside an expandable section. `open` only drives focus + reset; the
@@ -82,6 +87,13 @@ export function DemoForm({ open }: { open: boolean }) {
 
   // Shared label styling: sits ABOVE every field (no placeholder-as-label).
   const labelStyle = { ...T.label, color: C.text, marginBottom: 6, display: "block" };
+
+  // A prospect can type any size, but a trial is capped. Detect when what they
+  // asked for exceeds the trial so we can tell them up front (rather than let
+  // them discover the silent cap after signing in) and route them to sales.
+  const wantsMoreTables = tables !== "" && Number(tables) > TRIAL_TABLES;
+  const wantsMoreBranches = branches !== "" && Number(branches) > TRIAL_BRANCHES;
+  const overTrial = wantsMoreTables || wantsMoreBranches;
 
   if (sent) {
     return (
@@ -277,7 +289,33 @@ export function DemoForm({ open }: { open: boolean }) {
             ))}
           </select>
         </div>
+        {/* Always-visible trial scope so the tables/branches inputs above can't
+            imply "type any number and you get it". */}
+        <p
+          style={{
+            gridColumn: "1 / -1",
+            ...T.caption,
+            color: C.muted,
+            margin: 0,
+          }}
+        >
+          {tr(
+            `Your free trial includes ${TRIAL_BRANCHES} branch and up to ${TRIAL_TABLES} tables. Need more? Our sales team can scale you up.`,
+          )}
+        </p>
       </div>
+      {/* Honest heads-up: they asked for more than a trial provides. We still
+          create the trial, but we say the cap out loud and route them to sales
+          instead of letting them find the silent limit after signing in. */}
+      {overTrial && (
+        <div style={{ marginTop: S[3] }}>
+          <Alert kind="info">
+            {tr(
+              `Heads up: trials are limited to ${TRIAL_BRANCHES} branch and ${TRIAL_TABLES} tables. We'll set up your trial with these limits now, and our sales team will reach out about a plan that fits your full size.`,
+            )}
+          </Alert>
+        </div>
+      )}
       {error && (
         <div style={{ marginTop: S[3] }}>
           <Alert kind="danger">{error}</Alert>

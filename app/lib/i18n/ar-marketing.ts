@@ -125,6 +125,12 @@ export const ar: Record<string, string> = {
   // Demo + contact form profiling fields
   "Number of tables": "عدد الطاولات",
   "Number of branches": "عدد الفروع",
+  // Trial-scope disclosures (numbers mirror SITE.trial; if those change, the
+  // English passthrough shows the correct figure until this line is updated).
+  "Your free trial includes 1 branch and up to 16 tables. Need more? Our sales team can scale you up.":
+    "تشمل تجربتك المجانية فرعًا واحدًا وحتى 16 طاولة. تحتاج أكثر؟ يسعد فريق المبيعات بتوسيع حسابك.",
+  "Heads up: trials are limited to 1 branch and 16 tables. We'll set up your trial with these limits now, and our sales team will reach out about a plan that fits your full size.":
+    "تنبيه: التجربة محدودة بفرع واحد و16 طاولة. سننشئ تجربتك بهذه الحدود الآن، وسيتواصل معك فريق المبيعات بشأن خطة تناسب حجمك الكامل.",
   "Which POS do you use?": "ما نظام نقاط البيع الذي تستخدمه؟",
   "Select your POS (optional)": "اختر نظام نقاط البيع (اختياري)",
 
@@ -171,8 +177,8 @@ export const ar: Record<string, string> = {
   "Get a working admin account by email, add a table, and take your first QR payment the same afternoon.":
     "احصل على حساب مدير فعّال عبر البريد، أضف طاولة، واستقبل أول دفعة عبر رمز QR في الظهيرة نفسها.",
   "No card, no commitment": "بلا بطاقة وبلا التزام",
-  "A 7-day trial with full access. Bring your own menu and tax rate, or start from a clean slate.":
-    "تجربة لمدة 7 أيام بوصول كامل. أحضر قائمتك ونسبة ضريبتك، أو ابدأ من صفحة بيضاء.",
+  "A 7-day trial with full feature access. Bring your own menu and tax rate, or start from a clean slate.":
+    "تجربة لمدة 7 أيام بوصول كامل لكل الميزات. أحضر قائمتك ونسبة ضريبتك، أو ابدأ من صفحة بيضاء.",
   "Real diner flow": "تجربة ضيف حقيقية",
   "Scan, split, tip, and pay end to end, exactly as your guests will use it on the floor.":
     "مسح، تقسيم، إكرامية، ودفع من البداية للنهاية، تمامًا كما سيستخدمها ضيوفك في الصالة.",

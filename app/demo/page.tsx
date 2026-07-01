@@ -19,7 +19,7 @@ const PERKS = [
   },
   {
     title: "No card, no commitment",
-    body: "A 7-day trial with full access. Bring your own menu and tax rate, or start from a clean slate.",
+    body: "A 7-day trial with full feature access. Bring your own menu and tax rate, or start from a clean slate.",
   },
   {
     title: "Real diner flow",

@@ -9,6 +9,7 @@
 // Uses fetch (no SDK dep) so it runs unchanged in Node route handlers.
 
 import { SUPER_NOTIFY_EMAIL } from "./constants";
+import { SITE } from "./site";
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 const DEFAULT_FROM = "Nuqra <onboarding@resend.dev>";
@@ -105,7 +106,8 @@ export async function sendTrialCredentials(opts: {
     `Password: ${opts.password}`,
     ``,
     `This trial account is valid until ${expires} (${days} days).`,
-    `Need more time? Reply and our team can extend it.`,
+    `Your trial includes ${SITE.trial.maxBranches} branch and up to ${SITE.trial.maxTables} tables.`,
+    `Need more time, tables, or branches? Reply or email ${SITE.salesEmail} and our team can help.`,
   ].join("\n");
   const html = `
   <div style="font-family:'Plus Jakarta Sans',-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#0B1221">
@@ -125,7 +127,10 @@ export async function sendTrialCredentials(opts: {
       </table>
       <a href="${escapeHtml(opts.loginUrl)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px">Sign in to Nuqra</a>
       <p style="font-size:13px;color:#64748B;line-height:1.6;margin:22px 0 0">
-        This trial account is valid until <strong>${escapeHtml(expires)}</strong> (${days} days). Need more time? Reply and our team can extend it.
+        This trial account is valid until <strong>${escapeHtml(expires)}</strong> (${days} days). Your trial includes <strong>${SITE.trial.maxBranches} branch</strong> and up to <strong>${SITE.trial.maxTables} tables</strong>.
+      </p>
+      <p style="font-size:13px;color:#64748B;line-height:1.6;margin:10px 0 0">
+        Need more time, tables, or branches? Reply to this email or contact <a href="mailto:${escapeHtml(SITE.salesEmail)}" style="color:${BRAND};font-weight:600;text-decoration:none">${escapeHtml(SITE.salesEmail)}</a> and our team will help.
       </p>
     </div>
   </div>`;
