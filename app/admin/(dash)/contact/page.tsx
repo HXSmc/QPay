@@ -58,7 +58,7 @@ export default function ContactPage() {
         <h1 style={{ ...T.h1, margin: 0, color: C.text }}>{tr("Message the Nuqra team")}</h1>
         <p style={{ ...T.body, color: C.muted, margin: `${S[2]}px 0 0`, maxWidth: 560 }}>
           {tr(
-            "Request a higher table or branch limit, report an issue, or ask for a new feature. The super admin sees every message here.",
+            "Request a higher table or branch limit, report an issue, or ask for a new feature. Our team will shortly get back to you.",
           )}
         </p>
       </div>
@@ -151,6 +151,25 @@ export default function ContactPage() {
                 <div style={{ ...T.caption, color: C.faint, marginTop: S[2] }}>
                   {new Date(m.createdAt).toLocaleString()}
                 </div>
+                {m.reply && (
+                  <div
+                    style={{
+                      marginTop: S[3],
+                      padding: S[3],
+                      background: C.brandTint,
+                      borderRadius: R.md,
+                      border: `1px solid ${C.border}`,
+                    }}
+                  >
+                    <div style={{ ...T.label, color: C.brand, marginBottom: S[1] }}>
+                      {tr("Reply from the Nuqra team")}
+                      {m.repliedAt ? ` · ${new Date(m.repliedAt).toLocaleString()}` : ""}
+                    </div>
+                    <p style={{ ...T.body, color: C.text, margin: 0, whiteSpace: "pre-wrap" }}>
+                      {m.reply}
+                    </p>
+                  </div>
+                )}
               </div>
             ))}
           </div>

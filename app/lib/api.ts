@@ -44,6 +44,9 @@ export interface ContactMessage {
   body: string;
   status: "open" | "resolved";
   createdAt: string;
+  /** Super-admin's reply, if any. */
+  reply?: string | null;
+  repliedAt?: string | null;
 }
 
 export interface AdminAccount {
@@ -691,4 +694,38 @@ export async function resolveContactMessage(
     body: JSON.stringify({ status }),
   });
   if (!res.ok) throw new Error(`${res.status}`);
+}
+
+/** Super replies to a manager message (emails the owner). */
+export async function replyToMessage(
+  id: string,
+  reply: string,
+): Promise<{ ok: true; emailed: boolean } | { ok: false; error: string }> {
+  const res = await fetch(`/api/contact/${id}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ reply }),
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    emailed?: boolean;
+    error?: string;
+  };
+  if (!res.ok) return { ok: false, error: data.error || "failed" };
+  return { ok: true, emailed: !!data.emailed };
+}
+
+// --- Self-service password change (any signed-in account) ---
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const res = await fetch("/api/auth/change-password", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) return { ok: false, error: data.error || "failed" };
+  return { ok: true };
 }

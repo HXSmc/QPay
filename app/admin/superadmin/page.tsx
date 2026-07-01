@@ -10,6 +10,7 @@ import {
   listContactMessages,
   logout,
   renewAdmin,
+  replyToMessage,
   resolveContactMessage,
   updateAdmin,
   type AdminAccount,
@@ -631,43 +632,128 @@ function ManagerInbox() {
       ) : (
         <div style={{ display: "grid", gap: S[3] }}>
           {messages.map((m) => (
-            <div key={m.id} style={card({ pad: S[4] })}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: S[3],
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ ...T.h3, color: C.text, overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {m.subject}
-                  </div>
-                  <div style={{ ...T.caption, color: C.muted, marginTop: 3 }}>
-                    {m.managerEmail || tr("Manager")} · {new Date(m.createdAt).toLocaleString()}
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: S[2] }}>
-                  <span style={badge(m.status === "resolved" ? "success" : "warn")}>
-                    {m.status === "resolved" ? tr("Resolved") : tr("Open")}
-                  </span>
-                  <button
-                    onClick={() => toggle(m)}
-                    disabled={busyId === m.id}
-                    className="qp-cta-lift"
-                    style={btn("secondary", { size: "sm", disabled: busyId === m.id })}
-                  >
-                    {busyId === m.id && <Spinner size={14} />}
-                    {m.status === "resolved" ? tr("Reopen") : tr("Resolve")}
-                  </button>
-                </div>
-              </div>
-              <p style={{ ...T.body, color: C.muted, margin: `${S[3]}px 0 0`, whiteSpace: "pre-wrap" }}>
-                {m.body}
-              </p>
-            </div>
+            <MessageRow
+              key={m.id}
+              m={m}
+              busy={busyId === m.id}
+              onToggle={() => toggle(m)}
+              onReplied={refresh}
+            />
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MessageRow({
+  m,
+  busy,
+  onToggle,
+  onReplied,
+}: {
+  m: ContactMessage;
+  busy: boolean;
+  onToggle: () => void;
+  onReplied: () => Promise<void> | void;
+}) {
+  const tr = useT();
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const send = async () => {
+    if (!reply.trim()) return;
+    setSending(true);
+    setError("");
+    const res = await replyToMessage(m.id, reply.trim());
+    setSending(false);
+    if (!res.ok) {
+      setError(tr(res.error));
+      return;
+    }
+    setReply("");
+    await onReplied();
+  };
+
+  return (
+    <div style={card({ pad: S[4] })}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: S[3],
+        }}
+      >
+        <div style={{ minWidth: 0 }}>
+          <div style={{ ...T.h3, color: C.text, overflow: "hidden", textOverflow: "ellipsis" }}>
+            {m.subject}
+          </div>
+          <div style={{ ...T.caption, color: C.muted, marginTop: 3 }}>
+            {m.managerEmail || tr("Manager")} · {new Date(m.createdAt).toLocaleString()}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: S[2] }}>
+          <span style={badge(m.status === "resolved" ? "success" : "warn")}>
+            {m.status === "resolved" ? tr("Resolved") : tr("Open")}
+          </span>
+          <button
+            onClick={onToggle}
+            disabled={busy}
+            className="qp-cta-lift"
+            style={btn("secondary", { size: "sm", disabled: busy })}
+          >
+            {busy && <Spinner size={14} />}
+            {m.status === "resolved" ? tr("Reopen") : tr("Resolve")}
+          </button>
+        </div>
+      </div>
+      <p style={{ ...T.body, color: C.muted, margin: `${S[3]}px 0 0`, whiteSpace: "pre-wrap" }}>
+        {m.body}
+      </p>
+
+      {m.reply ? (
+        <div
+          style={{
+            marginTop: S[3],
+            padding: S[3],
+            background: C.brandTint,
+            borderRadius: R.md,
+            border: `1px solid ${C.border}`,
+          }}
+        >
+          <div style={{ ...T.label, color: C.brand, marginBottom: S[1] }}>
+            {tr("Your reply")}
+            {m.repliedAt ? ` · ${new Date(m.repliedAt).toLocaleString()}` : ""}
+          </div>
+          <p style={{ ...T.body, color: C.text, margin: 0, whiteSpace: "pre-wrap" }}>{m.reply}</p>
+        </div>
+      ) : (
+        <div style={{ marginTop: S[3] }}>
+          <label
+            htmlFor={`reply-${m.id}`}
+            style={{ ...T.label, color: C.muted, display: "block", marginBottom: S[2] }}
+          >
+            {tr("Reply (emailed to the manager)")}
+          </label>
+          <textarea
+            id={`reply-${m.id}`}
+            value={reply}
+            onChange={(e) => setReply(e.target.value)}
+            rows={3}
+            style={{ ...field(), resize: "vertical", lineHeight: 1.5 }}
+          />
+          {error && <div style={{ marginTop: S[2] }}><Alert kind="danger">{error}</Alert></div>}
+          <button
+            onClick={send}
+            disabled={sending || !reply.trim()}
+            className="qp-cta-lift"
+            style={{ ...btn("primary", { size: "sm", disabled: sending || !reply.trim() }), marginTop: S[2] }}
+          >
+            {sending && <Spinner size={14} color="#fff" />}
+            {tr("Send reply")}
+          </button>
         </div>
       )}
     </div>

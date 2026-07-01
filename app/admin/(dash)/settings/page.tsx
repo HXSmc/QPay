@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getMe, getSettings, saveSettings, testPosConnection, type PosTestResult } from "../../../lib/api";
+import { changePassword, getMe, getSettings, saveSettings, testPosConnection, type PosTestResult } from "../../../lib/api";
 import { C, R, S, T, STATUS, SHADOW, btn, card, field } from "../../../lib/theme";
 import { Alert, Spinner, Toast } from "../../../components/ui/Primitives";
 import { CURRENCIES, type Currency } from "../../../lib/data";
@@ -409,9 +409,105 @@ export default function SettingsPage() {
         {error && <div style={{ marginTop: S[3] }}><Alert kind="danger">{tr(error)}</Alert></div>}
       </div>
 
+      <ChangePasswordCard />
+
       {saved && (
         <Toast message={tr("Settings saved.")} kind="success" onDone={() => setSaved(false)} />
       )}
+    </div>
+  );
+}
+
+function ChangePasswordCard() {
+  const tr = useT();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
+  const label = { ...T.label, color: C.muted, display: "block", marginBottom: S[2] } as const;
+
+  const submit = async () => {
+    setError("");
+    setDone(false);
+    if (next.length < 8) {
+      setError("New password must be at least 8 characters.");
+      return;
+    }
+    if (next !== confirm) {
+      setError("New passwords don't match.");
+      return;
+    }
+    setBusy(true);
+    const res = await changePassword(current, next);
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error);
+      return;
+    }
+    setCurrent("");
+    setNext("");
+    setConfirm("");
+    setDone(true);
+    setTimeout(() => setDone(false), 3000);
+  };
+
+  return (
+    <div style={{ ...card({ pad: S[5] }), marginTop: S[5] }}>
+      <h2 style={{ ...T.h3, margin: `0 0 ${S[1]}px`, color: C.text }}>{tr("Change password")}</h2>
+      <p style={{ ...T.caption, color: C.muted, fontWeight: 500, margin: `0 0 ${S[4]}px` }}>
+        {tr("Changing your password signs out your other devices.")}
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: S[4] }}>
+        <div>
+          <label htmlFor="pw-current" style={label}>{tr("Current password")}</label>
+          <input
+            id="pw-current"
+            type="password"
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            style={field()}
+          />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: S[4] }} className="qp-grid-2">
+          <div>
+            <label htmlFor="pw-new" style={label}>{tr("New password")}</label>
+            <input
+              id="pw-new"
+              type="password"
+              autoComplete="new-password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              placeholder={tr("at least 8 characters")}
+              style={field()}
+            />
+          </div>
+          <div>
+            <label htmlFor="pw-confirm" style={label}>{tr("Confirm new password")}</label>
+            <input
+              id="pw-confirm"
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              style={field()}
+            />
+          </div>
+        </div>
+      </div>
+      {error && <div style={{ marginTop: S[3] }}><Alert kind="danger">{tr(error)}</Alert></div>}
+      {done && <div style={{ marginTop: S[3] }}><Alert kind="success">{tr("Password updated.")}</Alert></div>}
+      <button
+        onClick={submit}
+        disabled={busy || !current || !next}
+        className="qp-cta-lift"
+        style={{ ...btn("primary", { size: "sm", disabled: busy || !current || !next }), marginTop: S[4] }}
+      >
+        {busy && <Spinner size={14} color="#fff" />}
+        {tr("Update password")}
+      </button>
     </div>
   );
 }

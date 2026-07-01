@@ -6,6 +6,7 @@ import {
   listManagerMessages,
   listManagerMessagesFor,
 } from "@/app/lib/store";
+import { notifySuperAdmin } from "@/app/lib/email";
 import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -54,5 +55,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "subject and message required" }, { status: 400 });
   }
   const created = await createManagerMessage(user.id, subject, message);
+  // Notify the super-admin inbox (best-effort; never fail the message).
+  await notifySuperAdmin(`Manager message: ${subject}`, [
+    `From: ${user.email}`,
+    ``,
+    message,
+    ``,
+    `Reply from the super-admin console.`,
+  ]).catch(() => {});
   return NextResponse.json(created, { status: 201 });
 }

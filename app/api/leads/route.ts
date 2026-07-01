@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { addLead, authedUser, listLeads, provisionTrialAdmin } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
-import { sendContactSales, sendTrialCredentials } from "@/app/lib/email";
+import { notifySuperAdmin, sendContactSales, sendTrialCredentials } from "@/app/lib/email";
 import { SITE } from "@/app/lib/site";
 import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
@@ -100,6 +100,17 @@ export async function POST(req: Request) {
 
   // A sales inquiry never provisions a trial — the team follows up directly.
   if (kind === "sales") {
+    await notifySuperAdmin(`New sales inquiry: ${restaurant}`, [
+      `Name: ${name}`,
+      `Restaurant: ${restaurant}`,
+      `Email: ${email || "—"}`,
+      `Phone: ${phone || "—"}`,
+      `POS: ${profile.posSystem || "—"}`,
+      `Tables: ${profile.tables ?? "—"}   Branches: ${profile.branches ?? "—"}`,
+      `Preferred: ${profile.preferredDates || "—"}`,
+      ``,
+      `Message: ${profile.message || "—"}`,
+    ]).catch(() => {});
     return NextResponse.json({ ok: true, status: "received" }, { status: 201 });
   }
 
@@ -117,6 +128,14 @@ export async function POST(req: Request) {
       restaurant,
       expiresAt: result.expiresAt,
     });
+    await notifySuperAdmin(`New trial signup: ${restaurant}`, [
+      `A new trial manager account was provisioned.`,
+      ``,
+      `Email: ${email}`,
+      `Restaurant: ${restaurant}`,
+      `Tables: ${profile.tables ?? "—"}   Branches: ${profile.branches ?? "—"}`,
+      `POS: ${profile.posSystem || "—"}`,
+    ]).catch(() => {});
     return NextResponse.json(
       { ok: true, status: "created", emailed: mail.ok },
       { status: 201 },

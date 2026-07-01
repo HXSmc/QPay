@@ -6,6 +6,7 @@ import {
   listBranchAdmins,
   listBranches,
 } from "@/app/lib/store";
+import { notifySuperAdmin } from "@/app/lib/email";
 import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -73,5 +74,13 @@ export async function POST(req: Request) {
       { status: 409 },
     );
   }
+  const branchName = branches.find((b) => b.id === branchId)?.name ?? branchId;
+  await notifySuperAdmin(`New branch-admin created: ${created.email}`, [
+    `A manager created a branch-admin login.`,
+    ``,
+    `Branch-admin: ${created.email}`,
+    `Branch: ${branchName}`,
+    `Manager: ${manager.email}`,
+  ]).catch(() => {});
   return NextResponse.json(created, { status: 201 });
 }

@@ -1421,6 +1421,8 @@ type ManagerMessageRow = {
   body: string | null;
   status: "open" | "resolved";
   created_at: string;
+  reply?: string | null;
+  replied_at?: string | null;
 };
 
 function rowToManagerMessage(r: ManagerMessageRow): ManagerMessage {
@@ -1431,6 +1433,8 @@ function rowToManagerMessage(r: ManagerMessageRow): ManagerMessage {
     body: r.body ?? "",
     status: r.status === "resolved" ? "resolved" : "open",
     createdAt: r.created_at,
+    reply: r.reply ?? null,
+    repliedAt: r.replied_at ?? null,
   };
 }
 
@@ -1494,5 +1498,52 @@ export async function setManagerMessageStatus(
     .eq("id", id)
     .select("id");
   if (error) throw new Error(`store: message update failed — ${error.message}`);
+  return (data?.length ?? 0) > 0;
+}
+
+/** Super stores a reply (marks resolved). Returns the message + the manager's
+ *  email so the caller can notify them. Null if no such message. */
+export async function replyManagerMessage(
+  id: string,
+  reply: string,
+): Promise<(ManagerMessage & { managerEmail: string }) | null> {
+  const client = await sb();
+  const full = { reply, replied_at: new Date().toISOString(), status: "resolved" };
+  let { data, error } = await client
+    .from("manager_messages")
+    .update(full)
+    .eq("id", id)
+    .select("*")
+    .maybeSingle();
+  // Pre-migration (reply/replied_at absent): degrade like the other write paths —
+  // still flip status to resolved; the reply text is emailed regardless (it comes
+  // from the argument, not the DB) and persists once migration 0011 lands.
+  if (error && /Could not find the '(reply|replied_at)' column/i.test(error.message)) {
+    ({ data, error } = await client
+      .from("manager_messages")
+      .update({ status: "resolved" })
+      .eq("id", id)
+      .select("*")
+      .maybeSingle());
+  }
+  if (error) throw new Error(`store: message reply failed — ${error.message}`);
+  if (!data) return null;
+  const msg = { ...rowToManagerMessage(data as ManagerMessageRow), reply, repliedAt: full.replied_at };
+  const u = await getUserById(msg.managerId);
+  return { ...msg, managerEmail: u?.email ?? "" };
+}
+
+/** Set an account's password hash by id (self-service change; any role). */
+export async function setAccountPassword(
+  id: string,
+  passwordHash: string,
+): Promise<boolean> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("accounts")
+    .update({ password_hash: passwordHash })
+    .eq("id", id)
+    .select("id");
+  if (error) throw new Error(`store: password update failed — ${error.message}`);
   return (data?.length ?? 0) > 0;
 }

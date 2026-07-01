@@ -8,6 +8,8 @@
 //
 // Uses fetch (no SDK dep) so it runs unchanged in Node route handlers.
 
+import { SUPER_NOTIFY_EMAIL } from "./constants";
+
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 const DEFAULT_FROM = "Nuqra <onboarding@resend.dev>";
 // Brand color for email headers/buttons. Mirrors C.brand in theme.ts (cyan);
@@ -161,6 +163,59 @@ export async function sendContactSales(opts: {
         To extend your trial or upgrade, please reach out to our sales team — we'll take great care of you.
       </p>
       <a href="mailto:${escapeHtml(opts.salesEmail)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px">Contact sales</a>
+    </div>
+  </div>`;
+  return sendMail({ to: opts.to, subject, html, text });
+}
+
+// ---------------------------------------------------------------------------
+// Super-admin notifications + manager replies
+// ---------------------------------------------------------------------------
+
+/** Plain notification card to the super-admin notify inbox. Best-effort. */
+export async function notifySuperAdmin(
+  subject: string,
+  lines: string[],
+): Promise<MailResult> {
+  const text = lines.join("\n");
+  const html = `
+  <div style="font-family:'Plus Jakarta Sans',-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;color:#0B1221">
+    <div style="background:${BRAND};border-radius:16px 16px 0 0;padding:22px 26px">
+      <div style="color:#fff;font-size:18px;font-weight:800">Nuqra · Admin</div>
+    </div>
+    <div style="border:1px solid #E2E8F0;border-top:none;border-radius:0 0 16px 16px;padding:24px 26px">
+      <h1 style="font-size:18px;margin:0 0 14px">${escapeHtml(subject)}</h1>
+      <div style="font-size:14px;color:#334155;line-height:1.7;white-space:pre-wrap">${escapeHtml(text)}</div>
+    </div>
+  </div>`;
+  return sendMail({ to: SUPER_NOTIFY_EMAIL, subject: `[Nuqra] ${subject}`, html, text });
+}
+
+/** Email a chain manager the super-admin's reply to their message. Best-effort. */
+export async function sendManagerReply(opts: {
+  to: string;
+  subject: string;
+  reply: string;
+  loginUrl: string;
+}): Promise<MailResult> {
+  const subject = `Re: ${opts.subject}`;
+  const text = [
+    `The Nuqra team replied to your message "${opts.subject}":`,
+    ``,
+    opts.reply,
+    ``,
+    `See the full thread in your dashboard: ${opts.loginUrl}`,
+  ].join("\n");
+  const html = `
+  <div style="font-family:'Plus Jakarta Sans',-apple-system,Segoe UI,Roboto,sans-serif;max-width:520px;margin:0 auto;color:#0B1221">
+    <div style="background:${BRAND};border-radius:16px 16px 0 0;padding:26px 28px">
+      <div style="color:#fff;font-size:20px;font-weight:800">Nuqra</div>
+    </div>
+    <div style="border:1px solid #E2E8F0;border-top:none;border-radius:0 0 16px 16px;padding:28px">
+      <h1 style="font-size:20px;margin:0 0 8px">We replied to your message</h1>
+      <p style="font-size:13px;color:#64748B;margin:0 0 14px">Re: ${escapeHtml(opts.subject)}</p>
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:16px;font-size:14.5px;color:#334155;line-height:1.6;white-space:pre-wrap">${escapeHtml(opts.reply)}</div>
+      <a href="${escapeHtml(opts.loginUrl)}" style="display:inline-block;background:${BRAND};color:#fff;text-decoration:none;padding:13px 26px;border-radius:12px;font-weight:700;font-size:15px;margin-top:20px">Open your dashboard</a>
     </div>
   </div>`;
   return sendMail({ to: opts.to, subject, html, text });

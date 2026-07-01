@@ -13,6 +13,17 @@ export const SUPER_EMAIL = (process.env.SUPERADMIN_EMAIL || "AliTheAdmin@gmail.c
   .toLowerCase();
 export const SUPER_PASSWORD = process.env.SUPERADMIN_PASSWORD || "QPayAdmin_1";
 
+/**
+ * Where super-admin notifications go (new signups, sales inquiries, manager
+ * messages). Defaults to the owner's inbox; override with SUPER_NOTIFY_EMAIL.
+ * This is a NOTIFY address, distinct from the super LOGIN email (SUPER_EMAIL).
+ */
+export const SUPER_NOTIFY_EMAIL = (
+  process.env.SUPER_NOTIFY_EMAIL || "i0562269690@gmail.com"
+)
+  .trim()
+  .toLowerCase();
+
 /** Trial admins issued from the marketing demo form are valid this many days. */
 export const TRIAL_DAYS = 7;
 

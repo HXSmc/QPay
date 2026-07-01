@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hashPassword, isSameOrigin } from "@/app/lib/auth";
 import { authedUser, createAdmin, listAdmins, seedAdminAccount } from "@/app/lib/store";
 import { isPosSystem } from "@/app/lib/pos";
+import { notifySuperAdmin } from "@/app/lib/email";
 import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -85,5 +86,11 @@ export async function POST(req: Request) {
     // so a half-provisioned account is visible instead of silently swallowed.
     console.error("[seedAdminAccount] failed for", created.id, e);
   }
+  await notifySuperAdmin(`New manager account created: ${created.email}`, [
+    `A manager (chain owner) account was created from the super console.`,
+    ``,
+    `Email: ${created.email}`,
+    `Name: ${typeof body.name === "string" ? body.name : "—"}`,
+  ]).catch(() => {});
   return NextResponse.json(created, { status: 201 });
 }

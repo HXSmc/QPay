@@ -944,6 +944,36 @@ export async function setManagerMessageStatus(
   });
 }
 
+export async function replyManagerMessage(
+  id: string,
+  reply: string,
+): Promise<(ManagerMessage & { managerEmail: string }) | null> {
+  if (useSupabase) return rel.replyManagerMessage(id, reply);
+  return mutateBlob((s) => {
+    const m = (s.managerMessages ?? []).find((x) => x.id === id);
+    if (!m) return { result: null, write: false };
+    m.reply = reply;
+    m.repliedAt = new Date().toISOString();
+    m.status = "resolved";
+    const email = s.users.find((u) => u.id === m.managerId)?.email ?? "";
+    return { result: { ...m, managerEmail: email }, write: true };
+  });
+}
+
+/** Self-service password change: set an account's password hash by id (any role). */
+export async function setAccountPassword(
+  id: string,
+  passwordHash: string,
+): Promise<boolean> {
+  if (useSupabase) return rel.setAccountPassword(id, passwordHash);
+  return mutateBlob((s) => {
+    const u = s.users.find((x) => x.id === id);
+    if (!u) return { result: false, write: false };
+    u.passwordHash = passwordHash;
+    return { result: true, write: true };
+  });
+}
+
 // ===========================================================================
 // MENUS
 // ===========================================================================

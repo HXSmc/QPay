@@ -35,3 +35,4 @@ next-env.d.ts
 # never commit markdown (docs/reports/handoffs stay local)
 *.md
 .vercel
+.env*

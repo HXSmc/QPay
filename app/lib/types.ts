@@ -264,6 +264,10 @@ export interface ManagerMessage {
   body: string;
   status: "open" | "resolved";
   createdAt: string;
+  /** Super-admin's reply, if any. */
+  reply?: string | null;
+  /** When the reply was sent (ISO). */
+  repliedAt?: string | null;
 }
 
 export interface Store {
