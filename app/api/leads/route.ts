@@ -86,6 +86,23 @@ export async function POST(req: Request) {
   if (kind === "demo" && !emailOk) {
     return NextResponse.json({ error: "invalid form" }, { status: 400 });
   }
+  // A trial is hard-capped. The client blocks an over-limit demo, but enforce it
+  // here too (defense in depth) so a direct/forged request can't provision one
+  // above the cap. Sales inquiries carry no cap — that's what sales is for.
+  if (kind === "demo") {
+    const { maxTables, maxBranches } = SITE.trial;
+    if (
+      (profile.tables !== undefined && profile.tables > maxTables) ||
+      (profile.branches !== undefined && profile.branches > maxBranches)
+    ) {
+      return NextResponse.json(
+        {
+          error: `Demo accounts are limited to ${maxBranches} branch and ${maxTables} tables. Contact sales for a larger rollout.`,
+        },
+        { status: 400 },
+      );
+    }
+  }
   if (kind === "sales") {
     if (email && !emailOk) {
       return NextResponse.json({ error: "invalid form" }, { status: 400 });

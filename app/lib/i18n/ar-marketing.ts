@@ -89,6 +89,10 @@ export const ar: Record<string, string> = {
   // DemoForm
   "Please enter a valid work email (name@company.com).":
     "يرجى إدخال بريد عمل صالح (name@company.com).",
+  "Invalid email — enter a valid address like name@company.com.":
+    "بريد غير صالح — أدخل عنوانًا صحيحًا مثل name@company.com.",
+  "Demo accounts are limited to 1 branch and 16 tables. Contact sales for a larger rollout.":
+    "حسابات التجربة محدودة بفرع واحد و16 طاولة. تواصل مع المبيعات لتوسيع أكبر.",
   "Couldn't send your request. Please try again.":
     "تعذّر إرسال طلبك. يرجى المحاولة مرة أخرى.",
   "Check your inbox": "تحقّق من بريدك الوارد",
@@ -129,8 +133,6 @@ export const ar: Record<string, string> = {
   // English passthrough shows the correct figure until this line is updated).
   "Your free trial includes 1 branch and up to 16 tables. Need more? Our sales team can scale you up.":
     "تشمل تجربتك المجانية فرعًا واحدًا وحتى 16 طاولة. تحتاج أكثر؟ يسعد فريق المبيعات بتوسيع حسابك.",
-  "Heads up: trials are limited to 1 branch and 16 tables. We'll set up your trial with these limits now, and our sales team will reach out about a plan that fits your full size.":
-    "تنبيه: التجربة محدودة بفرع واحد و16 طاولة. سننشئ تجربتك بهذه الحدود الآن، وسيتواصل معك فريق المبيعات بشأن خطة تناسب حجمك الكامل.",
   "Which POS do you use?": "ما نظام نقاط البيع الذي تستخدمه؟",
   "Select your POS (optional)": "اختر نظام نقاط البيع (اختياري)",
 

@@ -44,9 +44,15 @@ export function DemoForm({ open }: { open: boolean }) {
       return;
     }
     if (!EMAIL_RE.test(email.trim())) {
-      setError(tr("Please enter a valid work email (name@company.com)."));
+      setError(tr("Invalid email — enter a valid address like name@company.com."));
       return;
     }
+    // A trial is hard-capped; block (don't silently clamp) an over-limit request,
+    // matching the server-side check in /api/leads. The always-visible danger
+    // Alert (below) already carries the message and clears reactively once the
+    // value is corrected, so just block — don't also set `error` (that would
+    // stack a duplicate alert and linger after the field is fixed).
+    if (overTrial) return;
     setBusy(true);
     try {
       const res = await submitLead({
@@ -91,8 +97,11 @@ export function DemoForm({ open }: { open: boolean }) {
   // A prospect can type any size, but a trial is capped. Detect when what they
   // asked for exceeds the trial so we can tell them up front (rather than let
   // them discover the silent cap after signing in) and route them to sales.
-  const wantsMoreTables = tables !== "" && Number(tables) > TRIAL_TABLES;
-  const wantsMoreBranches = branches !== "" && Number(branches) > TRIAL_BRANCHES;
+  // Floor to mirror the server's num() (which floors), so a fractional like 16.5
+  // is judged identically on both sides.
+  const asCount = (v: string) => (v === "" ? NaN : Math.floor(Number(v)));
+  const wantsMoreTables = asCount(tables) > TRIAL_TABLES;
+  const wantsMoreBranches = asCount(branches) > TRIAL_BRANCHES;
   const overTrial = wantsMoreTables || wantsMoreBranches;
 
   if (sent) {
@@ -248,6 +257,7 @@ export function DemoForm({ open }: { open: boolean }) {
             id="demo-tables"
             inputMode="numeric"
             min={0}
+            step={1}
             type="number"
             aria-label={tr("Number of tables")}
             value={tables}
@@ -263,6 +273,7 @@ export function DemoForm({ open }: { open: boolean }) {
             id="demo-branches"
             inputMode="numeric"
             min={0}
+            step={1}
             type="number"
             aria-label={tr("Number of branches")}
             value={branches}
@@ -304,14 +315,14 @@ export function DemoForm({ open }: { open: boolean }) {
           )}
         </p>
       </div>
-      {/* Honest heads-up: they asked for more than a trial provides. We still
-          create the trial, but we say the cap out loud and route them to sales
-          instead of letting them find the silent limit after signing in. */}
+      {/* They asked for more than a trial provides. Surface the cap as an error
+          the moment it's entered (and block submit above) instead of silently
+          clamping — bigger rollouts go through sales. */}
       {overTrial && (
         <div style={{ marginTop: S[3] }}>
-          <Alert kind="info">
+          <Alert kind="danger">
             {tr(
-              `Heads up: trials are limited to ${TRIAL_BRANCHES} branch and ${TRIAL_TABLES} tables. We'll set up your trial with these limits now, and our sales team will reach out about a plan that fits your full size.`,
+              `Demo accounts are limited to ${TRIAL_BRANCHES} branch and ${TRIAL_TABLES} tables. Contact sales for a larger rollout.`,
             )}
           </Alert>
         </div>
