@@ -58,7 +58,7 @@ export default function ContactPage() {
         <h1 style={{ ...T.h1, margin: 0, color: C.text }}>{tr("Message the Nuqra team")}</h1>
         <p style={{ ...T.body, color: C.muted, margin: `${S[2]}px 0 0`, maxWidth: 560 }}>
           {tr(
-            "Request a higher table or branch limit, report an issue, or ask for a new feature. A real person reads every message and usually replies within a day.",
+            "Request a higher table or branch limit, report an issue, or ask for a new feature. Our team reads every message and usually replies within a day.",
           )}
         </p>
       </div>
