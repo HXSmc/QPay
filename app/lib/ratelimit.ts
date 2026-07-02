@@ -85,6 +85,7 @@ export async function allowDistributed(
 // below; the `key` argument is the per-subject suffix (IP, capability token,
 // user id…). Distributed when KV is configured, in-memory otherwise.
 export const LIMITS = {
+  login: { max: 30, windowMs: 60_000 },
   lead: { max: 10, windowMs: 60_000 },
   pay: { max: 15, windowMs: 60_000 },
   sync: { max: 40, windowMs: 60_000 },

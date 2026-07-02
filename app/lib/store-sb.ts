@@ -813,7 +813,10 @@ export async function isLoginLocked(key: string): Promise<boolean> {
   return !!data && Number(data.locked_until) > Date.now();
 }
 
-export async function recordLoginFailure(key: string): Promise<void> {
+export async function recordLoginFailure(
+  key: string,
+  maxFails: number = LOGIN_MAX_FAILS,
+): Promise<void> {
   // Atomic increment under the ON CONFLICT row lock (record_login_failure RPC),
   // so concurrent failed logins can't undercount and slip past the lockout.
   const client = await sb();
@@ -822,7 +825,7 @@ export async function recordLoginFailure(key: string): Promise<void> {
     p_now: Date.now(),
     p_window_ms: LOGIN_WINDOW_MS,
     p_lock_ms: LOGIN_LOCK_MS,
-    p_max: LOGIN_MAX_FAILS,
+    p_max: maxFails,
   });
   if (error) throw new Error(`store: lock write failed — ${error.message}`);
 }

@@ -567,8 +567,11 @@ export async function isLoginLocked(key: string): Promise<boolean> {
   return !!a && a.lockedUntil > Date.now();
 }
 
-export async function recordLoginFailure(key: string): Promise<void> {
-  if (useSupabase) return rel.recordLoginFailure(key);
+export async function recordLoginFailure(
+  key: string,
+  maxFails: number = LOGIN_MAX_FAILS,
+): Promise<void> {
+  if (useSupabase) return rel.recordLoginFailure(key, maxFails);
   await mutateBlob((s) => {
     const now = Date.now();
     for (const k of Object.keys(s.loginAttempts)) {
@@ -579,7 +582,7 @@ export async function recordLoginFailure(key: string): Promise<void> {
     const inWindow = a && now < a.windowEnd;
     const fails = inWindow ? a.fails + 1 : 1;
     const windowEnd = inWindow ? a.windowEnd : now + LOGIN_WINDOW_MS;
-    const lockedUntil = fails >= LOGIN_MAX_FAILS ? now + LOGIN_LOCK_MS : 0;
+    const lockedUntil = fails >= maxFails ? now + LOGIN_LOCK_MS : 0;
     s.loginAttempts[key] = { fails, windowEnd, lockedUntil };
     return { result: undefined, write: true };
   });

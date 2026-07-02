@@ -37,7 +37,20 @@ export async function decryptPosConfig(
   for (const k of Object.keys(out)) {
     if (secret.has(k) && isEncrypted(out[k])) {
       const d = await decryptSecret(out[k]);
-      out[k] = d ?? "";
+      // A null decrypt means the ciphertext no longer authenticates under the
+      // current key (e.g. POS_ENC_KEY / SESSION_SECRET was rotated). Do NOT
+      // coerce to "" — sanitizePosConfig drops empty values and the next
+      // settings save would then overwrite the intact ciphertext, permanently
+      // destroying a recoverable credential. Keep the original ciphertext so
+      // it survives round-trips (encryptPosConfig leaves already-encrypted
+      // values as-is) and decrypts again once the correct key is restored.
+      if (d === null) {
+        console.warn(
+          `pos-secrets: could not decrypt "${k}" — encryption key changed? Preserving ciphertext.`,
+        );
+        continue;
+      }
+      out[k] = d;
     }
   }
   return out;

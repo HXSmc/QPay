@@ -13,9 +13,15 @@ import {
   isLoginLocked,
   recordLoginFailure,
 } from "@/app/lib/store";
-import { clientIp } from "@/app/lib/ratelimit";
+import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
+
+// A single account locks after this many failures across ALL source IPs within
+// the store's lockout window. Higher than the per-(email,ip) threshold (8) so a
+// legitimate user fumbling from one IP hits the strict per-IP lock first, while a
+// DISTRIBUTED brute-force spread over many IPs still trips this global cap.
+const EMAIL_MAX_FAILS = 30;
 
 export async function POST(req: Request) {
   // CSRF: reject cross-origin logins so a malicious site can't silently sign a
@@ -32,10 +38,25 @@ export async function POST(req: Request) {
     .trim()
     .toLowerCase();
   const password = typeof body.password === "string" ? body.password : "";
-  const key = `${email}|${clientIp(req)}`;
+  const ip = clientIp(req);
+  const key = `${email}|${ip}`;
 
-  // Throttle brute-force / credential-stuffing: refuse once locked out.
-  if (await isLoginLocked(key)) {
+  // Cap total login attempts per source IP regardless of which email is tried.
+  // Without this, a single IP could password-spray one common password across
+  // thousands of distinct emails — every per-(email,ip) counter stays at 1 and
+  // never locks, so the whole user table would be probeable unthrottled.
+  if (!(await rateLimit("login", ip))) {
+    return NextResponse.json(
+      { error: "too many attempts, try again later" },
+      { status: 429 },
+    );
+  }
+
+  // Throttle brute-force / credential-stuffing: refuse once locked out. Two
+  // counters — the strict per-(email,ip) lock (8) for the common single-source
+  // case, and an email-only global lock (EMAIL_MAX_FAILS) that also catches a
+  // brute-force DISTRIBUTED across many IPs at one target account.
+  if (await isLoginLocked(key) || (email && (await isLoginLocked(email)))) {
     return NextResponse.json(
       { error: "too many attempts, try again later" },
       { status: 429 },
@@ -54,6 +75,7 @@ export async function POST(req: Request) {
 
   if (!user || !ok) {
     await recordLoginFailure(key);
+    if (email) await recordLoginFailure(email, EMAIL_MAX_FAILS);
     return NextResponse.json({ error: "invalid credentials" }, { status: 401 });
   }
 
@@ -65,6 +87,7 @@ export async function POST(req: Request) {
   // login isn't counted toward lockout.
   if (user.expiresAt && new Date(user.expiresAt).getTime() <= Date.now()) {
     await clearLoginFailures(key);
+    if (email) await clearLoginFailures(email);
     return NextResponse.json({ error: "invalid credentials" }, { status: 401 });
   }
 
@@ -85,6 +108,7 @@ export async function POST(req: Request) {
   }
 
   await clearLoginFailures(key);
+  if (email) await clearLoginFailures(email);
   const res = NextResponse.json({ ok: true, role: user.role });
   const pv = await passwordFingerprint(user.passwordHash);
   res.cookies.set(AUTH_COOKIE, await createSessionToken(user.id, user.role, pv), {
