@@ -1,4 +1,15 @@
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
 /** @type {import('next').NextConfig} */
+
+// ESM-safe __dirname. Needed because Next.js otherwise walks up from this
+// file looking for a workspace root and stops at the first lockfile it
+// finds — it was finding /Users/alimc/package-lock.json (a stray lockfile
+// outside this project) and inferring /Users/alimc as the root instead of
+// this project directory. Pinning outputFileTracingRoot fixes that without
+// touching the unrelated file outside the project.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -35,6 +46,7 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  outputFileTracingRoot: __dirname,
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
