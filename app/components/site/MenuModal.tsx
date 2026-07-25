@@ -43,29 +43,37 @@ export function MenuModal({
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const panelRef = useRef<HTMLDivElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
-  // Tracks the last pointer position + active drag for drag-to-pan.
+  // Tracks the last pointer position + active drag for drag-to-pan. `dragging`
+  // mirrors `active` as state because render reads it (transition style) and
+  // refs must not be read during render.
   const dragRef = useRef<{ active: boolean; x: number; y: number }>({
     active: false,
     x: 0,
     y: 0,
   });
+  const [dragging, setDragging] = useState(false);
   const reduced = usePrefersReducedMotion();
 
-  // If the menu panel closes while fullscreen is up, exit fullscreen and reset
-  // zoom/pan so no orphan overlay survives.
-  useEffect(() => {
-    if (!open) {
+  // Open/close transition state resets, via the adjust-state-during-render
+  // pattern (not setState-in-effect). Close: exit fullscreen + reset zoom/pan
+  // so no orphan overlay survives. Open: enter the loading state the fetch
+  // effect below resolves.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setLoading(true);
+      setLoaded(true);
+    } else {
       setFs(false);
       setZoom(1);
       setPan({ x: 0, y: 0 });
     }
-  }, [open]);
+  }
 
   // Fetch only when the panel opens (behavior preserved from the modal).
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
-    setLoaded(true);
     getMenu(tableNum, token)
       .then(setMeta)
       .catch(() => setMeta(null))
@@ -111,6 +119,7 @@ export function MenuModal({
   const onPointerDown = (e: React.PointerEvent) => {
     if (zoom <= 1) return;
     dragRef.current = { active: true, x: e.clientX, y: e.clientY };
+    setDragging(true);
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   };
   const onPointerMove = (e: React.PointerEvent) => {
@@ -123,6 +132,7 @@ export function MenuModal({
   };
   const onPointerUp = (e: React.PointerEvent) => {
     dragRef.current.active = false;
+    setDragging(false);
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
   };
   const onWheel = (e: React.WheelEvent) => {
@@ -386,7 +396,7 @@ export function MenuModal({
                   display: "block",
                   transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
                   transformOrigin: "center center",
-                  transition: dragRef.current.active
+                  transition: dragging
                     ? "none"
                     : reduced
                       ? "none"

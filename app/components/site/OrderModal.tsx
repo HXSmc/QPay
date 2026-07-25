@@ -50,11 +50,20 @@ export function OrderModal({
   // Reset only when the panel OPENS — NOT on every parent re-render. The parent
   // (CustomerView) re-renders every 3s from its live poll and passes fresh
   // onClose/onPlaced closures; keying the reset on those would wipe the cart
-  // mid-order. So reset depends on `open` alone.
+  // mid-order. So reset keys on the `open` transition alone, via the
+  // adjust-state-during-render pattern (not setState-in-effect).
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setCart({});
+      setError("");
+    }
+  }
+
+  // Focus + scroll are DOM side effects and stay in an effect.
   useEffect(() => {
     if (!open) return;
-    setCart({});
-    setError("");
     closeRef.current?.focus();
     panelRef.current?.scrollIntoView({
       behavior: reduced ? "auto" : "smooth",
