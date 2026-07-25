@@ -41,7 +41,7 @@ export function ContactForm() {
       return;
     }
     if (email.trim() && !EMAIL_RE.test(email.trim())) {
-      setError(tr("Invalid email — enter a valid address like name@company.com."));
+      setError(tr("Invalid email. Enter a valid address like name@company.com."));
       return;
     }
     setBusy(true);

@@ -42,7 +42,7 @@ export default async function CustomerPage({
       }}
     >
       <CustomerView
-        tableNumber={tableNumber || "—"}
+        tableNumber={tableNumber || "-"}
         token={token}
         initialTable={table}
         restaurant={info?.name || t("Restaurant", locale)}

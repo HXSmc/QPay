@@ -44,7 +44,7 @@ export function DemoForm({ open }: { open: boolean }) {
       return;
     }
     if (!EMAIL_RE.test(email.trim())) {
-      setError(tr("Invalid email — enter a valid address like name@company.com."));
+      setError(tr("Invalid email. Enter a valid address like name@company.com."));
       return;
     }
     // A trial is hard-capped; block (don't silently clamp) an over-limit request,

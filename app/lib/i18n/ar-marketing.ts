@@ -89,8 +89,8 @@ export const ar: Record<string, string> = {
   // DemoForm
   "Please enter a valid work email (name@company.com).":
     "يرجى إدخال بريد عمل صالح (name@company.com).",
-  "Invalid email — enter a valid address like name@company.com.":
-    "بريد غير صالح — أدخل عنوانًا صحيحًا مثل name@company.com.",
+  "Invalid email. Enter a valid address like name@company.com.":
+    "بريد غير صالح. أدخل عنوانًا صحيحًا مثل name@company.com.",
   "Demo accounts are limited to 1 branch and 16 tables. Contact sales for a larger rollout.":
     "حسابات التجربة محدودة بفرع واحد و16 طاولة. تواصل مع المبيعات لتوسيع أكبر.",
   "Couldn't send your request. Please try again.":
