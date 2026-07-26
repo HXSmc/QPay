@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/react";
 import { Geist, Geist_Mono, IBM_Plex_Sans_Arabic } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
@@ -97,6 +98,7 @@ export default async function RootLayout({
         <LocaleProvider locale={locale}>
           <main>{children}</main>
         </LocaleProvider>
+        <Analytics />
       </body>
     </html>
   );
