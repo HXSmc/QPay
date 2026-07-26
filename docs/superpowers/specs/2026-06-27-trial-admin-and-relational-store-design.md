@@ -29,7 +29,7 @@ New tables replacing the blob (DDL in `supabase/migrations/0001_relational.sql`)
 - `settings(owner uuid pk fk cascade, name, tax_rate numeric, auto_receipts bool, tip_prompts bool)`
 - `leads(id uuid pk, name, email, restaurant, created_at timestamptz)`
 - `login_attempts(key text pk, fails int, window_end bigint, locked_until bigint)`
-- `sequence table_seq` — monotonic, never-reused table numbers (replaces `seq`).
+- `sequence table_seq` — monotonic, never-reused table numbers (replaces `seq`). **Superseded**: `0002_per_owner_table_num.sql` drops this global sequence for a per-owner counter, and `0003_reuse_freed_table_num.sql` replaces that counter with a smallest-free-integer allocator — table numbers are per-owner and ARE reused after a table is deleted, contradicting "never-reused" above.
 - Indexes: `tables(owner)`, `transactions(owner, created_at desc)`, `leads(created_at desc)`, `accounts(email)`.
 
 Per-row **optimistic concurrency** for `tables` (`version` column, CAS on UPDATE) replaces whole-blob CAS — concurrent pays on *different* tables no longer serialize.
@@ -52,7 +52,7 @@ Per-row **optimistic concurrency** for `tables` (`version` column, CAS on UPDATE
 - Login route: after password verify, reject expired account with 403 `account expired`.
 
 ## UI
-- **DemoModal**: success copy → "Check your work email — we've sent your QPay admin login (valid 7 days)." Error path if email send fails.
+- **DemoModal**: success copy → "Check your work email — we've sent your Nuqra admin login (valid 7 days)." Error path if email send fails.
 - **Superadmin**: each admin row shows trial/manual badge + Active/Expired + expiry date; actions **Renew 30d**, **Edit** (inline email + new password), **Delete**.
 
 ## Data migration
