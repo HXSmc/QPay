@@ -6,11 +6,20 @@ import { getServerLocale } from "../lib/i18n-server";
 import { t } from "../lib/i18n";
 import { C, R, S, T, card } from "../lib/theme";
 
-export const metadata: Metadata = {
-  title: "Talk to sales · Nuqra",
-  description:
-    "Tell us about your restaurant and POS. We'll set up a tailored Nuqra walkthrough, handle the integration, and plan your branch rollout.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  return locale === "ar"
+    ? {
+        title: "تحدث مع المبيعات · نقرة",
+        description:
+          "أخبرنا عن مطعمك ونظام نقاط البيع لديك. نجهز لك عرضًا مخصصًا لنقرة، نتولى الربط، ونخطط إطلاقها في فروعك.",
+      }
+    : {
+        title: "Talk to sales · Nuqra",
+        description:
+          "Tell us about your restaurant and POS. We'll set up a tailored Nuqra walkthrough, handle the integration, and plan your branch rollout.",
+      };
+}
 
 // Benefits are sales-specific (the demo page already sells self-serve). Each is
 // benefit-first with a concrete, honest supporting line. No fabricated metrics.

@@ -5,7 +5,18 @@ import { C, R, S, SHADOW, T } from "../lib/theme";
 import { getServerLocale } from "../lib/i18n-server";
 import { t } from "../lib/i18n";
 
-export const metadata = { title: "Terms of service · Nuqra" };
+export async function generateMetadata() {
+  const locale = await getServerLocale();
+  return locale === "ar"
+    ? {
+        title: "شروط الخدمة · نقرة",
+        description: "الشروط التي تحكم استخدام منصة نقرة للدفع بمسح رمز QR في المطاعم.",
+      }
+    : {
+        title: "Terms of service · Nuqra",
+        description: "The terms that govern using Nuqra's scan-to-pay platform for restaurants.",
+      };
+}
 
 export default async function TermsPage() {
   const locale = await getServerLocale();

@@ -1,8 +1,8 @@
 // Arabic translations for the marketing surface. Keyed by English source string.
 export const ar: Record<string, string> = {
   // Hero
-  "Turn tables faster.": "أدِر طاولاتك بسرعة أكبر.",
-  "Get paid before they leave.": "استلم أموالك قبل أن يغادروا.",
+  "QR payments for restaurants — turn tables faster, get paid before they leave.":
+    "مدفوعات QR للمطاعم — أدِر طاولاتك بسرعة أكبر واستلم أموالك قبل مغادرتهم.",
   "Diners scan, split, tip, and pay in under 30 seconds. No app, no waiting on the check.":
     "يمسح الضيوف رمز QR، يقسّمون الفاتورة، يضيفون الإكرامية، ويدفعون في أقل من 30 ثانية. بلا تطبيق وبلا انتظار للفاتورة.",
   "Get a free demo": "احصل على عرض توضيحي مجاني",
@@ -77,6 +77,27 @@ export const ar: Record<string, string> = {
   "Payments are encrypted, and diners never hand a card or phone to staff. Everyone pays from their own device.":
     "المدفوعات مشفّرة، ولا يسلّم الضيوف بطاقة أو هاتفًا للموظفين أبدًا. يدفع الجميع من أجهزتهم الخاصة.",
 
+  // FAQ (general, search-intent)
+  "Frequently asked questions": "الأسئلة الشائعة",
+  "What is Nuqra?": "ما هو Nuqra؟",
+  "Nuqra is scan-to-pay for restaurants: diners scan a table QR, see the live bill, split it, tip, and pay, with no app download.":
+    "Nuqra هو حل الدفع عبر المسح للمطاعم: يمسح الضيوف رمز QR الخاص بالطاولة، يرَون الفاتورة المباشرة، يقسّمونها، يضيفون إكرامية، ويدفعون، دون تنزيل أي تطبيق.",
+  "Does Nuqra take a percentage of my sales?": "هل يأخذ Nuqra نسبة من مبيعاتي؟",
+  "No. Nuqra charges a flat monthly fee per branch, not a percentage of your bill, and you keep your own payment processor.":
+    "لا. يتقاضى Nuqra رسمًا شهريًا ثابتًا لكل فرع، وليس نسبة من فاتورتك، وتحتفظ بمزوّد الدفع الخاص بك.",
+  "Does it work with my POS?": "هل يعمل مع نظام نقاط البيع لديّ؟",
+  "Nuqra works alongside 27+ POS systems, including Foodics, Marn, and Anywhere, with read-only verify integrations for Foodics and Square today. Other POS systems are set up manually.":
+    "يعمل Nuqra جنبًا إلى جنب مع أكثر من 27 نظام نقاط بيع، منها Foodics ومرن وAnywhere، مع تكامل تحقّق للقراءة فقط مع Foodics وSquare حاليًا. أما أنظمة نقاط البيع الأخرى فيتم إعدادها يدويًا.",
+  "Is Arabic supported?": "هل اللغة العربية مدعومة؟",
+  "Yes. Nuqra is fully bilingual in Arabic and English with right-to-left layout throughout, for both diners and staff.":
+    "نعم. يدعم Nuqra ثنائية اللغة الكاملة بين العربية والإنجليزية مع تخطيط من اليمين إلى اليسار في كل الواجهات، لكل من الضيوف والموظفين.",
+  "Where is my data stored?": "أين يتم تخزين بياناتي؟",
+  "Your data lives in a managed cloud database with per-restaurant isolation, so each restaurant's data is scoped to its own account.":
+    "تُخزَّن بياناتك في قاعدة بيانات سحابية مُدارة مع عزل لكل مطعم، بحيث تقتصر بيانات كل مطعم على حسابه الخاص.",
+  "How do I start?": "كيف أبدأ؟",
+  "Start a 7-day free trial with no card required. Create your account and we email your admin login immediately.":
+    "ابدأ تجربة مجانية لمدة 7 أيام دون الحاجة لبطاقة. أنشئ حسابك ونرسل بيانات دخول المدير فورًا عبر البريد الإلكتروني.",
+
   // Footer CTA
   "Ready to stop chasing checks?": "هل أنت مستعد للتوقف عن مطاردة الفواتير؟",
   "Get paid before they leave the table. Setup takes one afternoon, and we email your trial login as soon as you sign up.":
@@ -85,6 +106,11 @@ export const ar: Record<string, string> = {
   "Talk to sales": "تواصل مع المبيعات",
   "Privacy": "الخصوصية",
   "Terms": "الشروط",
+
+  // Privacy page - Cookies section
+  "Cookies": "ملفات تعريف الارتباط",
+  "Nuqra sets exactly two cookies: a session cookie for signed-in staff (qpay_admin) and a language preference cookie (nuqra_locale). We use no analytics or tracking cookies.":
+    "يستخدم Nuqra ملفّي تعريف ارتباط فقط: ملف جلسة للموظفين المسجَّلين (qpay_admin) وملف لتفضيل اللغة (nuqra_locale). لا نستخدم أي ملفات تعريف ارتباط للتحليلات أو التتبّع.",
 
   // DemoForm
   "Please enter a valid work email (name@company.com).":

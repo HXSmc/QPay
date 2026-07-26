@@ -6,11 +6,20 @@ import { getServerLocale } from "../lib/i18n-server";
 import { t } from "../lib/i18n";
 import { C, R, S, T, card } from "../lib/theme";
 
-export const metadata: Metadata = {
-  title: "Start your free trial · Nuqra",
-  description:
-    "Create a Nuqra trial account. We email your admin login on the spot so you can take a payment in minutes.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  return locale === "ar"
+    ? {
+        title: "ابدأ تجربتك المجانية · نقرة",
+        description:
+          "أنشئ حساب نقرة التجريبي. نرسل بيانات دخول المشرف إلى بريدك فورًا لتستقبل أول دفعة خلال دقائق.",
+      }
+    : {
+        title: "Start your free trial · Nuqra",
+        description:
+          "Create a Nuqra trial account. We email your admin login on the spot so you can take a payment in minutes.",
+      };
+}
 
 const PERKS = [
   {

@@ -7,7 +7,7 @@ export const SITE = {
   /** Canonical app origin. Used to build links in outbound emails so a forged
    *  Host header on a public request can't poison them (host-header injection).
    *  Override per-environment via NEXT_PUBLIC_APP_URL if the domain changes. */
-  appUrl: (process.env.NEXT_PUBLIC_APP_URL || "https://qpay-cyan.vercel.app").replace(/\/$/, ""),
+  appUrl: (process.env.NEXT_PUBLIC_APP_URL || "https://nuqra.org").replace(/\/$/, ""),
   /** Copyright year — a constant (not `new Date()`) so static prerender and
    *  client hydration always agree and it can't silently drift mid-year. */
   copyrightYear: 2026,

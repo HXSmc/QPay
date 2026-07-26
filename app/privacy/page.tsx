@@ -5,7 +5,20 @@ import { C, R, S, SHADOW, T } from "../lib/theme";
 import { getServerLocale } from "../lib/i18n-server";
 import { t } from "../lib/i18n";
 
-export const metadata = { title: "Privacy policy · Nuqra" };
+export async function generateMetadata() {
+  const locale = await getServerLocale();
+  return locale === "ar"
+    ? {
+        title: "سياسة الخصوصية · نقرة",
+        description:
+          "كيف تجمع نقرة بيانات المطاعم ورواد المطعم وتستخدمها وتحميها — أقل قدر من البيانات، دون بيعها، بما يراعي نظام حماية البيانات الشخصية.",
+      }
+    : {
+        title: "Privacy policy · Nuqra",
+        description:
+          "How Nuqra collects, uses, and protects restaurant and diner data — minimal data, no selling, PDPL-aware.",
+      };
+}
 
 export default async function PrivacyPage() {
   const locale = await getServerLocale();
@@ -84,6 +97,24 @@ export default async function PrivacyPage() {
           <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
             {t(
               "Account credentials (stored only as salted hashes), restaurant settings, live table/order state, payment ledger entries, and demo-request leads.",
+              locale,
+            )}
+          </p>
+
+          <h2
+            style={{
+              ...T.h2,
+              marginTop: S[6],
+              marginBottom: S[3],
+              paddingTop: S[6],
+              borderTop: `1px solid ${C.border}`,
+            }}
+          >
+            {t("Cookies", locale)}
+          </h2>
+          <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
+            {t(
+              "Nuqra sets exactly two cookies: a session cookie for signed-in staff (qpay_admin) and a language preference cookie (nuqra_locale). We use no analytics or tracking cookies.",
               locale,
             )}
           </p>
