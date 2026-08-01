@@ -34,11 +34,20 @@ function signingSecret(): string {
   return _devSecret;
 }
 
-// PBKDF2 work factor. 210k SHA-256 iterations ~ OWASP 2023 guidance; high
-// enough to slow offline cracking, cheap enough for a serverless login.
-const PBKDF2_ITERS = 210_000;
+// PBKDF2 work factors (SHA-256). New hashes use 600k per the current OWASP
+// Password Storage Cheat Sheet minimum for PBKDF2-HMAC-SHA256. Legacy hashes
+// were minted at 210k with NO embedded iteration count (format `salt.digest`);
+// verifyPassword treats a count-less hash as 210k so existing logins keep
+// working, and the login path transparently rehashes them at 600k (see
+// app/api/auth/login/route.ts).
+const PBKDF2_ITERS = 600_000;
+const PBKDF2_LEGACY_ITERS = 210_000;
 const HASH_BYTES = 32;
 const SALT_BYTES = 16;
+// Upper bound on an embedded iteration count. verifyPassword already floors
+// implausible counts (< 1000); this CEILS them so a planted `99999999.….…`
+// hash can't turn each login into a multi-minute CPU burn (DoS).
+const PBKDF2_MAX_ITERS = 1_000_000;
 
 const enc = new TextEncoder();
 
@@ -61,7 +70,11 @@ function fromB64url(s: string): Uint8Array {
 // Password hashing (PBKDF2-SHA256)
 // ---------------------------------------------------------------------------
 
-async function pbkdf2(password: string, salt: Uint8Array): Promise<Uint8Array> {
+async function pbkdf2(
+  password: string,
+  salt: Uint8Array,
+  iters: number,
+): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey(
     "raw",
     enc.encode(password),
@@ -74,7 +87,7 @@ async function pbkdf2(password: string, salt: Uint8Array): Promise<Uint8Array> {
       name: "PBKDF2",
       hash: "SHA-256",
       salt: salt as BufferSource,
-      iterations: PBKDF2_ITERS,
+      iterations: iters,
     },
     key,
     HASH_BYTES * 8,
@@ -82,29 +95,74 @@ async function pbkdf2(password: string, salt: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(bits);
 }
 
-/** Hash a password as `salt.digest` (both base64url). */
+/**
+ * Hash a password as `iters.salt.digest` (all base64url except iters, a decimal
+ * int). New hashes embed the work factor so it can be raised later without
+ * invalidating existing digests.
+ */
 export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
-  const digest = await pbkdf2(password, salt);
-  return `${b64url(salt)}.${b64url(digest)}`;
+  const digest = await pbkdf2(password, salt, PBKDF2_ITERS);
+  return `${PBKDF2_ITERS}.${b64url(salt)}.${b64url(digest)}`;
 }
 
-/** Constant-time-verify a password against a stored `salt.digest`. */
+/**
+ * A hash shaped EXACTLY like a real `iters.salt.digest` (same 3 parts and the
+ * SAME base64url byte lengths — 16-byte salt, 32-byte digest) so verifyPassword
+ * against it costs the current default work factor, closing the
+ * account-enumeration timing oracle where a missing account once verified
+ * (legacy 2-part dummy → 210k) faster than a present one (migrated → 600k).
+ * Built from the real byte lengths + PBKDF2_ITERS, so a future iteration bump
+ * re-derives the dummy automatically instead of silently re-opening the gap.
+ * (The bytes are all-zero; it never verifies any real password — it just has to
+ * decode to the right shape and cost the right iterations.)
+ */
+export function dummyPasswordHash(): string {
+  return `${PBKDF2_ITERS}.${b64url(new Uint8Array(SALT_BYTES))}.${b64url(new Uint8Array(HASH_BYTES))}`;
+}
+
+/**
+ * True for a legacy `salt.digest` hash (no embedded iteration count). Used by
+ * the login path to trigger a transparent rehash at the current work factor.
+ */
+export function isLegacyPasswordHash(stored: string): boolean {
+  return stored.split(".").length === 2;
+}
+
+/** Constant-time-verify a password against a stored hash.
+ *  • `iters.salt.digest` (3-part) → uses the embedded iteration count.
+ *  • `salt.digest`        (2-part) → legacy, verified at PBKDF2_LEGACY_ITERS. */
 export async function verifyPassword(
   password: string,
   stored: string,
 ): Promise<boolean> {
-  const dot = stored.indexOf(".");
-  if (dot <= 0) return false;
+  const parts = stored.split(".");
+  let iters: number;
+  let saltB64: string;
+  let digestB64: string;
+  if (parts.length === 3 && /^\d+$/.test(parts[0])) {
+    iters = Number(parts[0]);
+    if (iters < 1000) return false; // sanity floor — reject implausible counts
+    if (iters > PBKDF2_MAX_ITERS) return false; // ceiling — reject a planted huge value
+    saltB64 = parts[1];
+    digestB64 = parts[2];
+  } else if (parts.length === 2) {
+    // Legacy format: salt.digest, no embedded count → 210k.
+    iters = PBKDF2_LEGACY_ITERS;
+    saltB64 = parts[0];
+    digestB64 = parts[1];
+  } else {
+    return false;
+  }
   let salt: Uint8Array;
   let want: Uint8Array;
   try {
-    salt = fromB64url(stored.slice(0, dot));
-    want = fromB64url(stored.slice(dot + 1));
+    salt = fromB64url(saltB64);
+    want = fromB64url(digestB64);
   } catch {
     return false;
   }
-  const got = await pbkdf2(password, salt);
+  const got = await pbkdf2(password, salt, iters);
   return timingSafeEqualBytes(got, want);
 }
 

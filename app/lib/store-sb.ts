@@ -1536,17 +1536,49 @@ export async function replyManagerMessage(
   return { ...msg, managerEmail: u?.email ?? "" };
 }
 
-/** Set an account's password hash by id (self-service change; any role). */
+/**
+ * Set an account's password hash by id (self-service change; any role). When
+ * `expectedHash` is given, the UPDATE additionally requires the stored hash to
+ * STILL match it — so the login path's transparent rehash can't overwrite a
+ * concurrent superadmin password reset. Returns false (not an error) if the
+ * guard doesn't match.
+ */
 export async function setAccountPassword(
   id: string,
   passwordHash: string,
+  expectedHash?: string,
 ): Promise<boolean> {
   const client = await sb();
-  const { data, error } = await client
+  let q = client
     .from("accounts")
     .update({ password_hash: passwordHash })
-    .eq("id", id)
-    .select("id");
+    .eq("id", id);
+  if (expectedHash !== undefined) q = q.eq("password_hash", expectedHash);
+  const { data, error } = await q.select("id");
   if (error) throw new Error(`store: password update failed — ${error.message}`);
   return (data?.length ?? 0) > 0;
+}
+
+// ---------------------------------------------------------------------------
+// Security events (durable audit log)
+// ---------------------------------------------------------------------------
+
+/**
+ * Insert a security event row. Called via the store facade's fire-and-forget
+ * wrapper, which detaches the promise and swallows failures — so this throwing
+ * never reaches a request path. RLS-on-no-policy means only the service_role
+ * (this client) can write; anon is denied.
+ */
+export async function logSecurityEvent(
+  type: string,
+  evt: { actor?: string; ip?: string; meta?: Record<string, unknown> },
+): Promise<void> {
+  const client = await sb();
+  const { error } = await client.from("security_events").insert({
+    type,
+    actor: evt.actor ?? null,
+    ip: evt.ip ?? null,
+    meta: evt.meta ?? null,
+  });
+  if (error) throw new Error(`store: security_events insert failed — ${error.message}`);
 }

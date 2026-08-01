@@ -528,17 +528,23 @@ export async function getAdmin(id: string): Promise<PublicUser | null> {
  * immediately (a stateless token otherwise stays valid until its own expiry).
  */
 export async function authedUser(req: Request): Promise<AdminUser | null> {
+  // Deny-and-log helper: every fail-closed path logs an `authz_denied` event
+  // (with the reason + the opaque actor id) and returns null. Centralizing the
+  // call keeps each check a one-liner and guarantees a consistent audit shape.
+  const deny = (reason: string, actor?: string): null => {
+    logSecurityEvent("authz_denied", { actor, meta: { reason } });
+    return null;
+  };
   const session = await getSession(req);
   if (!session) return null;
   const u = await getUserById(session.sub);
-  if (!u || u.role !== session.role) return null;
-  if (isExpired(u)) return null; // trial lapsed → no access
+  if (!u || u.role !== session.role) return deny("account_missing_or_role_mismatch", session.sub);
+  if (isExpired(u)) return deny("expired", u.id); // trial lapsed → no access
   // Revocation: a token minted with a password fingerprint is rejected once the
   // password changes (fingerprint no longer matches), so a reset cuts every
   // outstanding session. Legacy tokens without `pv` are tolerated until expiry.
-  if (session.pv && session.pv !== (await passwordFingerprint(u.passwordHash))) {
-    return null;
-  }
+  if (session.pv && session.pv !== (await passwordFingerprint(u.passwordHash)))
+    return deny("stale_password_fingerprint", u.id);
   // A branch-admin inherits its chain manager's lifecycle + scope. Fail closed
   // unless it has a branch AND a live, non-expired manager parent:
   //   • no branchId  → orphaned (its branch was deleted) → would resolve to an
@@ -546,9 +552,10 @@ export async function authedUser(req: Request): Promise<AdminUser | null> {
   //   • parent missing / not a manager / expired → the chain's trial lapsed, so
   //     a staff login must not keep the chain operating past the owner's gate.
   if (u.role === "admin") {
-    if (!u.parentId || !u.branchId) return null;
+    if (!u.parentId || !u.branchId) return deny("orphaned_branch_admin", u.id);
     const parent = await getUserById(u.parentId);
-    if (!parent || parent.role !== "manager" || isExpired(parent)) return null;
+    if (!parent || parent.role !== "manager" || isExpired(parent))
+      return deny("branch_parent_unavailable", u.id);
   }
   return u;
 }
@@ -966,15 +973,26 @@ export async function replyManagerMessage(
   });
 }
 
-/** Self-service password change: set an account's password hash by id (any role). */
+/**
+ * Self-service password change: set an account's password hash by id (any role).
+ * `expectedHash` (optional) guards against a blind overwrite: when set, the
+ * UPDATE only applies if the stored hash STILL matches it — so the login path's
+ * transparent rehash can't clobber a password reset that landed while it was
+ * hashing. Existing callers (change-password, admin reset) omit it and are
+ * unaffected. Returns false on a no-match guard (not an error).
+ */
 export async function setAccountPassword(
   id: string,
   passwordHash: string,
+  expectedHash?: string,
 ): Promise<boolean> {
-  if (useSupabase) return rel.setAccountPassword(id, passwordHash);
+  if (useSupabase) return rel.setAccountPassword(id, passwordHash, expectedHash);
   return mutateBlob((s) => {
     const u = s.users.find((x) => x.id === id);
     if (!u) return { result: false, write: false };
+    if (expectedHash !== undefined && u.passwordHash !== expectedHash) {
+      return { result: false, write: false };
+    }
     u.passwordHash = passwordHash;
     return { result: true, write: true };
   });
@@ -1466,5 +1484,50 @@ export async function updateOrderStatus(
     if (!o) return { result: null, write: false };
     o.status = status;
     return { result: o, write: true };
+  });
+}
+
+// ===========================================================================
+// SECURITY EVENTS (durable audit log — best-effort, fire-and-forget)
+// ===========================================================================
+
+/**
+ * Record a security-relevant event (auth failure, lockout trip, authz denial,
+ * rate-limit rejection). Fire-and-forget — MUST NEVER throw. The Supabase backend
+ * inserts a row; the disk/dev backend just console.warns (no durable sink). Only
+ * opaque identifiers belong in `actor` (user id/email) — never passwords, tokens,
+ * hashes, or other secret values.
+ */
+interface SecurityEvent {
+  actor?: string;
+  ip?: string;
+  meta?: Record<string, unknown>;
+}
+
+export function logSecurityEvent(type: string, evt: SecurityEvent = {}): void {
+  // Cap `actor` at the single choke point so no call site can persist an
+  // unbounded value (e.g. a multi-KB string pasted into the email field) into
+  // the audit table. 200 chars is generous for an id/email and bounds the row.
+  const ACTOR_MAX = 200;
+  const actor =
+    typeof evt.actor === "string" && evt.actor.length > ACTOR_MAX
+      ? evt.actor.slice(0, ACTOR_MAX)
+      : evt.actor;
+  if (useSupabase) {
+    // Detach from the caller so a slow/failed insert can never block or reject.
+    void rel
+      .logSecurityEvent(type, { ...evt, actor })
+      .catch((e) =>
+        console.warn(
+          "security_events: insert failed (non-fatal) —",
+          e instanceof Error ? e.message : e,
+        ),
+      );
+    return;
+  }
+  console.warn(`security_event[${type}]`, {
+    actor,
+    ip: evt.ip,
+    meta: evt.meta,
   });
 }
