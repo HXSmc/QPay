@@ -196,7 +196,7 @@ export function OrderModal({
                     ...T.caption,
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
-                    color: C.faint,
+                    color: C.muted,
                     fontWeight: 800,
                     marginBottom: S[2],
                   }}
@@ -239,6 +239,7 @@ export function OrderModal({
                             value={line?.comment ?? ""}
                             onChange={(e) => setComment(it.id, e.target.value)}
                             placeholder={tr("Add a note, e.g. no cheese")}
+                            aria-label={tr("Add a note, e.g. no cheese")}
                             maxLength={160}
                             style={{ ...field(), marginTop: 12, fontSize: 13.5 }}
                           />
