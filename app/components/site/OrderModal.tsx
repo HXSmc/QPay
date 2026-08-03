@@ -270,7 +270,12 @@ export function OrderModal({
               ) : count === 0 ? (
                 tr("Choose items to order")
               ) : (
-                `${tr("Place order")}, ${count} ${count === 1 ? tr("item") : tr("items")}, ${fmt(total, currency)}`
+                (count === 1
+                  ? tr("Place order, {count} item, {total}")
+                  : tr("Place order, {count} items, {total}")
+                )
+                  .replace("{count}", String(count))
+                  .replace("{total}", () => fmt(total, currency))
               )}
             </button>
           </div>

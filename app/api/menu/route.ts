@@ -12,7 +12,7 @@ import {
   UPLOAD_DIR,
 } from "@/app/lib/store";
 import type { Scope } from "@/app/lib/store";
-import { isSameOrigin } from "@/app/lib/auth";
+import { isSameOrigin, signMenuPath, verifyMenuPathSig } from "@/app/lib/auth";
 import { rateLimit } from "@/app/lib/ratelimit";
 import {
   deleteMenuObject,
@@ -53,6 +53,46 @@ async function removeFile(meta: MenuMeta | null) {
     await fs
       .rm(path.join(UPLOAD_DIR, meta.filename), { force: true })
       .catch(() => {});
+  }
+}
+
+// Persist a menu (bucket object already landed — PUT or client-direct upload)
+// and reconcile storage so no object is left unreferenced. Shared by both
+// write paths (JSON confirm + multipart fallback) since both PUT-then-setMenu.
+//   - setMenu throws → the just-uploaded object is orphaned; compensating
+//     delete it and rethrow (bug-hunt finding #3).
+//   - setMenu succeeds → re-read the menu row and delete whichever object it
+//     does NOT point at. Normally that's `previous` (the replaced file); if a
+//     concurrent confirm/upload won the race, it's our own object instead —
+//     which also cleans up half of finding #2 (a DELETE landing between our
+//     write and this re-read leaves the row null, so we delete our own object
+//     rather than resurrect it).
+//   ponytail: best-effort re-read, not CAS — two writers can still interleave
+//   around the re-read itself and orphan one object (see bugs.md 2026-08-03).
+//   A real fix needs a generation/version column on `menus` (store-sb.ts +
+//   migration) or a sign→confirm token (app/lib/api.ts), both out of scope.
+async function persistMenu(
+  ownerId: string,
+  meta: MenuMeta,
+  branchId: string | null,
+  previous: MenuMeta | null,
+) {
+  try {
+    await setMenu(ownerId, meta, branchId);
+  } catch (err) {
+    await removeFile(meta);
+    throw err;
+  }
+  // The menu is already persisted at this point — a transient read failure
+  // here must never fail the request (that would look like a failed confirm
+  // to the client, which retries and re-uploads, orphaning THIS object: the
+  // exact leak this reconcile step exists to close). Worst case on a read
+  // failure: one unreferenced object left behind, never data loss.
+  try {
+    const current = await getMenu(ownerId, branchId);
+    await removeFile(current?.filename === meta.filename ? previous : meta);
+  } catch {
+    // leave both objects
   }
 }
 
@@ -110,6 +150,7 @@ export async function POST(req: Request) {
       mime?: string;
       size?: number;
       path?: string;
+      sig?: string;
       originalName?: string;
     } | null;
     if (!body) return NextResponse.json({ error: "bad body" }, { status: 400 });
@@ -130,10 +171,18 @@ export async function POST(req: Request) {
       // AUTHED owner's prefix here — it is untrusted client input and, unless
       // checked, lets any authed owner point deletes/URLs at another tenant's
       // objects (see isValidMenuStoragePath doc comment).
-      if (!body.path || !body.mime) {
+      if (!body.path || !body.mime || !body.sig) {
         return NextResponse.json({ error: "bad body" }, { status: 400 });
       }
       if (!isValidMenuStoragePath(body.path, scope.ownerId, body.mime)) {
+        return NextResponse.json({ error: "bad body" }, { status: 400 });
+      }
+      // Bind the persisted path to one the server actually minted in a prior
+      // `sign`: isValidMenuStoragePath can't tell two branches apart (a branch-
+      // admin's ownerId is the shared parent prefix), so without this a branch-
+      // admin could confirm ANOTHER branch's public object path and delete it.
+      // Only the server can produce a valid sig (it holds SESSION_SECRET).
+      if (!(await verifyMenuPathSig(body.path, body.sig))) {
         return NextResponse.json({ error: "bad body" }, { status: 400 });
       }
       const previous = await getMenu(scope.ownerId, branchId);
@@ -144,10 +193,8 @@ export async function POST(req: Request) {
         originalName: body.originalName || "menu",
         uploadedAt: new Date().toISOString(),
       };
-      // Persist the new menu BEFORE deleting the old file, so a failure can
-      // never leave the admin with no menu at all.
-      await setMenu(scope.ownerId, meta, branchId);
-      await removeFile(previous);
+      // Persist the new menu, then reconcile storage (see persistMenu doc).
+      await persistMenu(scope.ownerId, meta, branchId, previous);
       return NextResponse.json(meta);
     }
 
@@ -160,7 +207,19 @@ export async function POST(req: Request) {
         { status: 415 },
       );
     }
-    if (typeof body.size === "number" && body.size > MENU_MAX_BYTES) {
+    // ponytail: the bucket's 20 MB cap (migration 0014) is the real authority on
+    // the client-direct path — the server never proxies the bytes. This app-level
+    // pre-check only keeps it from being theatre, so it MUST be mandatory: reject
+    // a missing/non-positive size (omitting the field used to skip the check), not
+    // just one over the cap.
+    if (
+      typeof body.size !== "number" ||
+      !Number.isFinite(body.size) ||
+      body.size <= 0
+    ) {
+      return NextResponse.json({ error: "bad body" }, { status: 400 });
+    }
+    if (body.size > MENU_MAX_BYTES) {
       return NextResponse.json(
         { error: `file too large (max ${MENU_MAX_BYTES / (1024 * 1024)}MB)` },
         { status: 413 },
@@ -169,10 +228,14 @@ export async function POST(req: Request) {
     const id = crypto.randomUUID();
     const storagePath = menuStoragePath(scope.ownerId, id, ext);
     const uploadUrl = await signMenuUpload(storagePath);
+    // Mint a signature over the storage path so the later `confirm` can prove
+    // the server generated this path (see the verify check in the confirm branch).
+    const sig = await signMenuPath(storagePath);
     return NextResponse.json({
       path: storagePath,
       publicUrl: menuPublicUrl(storagePath),
       uploadUrl,
+      sig,
     });
   }
 
@@ -240,10 +303,8 @@ export async function POST(req: Request) {
     originalName: file.name,
     uploadedAt: new Date().toISOString(),
   };
-  // Persist the new menu BEFORE deleting the old file, so a failure can never
-  // leave the admin with no menu at all.
-  await setMenu(scope.ownerId, meta, branchId);
-  await removeFile(previous);
+  // Persist the new menu, then reconcile storage (see persistMenu doc).
+  await persistMenu(scope.ownerId, meta, branchId, previous);
   return NextResponse.json(meta);
 }
 

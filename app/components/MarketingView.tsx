@@ -316,7 +316,7 @@ export function MarketingView() {
               }}
             >
               {tr(
-                "QR payments for restaurants — turn tables faster, get paid before they leave."
+                "QR payments for restaurants. Turn tables faster, get paid before they leave."
               )}
             </h1>
             <p
@@ -1071,8 +1071,8 @@ export function MarketingView() {
             "@type": "FAQPage",
             mainEntity: FAQ_QA.map((item) => ({
               "@type": "Question",
-              name: item.q,
-              acceptedAnswer: { "@type": "Answer", text: item.a },
+              name: tr(item.q),
+              acceptedAnswer: { "@type": "Answer", text: tr(item.a) },
             })),
           }),
         }}

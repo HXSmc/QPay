@@ -26,6 +26,8 @@ export const ar: Record<string, string> = {
   "Sign out": "تسجيل الخروج",
   "Super Admin": "مسؤول رئيسي",
   Administrator: "مسؤول",
+  Manager: "مدير",
+  "Branch admin": "مسؤول الفرع",
 
   // Legal pages
   Legal: "قانوني",
@@ -53,7 +55,11 @@ export const ar: Record<string, string> = {
   "Page not found": "الصفحة غير موجودة",
   "The page you are looking for may have moved or no longer exists. Let us get you back on track.":
     "ربما تم نقل الصفحة التي تبحث عنها أو لم تعد موجودة. دعنا نعيدك إلى المسار الصحيح.",
-  "Back to home": "العودة إلى الصفحة الرئيسية",
+  // "Back to home" is intentionally NOT defined here - ar-admin.ts had a
+  // duplicate that silently won the later-spread merge in i18n.ts even
+  // though no admin page uses this key. ar-common.ts is the sole owner
+  // (every real caller - /demo, /contact, /privacy, /terms, not-found - is
+  // a non-admin page); ar-marketing.ts's identical duplicate was removed too.
 
   // Settings page ("Settings" key is already defined in the sidebar nav above)
   "Restaurant profile and payment preferences.": "ملف المطعم وتفضيلات الدفع.",

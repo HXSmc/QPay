@@ -1132,7 +1132,9 @@ export function CustomerView({
                                 </div>
                                 <div style={{ fontSize: 12, color: C.muted, fontWeight: 500 }}>
                                   {isMulti
-                                    ? `${it.qty} ${tr("at")} ${fmt(unitPrice(i), currency)} ${tr("each")}`
+                                    ? tr("{qty} at {price} each")
+                                        .replace("{qty}", String(it.qty))
+                                        .replace("{price}", () => fmt(unitPrice(i), currency))
                                     : fmt(it.price, currency)}
                                   {paidU > 0 ? `, ${paidU} ${tr("paid")}` : ""}
                                   {heldOther > 0 ? `, ${heldOther} ${tr("held")}` : ""}

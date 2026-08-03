@@ -11,12 +11,12 @@ export async function generateMetadata() {
     ? {
         title: "سياسة الخصوصية · نقرة",
         description:
-          "كيف تجمع نقرة بيانات المطاعم ورواد المطعم وتستخدمها وتحميها — أقل قدر من البيانات، دون بيعها، بما يراعي نظام حماية البيانات الشخصية.",
+          "كيف تجمع نقرة بيانات المطاعم ورواد المطعم وتستخدمها وتحميها، أقل قدر من البيانات، دون بيعها، بما يراعي نظام حماية البيانات الشخصية.",
       }
     : {
         title: "Privacy policy · Nuqra",
         description:
-          "How Nuqra collects, uses, and protects restaurant and diner data — minimal data, no selling, PDPL-aware.",
+          "How Nuqra collects, uses, and protects restaurant and diner data, minimal data, no selling, PDPL-aware.",
       };
 }
 

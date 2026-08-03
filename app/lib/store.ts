@@ -537,6 +537,12 @@ export async function authedUser(req: Request): Promise<AdminUser | null> {
   };
   const session = await getSession(req);
   if (!session) return null;
+  // Logout revocation: a token minted with a jti is rejected once that jti is on
+  // the denylist (logout inserts it). A captured pre-logout cookie replayed after
+  // logout is denied here even though its own 8h exp has not elapsed. Legacy
+  // tokens without a jti skip this (they age out at exp).
+  if (session.jti && (await isSessionRevoked(session.jti)))
+    return deny("revoked", session.sub);
   const u = await getUserById(session.sub);
   if (!u || u.role !== session.role) return deny("account_missing_or_role_mismatch", session.sub);
   if (isExpired(u)) return deny("expired", u.id); // trial lapsed → no access
@@ -1485,6 +1491,33 @@ export async function updateOrderStatus(
     o.status = status;
     return { result: o, write: true };
   });
+}
+
+// ===========================================================================
+// SESSION REVOCATION (logout denylist)
+// ===========================================================================
+
+// Dev-only in-memory revoked-jti set. Coherent with the disk backend: dev
+// sessions already die on server restart (the dev signing secret regenerates,
+// invalidating every outstanding token), so an in-memory denylist needs no
+// persistence here. The relational backend (store-sb.ts) persists to
+// revoked_sessions so revocation survives across serverless instances.
+const revokedJtis = new Set<string>();
+
+/**
+ * Revoke a session by its jti (logout). Idempotent. `expMs` is the token's own
+ * expiry, stored as TTL so the denylist self-prunes. Best-effort on the
+ * relational backend — a write failure must not block the cookie clear.
+ */
+export async function revokeSession(jti: string, expMs: number): Promise<void> {
+  if (useSupabase) return rel.revokeSession(jti, expMs);
+  revokedJtis.add(jti);
+}
+
+/** True iff `jti` has been revoked (checked in authedUser on every request). */
+export async function isSessionRevoked(jti: string): Promise<boolean> {
+  if (useSupabase) return rel.isSessionRevoked(jti);
+  return revokedJtis.has(jti);
 }
 
 // ===========================================================================

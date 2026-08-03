@@ -33,7 +33,7 @@ const SITE_DESCRIPTION_EN =
   "Turn tables faster with QR payments. Diners scan, split, tip, and pay in under 30 seconds.";
 const SITE_TITLE_AR = "نقرة · مدفوعات QR للمطاعم";
 const SITE_DESCRIPTION_AR =
-  "أدِر طاولاتك بسرعة أكبر مع الدفع عبر QR — العملاء يمسحون، يقسمون الحساب، يضيفون البقشيش ويدفعون في أقل من ٣٠ ثانية.";
+  "أدِر طاولاتك بسرعة أكبر مع الدفع عبر QR، العملاء يمسحون، يقسمون الحساب، يضيفون البقشيش ويدفعون في أقل من ٣٠ ثانية.";
 
 // Reads x-locale/x-pathname (set by middleware — see middleware.ts) so every
 // route gets a correct canonical URL, hreflang alternates, and localized

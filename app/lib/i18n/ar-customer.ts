@@ -69,6 +69,10 @@ export const ar: Record<string, string> = {
   paid: "مدفوع",
   held: "محجوز",
   Held: "محجوز",
+  // Whole-sentence templates (placeholders substituted after lookup) instead
+  // of gluing translated fragments - Arabic word order/agreement doesn't
+  // survive fragment concatenation the way English does.
+  "{qty} at {price} each": "{qty} بسعر {price} للوحدة",
 
   // Tip
   "Add a tip": "أضف إكرامية",
@@ -95,7 +99,9 @@ export const ar: Record<string, string> = {
   "No menu uploaded yet": "لم يتم رفع قائمة بعد",
   "The restaurant hasn't added a menu.": "لم يضف المطعم قائمة بعد.",
   "Menu PDF": "قائمة PDF",
-  Zoom: "تكبير",
+  // "Zoom" is the aria-label for the whole zoom control group (distinct from
+  // the "Zoom in" button below) - must read differently for screen readers.
+  Zoom: "التحكم بالتكبير",
   "Zoom out": "تصغير",
   "Reset zoom": "إعادة ضبط التكبير",
   "Zoom in": "تكبير",
@@ -110,4 +116,12 @@ export const ar: Record<string, string> = {
   item: "صنف",
   items: "أصناف",
   Add: "إضافة",
+  // Whole-sentence templates for the "Place order" CTA (see note above on
+  // the qty/price template). ceiling: binary singular/plural split only,
+  // matches the existing English count===1 ternary - "{count} أصناف" is
+  // correct MSA for 3-10 items but not for the dual (2) or 11+ (which need
+  // "صنفان" / "صنفًا"). Upgrade to real Arabic numeral-noun agreement if a
+  // plural-rules helper is ever added.
+  "Place order, {count} item, {total}": "إرسال الطلب، صنف واحد، {total}",
+  "Place order, {count} items, {total}": "إرسال الطلب، {count} أصناف، {total}",
 };

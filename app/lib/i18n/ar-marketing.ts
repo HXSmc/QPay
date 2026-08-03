@@ -1,8 +1,8 @@
 // Arabic translations for the marketing surface. Keyed by English source string.
 export const ar: Record<string, string> = {
   // Hero
-  "QR payments for restaurants — turn tables faster, get paid before they leave.":
-    "مدفوعات QR للمطاعم — أدِر طاولاتك بسرعة أكبر واستلم أموالك قبل مغادرتهم.",
+  "QR payments for restaurants. Turn tables faster, get paid before they leave.":
+    "مدفوعات QR للمطاعم. أدِر طاولاتك بسرعة أكبر واستلم أموالك قبل مغادرتهم.",
   "Diners scan, split, tip, and pay in under 30 seconds. No app, no waiting on the check.":
     "يمسح الضيوف رمز QR، يقسّمون الفاتورة، يضيفون الإكرامية، ويدفعون في أقل من 30 ثانية. بلا تطبيق وبلا انتظار للفاتورة.",
   "Get a free demo": "احصل على عرض توضيحي مجاني",
@@ -181,7 +181,8 @@ export const ar: Record<string, string> = {
   "Request a callback": "اطلب معاودة الاتصال",
   "Share a few details and we'll reach out at a time that suits you.":
     "شاركنا بعض التفاصيل وسنتواصل معك في الوقت المناسب لك.",
-  "Back to home": "العودة إلى الرئيسية",
+  // "Back to home" removed - identical duplicate of ar-common.ts, which is
+  // the sole owner (see note in ar-admin.ts for why the collision mattered).
   "Phone number": "رقم الهاتف",
   "Email (optional)": "البريد الإلكتروني (اختياري)",
   "Best dates and times to reach you": "أفضل المواعيد للتواصل معك",

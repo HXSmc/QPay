@@ -38,3 +38,6 @@ next-env.d.ts
 *.md
 .vercel
 .env*
+
+# scratch audit output (find-only, not part of the product)
+ui-slop.md

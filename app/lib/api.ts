@@ -338,9 +338,10 @@ async function trySignedUpload(
     throw new Error(await errMsg(signRes));
   }
   if (!signRes.ok) return null; // sign endpoint unavailable → multipart fallback
-  const { uploadUrl, path } = (await signRes.json()) as {
+  const { uploadUrl, path, sig } = (await signRes.json()) as {
     uploadUrl: string;
     path: string;
+    sig: string;
   };
 
   // 2. PUT the bytes straight to Supabase with upload progress (XHR).
@@ -362,6 +363,7 @@ async function trySignedUpload(
     body: JSON.stringify({
       action: "confirm",
       path,
+      sig,
       mime: file.type,
       originalName: file.name,
     }),

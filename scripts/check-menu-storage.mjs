@@ -14,6 +14,8 @@
 //     the authed owner's own `<uuid-v4>.<ext-for-mime>` path — rejects a foreign
 //     owner prefix, `../` traversal, and a mismatched extension/MIME
 
+import { createHmac } from "node:crypto";
+
 const MENUS_BUCKET = "menus";
 
 const MENU_MIME_EXT = {
@@ -61,6 +63,27 @@ function isValidMenuStoragePath(storagePath, ownerId, mime) {
   const id = rest.slice(0, dot);
   const gotExt = rest.slice(dot + 1);
   return gotExt === ext && UUID_V4.test(id);
+}
+
+// --- Menu-path signature (mirrors app/lib/auth.ts signMenuPath/verifyMenuPathSig) ---
+// HMAC-SHA256 over `menu:<storagePath>` under the session signing secret, base64url
+// (no padding) — same transform auth.ts's `sign()` + `b64url()` produce. Used to bind
+// the confirm path to one the server minted in a prior sign: a branch-admin shares
+// its parent's owner prefix, so isValidMenuStoragePath alone can't stop it confirming
+// another branch's object path. Only the server (holding SESSION_SECRET) can mint a
+// valid sig. A divergence here from auth.ts is a signal to reconcile.
+const TEST_SECRET = "test-session-secret";
+function signMenuPath(storagePath, secret = TEST_SECRET) {
+  return createHmac("sha256", secret).update(`menu:${storagePath}`).digest("base64url");
+}
+function safeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+function verifyMenuPathSig(storagePath, sig, secret = TEST_SECRET) {
+  return safeEqual(signMenuPath(storagePath, secret), sig);
 }
 
 function assert(cond, msg) {
@@ -152,6 +175,69 @@ function main() {
     isValidMenuStoragePath(`${ownerId}/${uuid}.exe`, ownerId, "application/x-msdownload") ===
       false,
     "disallowed mime (no ext mapping) → rejected",
+  );
+
+  console.log("persistMenu storage-reconcile chooser (route.ts) — deletes the");
+  console.log("object the menus row does NOT point at, never the live one:");
+  // Mirrors `current?.filename === meta.filename ? previous : meta` from
+  // app/api/menu/route.ts's persistMenu. A divergence here is a signal to
+  // reconcile the two — inverting that ternary deletes the LIVE object.
+  function chooseOrphan(current, meta, previous) {
+    return current?.filename === meta.filename ? previous : meta;
+  }
+  const meta = { filename: "owner/new.jpg" };
+  const previous = { filename: "owner/old.jpg" };
+  assert(
+    chooseOrphan(meta, meta, previous) === previous,
+    "won the race (row points at ours) → delete the replaced object",
+  );
+  assert(
+    chooseOrphan({ filename: "owner/other.jpg" }, meta, previous) === meta,
+    "lost the race (row points elsewhere) → delete our own upload",
+  );
+  assert(
+    chooseOrphan(null, meta, previous) === meta,
+    "row is null (deleted mid-flight, SUCCESSFUL read) → delete our own upload, no resurrection",
+  );
+  // NOTE: null here means a successful read that found no row — route.ts wraps
+  // the real getMenu call in try/catch and skips reconcile entirely on a
+  // FAILED read (never coerces the error to null, which would hit this same
+  // branch and delete the live object instead of a leaked one).
+
+  console.log("Confirm-endpoint path signature (binds confirm to a server-minted");
+  console.log("path — stops a branch-admin confirming/deleting another branch's object):");
+  const ownerA = "manager-1";
+  const ownerB = "manager-2";
+  const branchAPath = `${ownerA}/${uuid}.jpg`;
+  const branchBPath = `${ownerB}/${uuid}.jpg`;
+  const sigA = signMenuPath(branchAPath);
+  assert(
+    verifyMenuPathSig(branchAPath, sigA) === true,
+    "server-minted sig verifies against its own path",
+  );
+  assert(
+    verifyMenuPathSig(branchAPath, signMenuPath(branchBPath)) === false,
+    "sig for branch B's path does NOT verify for branch A's path (cross-branch confirm rejected)",
+  );
+  assert(
+    verifyMenuPathSig(`${ownerA}/${uuid}.png`, sigA) === false,
+    "path tampered after signing (jpg→png) → rejected",
+  );
+  assert(
+    verifyMenuPathSig(branchAPath, "forged-by-attacker") === false,
+    "a sig the server did not mint (forgery) → rejected",
+  );
+  assert(
+    verifyMenuPathSig(branchAPath, signMenuPath(branchAPath, "wrong-secret")) === false,
+    "sig minted under a different secret → rejected",
+  );
+  // A branch-admin's scope.ownerId is its parent manager id, so both branches in
+  // a chain share one owner prefix — the sig is the ONLY thing distinguishing
+  // them (isValidMenuStoragePath accepts BOTH under the shared prefix).
+  assert(
+    isValidMenuStoragePath(branchBPath, ownerA, "image/jpeg") === false &&
+      isValidMenuStoragePath(branchBPath, ownerB, "image/jpeg") === true,
+    "defence-in-depth: isValidMenuStoragePath still rejects a foreign owner prefix",
   );
 
   console.log(process.exitCode ? "\nFAIL" : "\nOK");

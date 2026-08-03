@@ -1582,3 +1582,44 @@ export async function logSecurityEvent(
   });
   if (error) throw new Error(`store: security_events insert failed — ${error.message}`);
 }
+
+// ---------------------------------------------------------------------------
+// Session revocation (logout denylist — see migration 0017_revoked_sessions)
+// ---------------------------------------------------------------------------
+
+function isRevokedTableMissing(error: { code?: string; message?: string }): boolean {
+  return (
+    (error.code === "PGRST205" || error.code === "42P01") &&
+    /revoked_sessions/i.test(error.message ?? "")
+  );
+}
+
+/**
+ * Opportunistic sweep of expired rows, then insert the revoked jti with the
+ * token's own expiry as TTL. Tolerates a not-yet-migrated DB (a missing
+ * denylist can't block logout; the cookie clear still happens regardless).
+ */
+export async function revokeSession(jti: string, expMs: number): Promise<void> {
+  const client = await sb();
+  await client.from("revoked_sessions").delete().lt("expires_at", Date.now());
+  const { error } = await client
+    .from("revoked_sessions")
+    .upsert({ jti, expires_at: expMs });
+  if (error && !isRevokedTableMissing(error))
+    throw new Error(`store: revoke write failed — ${error.message}`);
+}
+
+/** True iff `jti` is on the denylist. A missing table reads as "not revoked". */
+export async function isSessionRevoked(jti: string): Promise<boolean> {
+  const client = await sb();
+  const { data, error } = await client
+    .from("revoked_sessions")
+    .select("jti")
+    .eq("jti", jti)
+    .maybeSingle();
+  if (error) {
+    if (isRevokedTableMissing(error)) return false;
+    throw new Error(`store: revoke read failed — ${error.message}`);
+  }
+  return !!data;
+}

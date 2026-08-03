@@ -210,6 +210,12 @@ export interface Session {
   /** Expiry, ms epoch. */
   exp: number;
   /**
+   * Per-session id (optional for tokens minted before this field existed). Every
+   * login mints a fresh random jti; logout puts it on a denylist authedUser
+   * checks, so a captured pre-logout cookie is rejected even before its 8h exp.
+   */
+  jti?: string;
+  /**
    * Password-binding fingerprint (optional for legacy tokens). Tokens minted at
    * login carry a short HMAC of the account's password hash; authedUser rejects
    * the token if it no longer matches, so a password reset revokes every
@@ -227,14 +233,41 @@ export async function passwordFingerprint(passwordHash: string): Promise<string>
   return (await sign(`pv:${passwordHash}`)).slice(0, 16);
 }
 
+/**
+ * HMAC over a menu-storage object path under the session signing secret. Minted
+ * in the menu `sign` action and verified in `confirm`, binding the persisted
+ * path to one the server actually generated. Without it, isValidMenuStoragePath
+ * alone can't tell two branches apart — a branch-admin's `scope.ownerId` is the
+ * shared manager/parent prefix, so every branch's object path shares one prefix
+ * and an authed branch-admin could confirm ANOTHER branch's object path (which
+ * is public — it's embedded in that branch's menu URL) and delete it. Only the
+ * server can mint a valid sig (it holds SESSION_SECRET), so confirm rejects any
+ * path the server did not sign in a prior `sign`. isValidMenuStoragePath stays
+ * as defence-in-depth.
+ */
+export async function signMenuPath(storagePath: string): Promise<string> {
+  return sign(`menu:${storagePath}`);
+}
+
+/** Constant-time verify of a menu-path signature minted by signMenuPath. */
+export async function verifyMenuPathSig(
+  storagePath: string,
+  sig: string,
+): Promise<boolean> {
+  return safeEqual(await signMenuPath(storagePath), sig);
+}
+
 /** Mint a signed session token for a user. */
 export async function createSessionToken(
   sub: string,
   role: Role,
   pv?: string,
 ): Promise<string> {
+  const jti = b64url(crypto.getRandomValues(new Uint8Array(16)));
   const payload = b64url(
-    enc.encode(JSON.stringify({ sub, role, exp: Date.now() + TTL_MS, ...(pv ? { pv } : {}) })),
+    enc.encode(
+      JSON.stringify({ sub, role, exp: Date.now() + TTL_MS, jti, ...(pv ? { pv } : {}) }),
+    ),
   );
   return `${payload}.${await sign(payload)}`;
 }
@@ -265,11 +298,17 @@ export async function verifySession(
     return null;
   }
   if (!data || typeof data !== "object") return null;
-  const { sub, role, exp, pv } = data as Record<string, unknown>;
+  const { sub, role, exp, pv, jti } = data as Record<string, unknown>;
   if (typeof sub !== "string" || !sub) return null;
   if (role !== "super" && role !== "manager" && role !== "admin") return null;
   if (typeof exp !== "number" || exp < Date.now()) return null;
-  return { sub, role, exp, ...(typeof pv === "string" ? { pv } : {}) };
+  return {
+    sub,
+    role,
+    exp,
+    ...(typeof pv === "string" ? { pv } : {}),
+    ...(typeof jti === "string" ? { jti } : {}),
+  };
 }
 
 /** Constant-time equality for opaque tokens (e.g. the per-table capability). */
