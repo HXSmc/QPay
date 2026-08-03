@@ -14,7 +14,17 @@ import {
 import type { Scope } from "@/app/lib/store";
 import { isSameOrigin } from "@/app/lib/auth";
 import { rateLimit } from "@/app/lib/ratelimit";
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import {
+  deleteMenuObject,
+  isValidMenuStoragePath,
+  menuExtForMime,
+  menuPublicUrl,
+  menuStoragePath,
+  MENU_MAX_BYTES,
+  putMenuObject,
+  signMenuUpload,
+  useSupabase,
+} from "@/app/lib/supabase";
 import type { MenuMeta } from "@/app/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -32,24 +42,13 @@ async function targetBranch(scope: Scope, req: Request): Promise<string | null> 
   return null;
 }
 
-const EXT: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-  "application/pdf": "pdf",
-};
-
-const ALLOWED_TYPES = Object.keys(EXT);
-const MAX_BYTES = 20 * 1024 * 1024; // 20 MB upload cap (client-direct upload)
-
-const useBlob = !!process.env.BLOB_READ_WRITE_TOKEN;
-
+// Delete a previous menu file. For Supabase storage the object path is stored
+// in meta.filename (makes deletes cheap — no URL parsing); for the local-disk
+// dev fallback meta.filename is the bare disk name.
 async function removeFile(meta: MenuMeta | null) {
   if (!meta) return;
-  if (useBlob) {
-    const { del } = await import("@vercel/blob");
-    await del(meta.url).catch(() => {});
+  if (useSupabase) {
+    await deleteMenuObject(meta.filename).catch(() => {});
   } else {
     await fs
       .rm(path.join(UPLOAD_DIR, meta.filename), { force: true })
@@ -93,90 +92,104 @@ export async function POST(req: Request) {
 
   const contentType = req.headers.get("content-type") || "";
 
-  // Client-direct upload (prod): the browser uploads straight to Vercel Blob,
-  // bypassing the 4.5MB serverless request-body limit that blocked larger menu
-  // PDFs/photos. This route only (a) mints a scoped upload token after auth, and
-  // (b) persists the menu metadata when the upload finishes.
-  if (useBlob && contentType.includes("application/json")) {
-    const body = (await req.json().catch(() => null)) as HandleUploadBody | null;
-    if (!body) return NextResponse.json({ error: "bad body" }, { status: 400 });
-    try {
-      const result = await handleUpload({
-        body,
-        request: req,
-        onBeforeGenerateToken: async (_pathname, clientPayload) => {
-          // Auth is enforced HERE — only a signed-in admin can get a token.
-          const user = await authedUser(req);
-          if (!user) throw new Error("unauthorized");
-          const scope = scopeFor(user);
-          const branchId = await targetBranch(scope, req);
-          const originalName =
-            (() => {
-              try {
-                return (JSON.parse(clientPayload || "{}") as { originalName?: string })
-                  .originalName;
-              } catch {
-                return undefined;
-              }
-            })() || "menu";
-          return {
-            allowedContentTypes: ALLOWED_TYPES,
-            maximumSizeInBytes: MAX_BYTES,
-            addRandomSuffix: true,
-            // Persist the resolved (owner, branch) so the completion hook writes
-            // the menu to the right per-branch slot.
-            tokenPayload: JSON.stringify({
-              userId: scope.ownerId,
-              branchId,
-              originalName,
-            }),
-          };
-        },
-        onUploadCompleted: async ({ blob, tokenPayload }) => {
-          // Fired server-to-server by Vercel Blob after the upload lands.
-          const { userId, branchId, originalName } = JSON.parse(
-            tokenPayload || "{}",
-          ) as {
-            userId: string;
-            branchId: string | null;
-            originalName: string;
-          };
-          const previous = await getMenu(userId, branchId);
-          await setMenu(
-            userId,
-            {
-              filename: blob.pathname,
-              url: blob.url,
-              mime: blob.contentType || "application/octet-stream",
-              originalName: originalName || "menu",
-              uploadedAt: new Date().toISOString(),
-            },
-            branchId,
-          );
-          await removeFile(previous);
-        },
-      });
-      return NextResponse.json(result);
-    } catch (e) {
+  // JSON body → Supabase Storage client-direct upload protocol (prod). The
+  // browser uploads straight to Supabase via a server-minted signed upload URL,
+  // bypassing the 4.5MB serverless request-body limit. This route only
+  // (a) mints a signed URL after auth, and (b) persists metadata on confirm.
+  if (contentType.includes("application/json")) {
+    if (!useSupabase) {
+      // No Supabase configured (local dev) — signal the client to use the
+      // multipart disk fallback instead of bouncing through a 400.
       return NextResponse.json(
-        { error: e instanceof Error ? e.message : "upload failed" },
-        { status: 400 },
+        { error: "storage not configured" },
+        { status: 503 },
       );
     }
+    const body = (await req.json().catch(() => null)) as {
+      action?: "sign" | "confirm";
+      mime?: string;
+      size?: number;
+      path?: string;
+      originalName?: string;
+    } | null;
+    if (!body) return NextResponse.json({ error: "bad body" }, { status: 400 });
+
+    // Auth is enforced HERE for both actions — only a signed-in admin can mint
+    // a signed URL or persist a menu.
+    const user = await authedUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+    const scope = scopeFor(user);
+    const branchId = await targetBranch(scope, req);
+
+    if (body.action === "confirm") {
+      // Upload landed in Supabase; persist the storage path (→ meta.filename,
+      // cheap later delete) and derive the public URL from it server-side,
+      // replacing the old menu. `body.path` MUST be revalidated against the
+      // AUTHED owner's prefix here — it is untrusted client input and, unless
+      // checked, lets any authed owner point deletes/URLs at another tenant's
+      // objects (see isValidMenuStoragePath doc comment).
+      if (!body.path || !body.mime) {
+        return NextResponse.json({ error: "bad body" }, { status: 400 });
+      }
+      if (!isValidMenuStoragePath(body.path, scope.ownerId, body.mime)) {
+        return NextResponse.json({ error: "bad body" }, { status: 400 });
+      }
+      const previous = await getMenu(scope.ownerId, branchId);
+      const meta: MenuMeta = {
+        filename: body.path,
+        url: menuPublicUrl(body.path),
+        mime: body.mime,
+        originalName: body.originalName || "menu",
+        uploadedAt: new Date().toISOString(),
+      };
+      // Persist the new menu BEFORE deleting the old file, so a failure can
+      // never leave the admin with no menu at all.
+      await setMenu(scope.ownerId, meta, branchId);
+      await removeFile(previous);
+      return NextResponse.json(meta);
+    }
+
+    // Default action: mint a signed upload URL for the authed owner.
+    const mime = body.mime ?? "";
+    const ext = menuExtForMime(mime);
+    if (!ext) {
+      return NextResponse.json(
+        { error: "unsupported type (image or pdf only)" },
+        { status: 415 },
+      );
+    }
+    if (typeof body.size === "number" && body.size > MENU_MAX_BYTES) {
+      return NextResponse.json(
+        { error: `file too large (max ${MENU_MAX_BYTES / (1024 * 1024)}MB)` },
+        { status: 413 },
+      );
+    }
+    const id = crypto.randomUUID();
+    const storagePath = menuStoragePath(scope.ownerId, id, ext);
+    const uploadUrl = await signMenuUpload(storagePath);
+    return NextResponse.json({
+      path: storagePath,
+      publicUrl: menuPublicUrl(storagePath),
+      uploadUrl,
+    });
   }
 
-  // Multipart fallback (local dev / no Blob token): small files via the server.
+  // Multipart fallback: small files via the server (local-dev disk, or the
+  // client's fallback path when the signed-URL flow is unavailable). On
+  // Supabase this does a server-side put to the same path scheme.
   const user = await authedUser(req);
   if (!user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  // On Vercel the filesystem is read-only, so without a Blob store there is no
+  // On Vercel the filesystem is read-only, so without Supabase there is no
   // place to persist an upload — fail with a clear message instead of a 500.
-  if (!useBlob && process.env.VERCEL) {
+  if (!useSupabase && process.env.VERCEL) {
     return NextResponse.json(
       {
         error:
-          "menu storage is not configured — add a Vercel Blob store (BLOB_READ_WRITE_TOKEN) to enable uploads",
+          "menu storage is not configured — set SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY to enable uploads",
       },
       { status: 503 },
     );
@@ -186,16 +199,16 @@ export async function POST(req: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "no file" }, { status: 400 });
   }
-  const ext = EXT[file.type];
+  const ext = menuExtForMime(file.type);
   if (!ext) {
     return NextResponse.json(
       { error: "unsupported type (image or pdf only)" },
       { status: 415 },
     );
   }
-  if (file.size > MAX_BYTES) {
+  if (file.size > MENU_MAX_BYTES) {
     return NextResponse.json(
-      { error: `file too large (max ${MAX_BYTES / (1024 * 1024)}MB)` },
+      { error: `file too large (max ${MENU_MAX_BYTES / (1024 * 1024)}MB)` },
       { status: 413 },
     );
   }
@@ -203,20 +216,20 @@ export async function POST(req: Request) {
   const scope = scopeFor(user);
   const branchId = await targetBranch(scope, req);
   const previous = await getMenu(scope.ownerId, branchId);
-  const filename = `menu-${scope.ownerId}-${Date.now()}.${ext}`;
-  const bytes = Buffer.from(await file.arrayBuffer());
+  const bytes = await file.arrayBuffer();
 
   let url: string;
-  if (useBlob) {
-    const { put } = await import("@vercel/blob");
-    const blob = await put(`menu/${filename}`, bytes, {
-      access: "public",
-      contentType: file.type,
-    });
-    url = blob.url;
+  let filename: string;
+  if (useSupabase) {
+    const id = crypto.randomUUID();
+    const storagePath = menuStoragePath(scope.ownerId, id, ext);
+    await putMenuObject(storagePath, bytes, file.type);
+    url = menuPublicUrl(storagePath);
+    filename = storagePath; // store the path → cheap later delete
   } else {
+    filename = `menu-${scope.ownerId}-${Date.now()}.${ext}`;
     await fs.mkdir(UPLOAD_DIR, { recursive: true });
-    await fs.writeFile(path.join(UPLOAD_DIR, filename), bytes);
+    await fs.writeFile(path.join(UPLOAD_DIR, filename), Buffer.from(bytes));
     url = `/uploads/${filename}`;
   }
 

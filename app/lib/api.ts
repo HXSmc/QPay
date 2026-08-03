@@ -278,37 +278,122 @@ export async function uploadMenu(
   // Shrink big phone photos (and convert HEIC→JPEG) before sending so uploads
   // don't crawl on mobile data.
   file = await downscaleImage(file);
-  // Prod path: upload straight to Vercel Blob (no 4.5MB serverless body cap).
-  // The /api/menu route mints a scoped token (after auth) and persists the meta.
+  // Prod path: client-direct upload to Supabase Storage via a server-minted
+  // signed upload URL (no 4.5MB serverless body cap). Sign → PUT bytes straight
+  // to Supabase (XHR, with upload progress) → confirm (persist metadata).
+  const signed = await trySignedUpload(file, onProgress, branchQs);
+  if (signed) return signed;
+  // Fallback: server multipart (local-dev disk, or sign endpoint unavailable).
+  const fd = new FormData();
+  fd.append("file", file);
+  return json(await fetch(`/api/menu${branchQs}`, { method: "POST", body: fd }));
+}
+
+/** Surface the server's {error} message for a failed response. */
+async function errMsg(res: Response): Promise<string> {
+  let msg = `${res.status} ${res.statusText}`;
   try {
-    const { upload } = await import("@vercel/blob/client");
-    const blob = await upload(`menu/${file.name}`, file, {
-      access: "public",
-      handleUploadUrl: `/api/menu${branchQs}`,
-      contentType: file.type,
-      clientPayload: JSON.stringify({ originalName: file.name }),
-      onUploadProgress: onProgress
-        ? (p: { percentage: number }) => onProgress(Math.round(p.percentage))
-        : undefined,
+    const body = (await res.json()) as { error?: string };
+    if (body?.error) msg = body.error;
+  } catch {
+    /* non-JSON body — keep the status line */
+  }
+  return msg;
+}
+
+/**
+ * Client-direct signed-URL upload. Returns the persisted MenuMeta on success,
+ * or null to signal the caller to fall back to the server multipart path
+ * (network error / sign endpoint unavailable / non-validation PUT failure).
+ * Validation + auth rejections are thrown (not silently fallen back from).
+ */
+async function trySignedUpload(
+  file: File,
+  onProgress: ((pct: number) => void) | undefined,
+  branchQs: string,
+): Promise<MenuMeta | null> {
+  // 1. Mint a signed upload URL (server enforces auth + type/size).
+  let signRes: Response;
+  try {
+    signRes = await fetch(`/api/menu${branchQs}`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        action: "sign",
+        mime: file.type,
+        size: file.size,
+        originalName: file.name,
+      }),
     });
-    return {
-      filename: blob.pathname,
-      url: blob.url,
+  } catch {
+    return null; // network error → multipart fallback
+  }
+  // Validation/auth rejections must surface (a fallback path would reject too).
+  if (
+    signRes.status === 401 ||
+    signRes.status === 403 ||
+    signRes.status === 413 ||
+    signRes.status === 415
+  ) {
+    throw new Error(await errMsg(signRes));
+  }
+  if (!signRes.ok) return null; // sign endpoint unavailable → multipart fallback
+  const { uploadUrl, path } = (await signRes.json()) as {
+    uploadUrl: string;
+    path: string;
+  };
+
+  // 2. PUT the bytes straight to Supabase with upload progress (XHR).
+  try {
+    await putBytes(uploadUrl, file, onProgress);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    // Storage-side validation (mime/size enforced at the bucket) must surface;
+    // transient failures fall back to multipart (which proxies small bytes).
+    if (/415|413|payload too large|mime|not allowed/i.test(msg)) throw e;
+    return null;
+  }
+
+  // 3. Confirm: persist the storage path server-side (the server derives the
+  // public URL from the validated path — it does not trust a client-sent URL).
+  const confirmRes = await fetch(`/api/menu${branchQs}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      action: "confirm",
+      path,
       mime: file.type,
       originalName: file.name,
-      uploadedAt: new Date().toISOString(),
-    };
-  } catch (e) {
-    // Genuine rejections (auth / unsupported type / too large) must surface.
-    const msg = e instanceof Error ? e.message : "";
-    if (/unauthorized|content type|too large|maximum|not allowed/i.test(msg)) {
-      throw e;
+    }),
+  });
+  if (!confirmRes.ok) throw new Error(await errMsg(confirmRes));
+  return (await confirmRes.json()) as MenuMeta;
+}
+
+/** PUT file bytes to a signed Supabase URL with XHR upload progress events. */
+function putBytes(
+  url: string,
+  file: File,
+  onProgress: ((pct: number) => void) | undefined,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", file.type);
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      };
     }
-    // Otherwise fall back to the server multipart path (local dev / no Blob).
-    const fd = new FormData();
-    fd.append("file", file);
-    return json(await fetch(`/api/menu${branchQs}`, { method: "POST", body: fd }));
-  }
+    xhr.onerror = () => reject(new Error("upload failed"));
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`upload failed (${xhr.status})`));
+    };
+    xhr.send(file);
+  });
 }
 
 export async function deleteMenu(branchId?: string): Promise<void> {
