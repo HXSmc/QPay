@@ -1,0 +1,23 @@
+# Nuqra
+
+> Nuqra (نقرة) is QR scan-to-pay for restaurants in Saudi Arabia and the Gulf.
+
+Diners scan a QR code at their table, view the bill, split it any way they
+like, add a tip, and pay — no app download required.
+
+Restaurants pay a flat fee per branch, not a percentage of the bill total.
+
+Nuqra is Arabic-first: both the diner-facing flow and the admin dashboard
+support Arabic and English, with full RTL layout.
+
+Nuqra runs alongside a restaurant's existing POS system rather than
+replacing it.
+
+A 7-day free trial with no card required is available at
+https://nuqra.org/demo.
+
+## Pages
+
+- https://nuqra.org — product overview
+- https://nuqra.org/demo — start a free trial
+- https://nuqra.org/contact — talk to sales

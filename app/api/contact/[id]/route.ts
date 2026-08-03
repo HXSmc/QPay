@@ -7,6 +7,7 @@ import {
 } from "@/app/lib/store";
 import { sendManagerReply } from "@/app/lib/email";
 import { SITE } from "@/app/lib/site";
+import { clientIp, rateLimit } from "@/app/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +25,9 @@ export async function PATCH(
   const user = await authedUser(req);
   if (user?.role !== "super") {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  if (!(await rateLimit("contact", clientIp(req)))) {
+    return NextResponse.json({ error: "rate limited" }, { status: 429 });
   }
   const { id } = await params;
   const body = (await req.json().catch(() => ({}))) as {

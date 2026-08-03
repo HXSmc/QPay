@@ -126,6 +126,35 @@ const FAQ = [
   },
 ];
 
+// General FAQ section (distinct from the objection-handling FAQ above) - the
+// questions a prospect searches for, doubling as FAQPage structured data.
+const FAQ_QA = [
+  {
+    q: "What is Nuqra?",
+    a: "Nuqra is scan-to-pay for restaurants: diners scan a table QR, see the live bill, split it, tip, and pay, with no app download.",
+  },
+  {
+    q: "Does Nuqra take a percentage of my sales?",
+    a: "No. Nuqra charges a flat monthly fee per branch, not a percentage of your bill, and you keep your own payment processor.",
+  },
+  {
+    q: "Does it work with my POS?",
+    a: "Nuqra works alongside 27+ POS systems, including Foodics, Marn, and Anywhere, with read-only verify integrations for Foodics and Square today. Other POS systems are set up manually.",
+  },
+  {
+    q: "Is Arabic supported?",
+    a: "Yes. Nuqra is fully bilingual in Arabic and English with right-to-left layout throughout, for both diners and staff.",
+  },
+  {
+    q: "Where is my data stored?",
+    a: "Your data lives in a managed cloud database with per-restaurant isolation, so each restaurant's data is scoped to its own account.",
+  },
+  {
+    q: "How do I start?",
+    a: "Start a 7-day free trial with no card required. Create your account and we email your admin login immediately.",
+  },
+];
+
 export function MarketingView() {
   const tr = useT();
   const router = useRouter();
@@ -286,8 +315,9 @@ export function MarketingView() {
                 maxWidth: 560,
               }}
             >
-              {tr("Turn tables faster.")}{" "}
-              <span style={{ color: C.brand }}>{tr("Get paid before they leave.")}</span>
+              {tr(
+                "QR payments for restaurants — turn tables faster, get paid before they leave."
+              )}
             </h1>
             <p
               style={{
@@ -993,6 +1023,85 @@ export function MarketingView() {
         </div>
         <dl style={{ margin: 0 }}>
           {FAQ.map((item) => (
+            <div
+              key={item.q}
+              className="qp-grid-2"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "0.78fr 1.22fr",
+                gap: S[6],
+                padding: "26px 0",
+                borderTop: `1px solid ${C.border}`,
+              }}
+            >
+              <dt
+                style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  letterSpacing: "-0.01em",
+                  color: C.text,
+                  margin: 0,
+                }}
+              >
+                {tr(item.q)}
+              </dt>
+              <dd
+                style={{
+                  margin: 0,
+                  fontSize: 16,
+                  color: C.muted,
+                  lineHeight: 1.6,
+                  maxWidth: 540,
+                }}
+              >
+                {tr(item.a)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      {/* FAQ - general search-intent questions, doubling as FAQPage JSON-LD. */}
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            mainEntity: FAQ_QA.map((item) => ({
+              "@type": "Question",
+              name: item.q,
+              acceptedAnswer: { "@type": "Answer", text: item.a },
+            })),
+          }),
+        }}
+      />
+      <div
+        className="qp-section"
+        style={{
+          maxWidth: 1120,
+          margin: "0 auto",
+          padding: "0 32px 32px",
+        }}
+      >
+        <div style={{ maxWidth: 620, marginBottom: 28 }}>
+          <h2
+            style={{
+              fontSize: 36,
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
+              lineHeight: 1.1,
+              color: C.text,
+              margin: "14px 0 0",
+              textWrap: "balance",
+            }}
+          >
+            {tr("Frequently asked questions")}
+          </h2>
+        </div>
+        <dl style={{ margin: 0 }}>
+          {FAQ_QA.map((item) => (
             <div
               key={item.q}
               className="qp-grid-2"
