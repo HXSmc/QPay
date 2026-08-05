@@ -89,11 +89,16 @@ export const T = {
 /** Tabular figures (Geist) for inline counts. */
 export const NUM: CSSProperties = { fontVariantNumeric: "tabular-nums" };
 
-/** Monospace ledger figures — for money/totals/amounts (the "coin" feel). */
+/** Monospace ledger figures — for money/totals/amounts (the "coin" feel).
+    Numbers, signs and currency are always LTR, even inside Arabic (RTL) flow:
+    isolate each run so "+30%" stays sign-first and "$77.49" stays symbol-first
+    instead of being reordered by the surrounding RTL context. */
 export const MONO: CSSProperties = {
   fontFamily: "var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace",
   fontVariantNumeric: "tabular-nums",
   letterSpacing: "-0.01em",
+  direction: "ltr",
+  unicodeBidi: "isolate",
 };
 
 // --- Style helpers ---------------------------------------------------------

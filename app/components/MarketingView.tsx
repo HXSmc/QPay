@@ -105,6 +105,10 @@ const SOLUTIONS = [
 
 const METRICS = SITE.metrics;
 
+// Locale-independent currency amount used in the live-bill preview. Kept as a
+// constant so the Pay button can isolate it as an LTR run under Arabic (RTL).
+const PAY_AMOUNT = "$77.49";
+
 // Objection-handling: the real questions an operator asks before switching.
 // Honest, specific where we can be, non-committal where we should not overclaim.
 const FAQ = [
@@ -269,7 +273,17 @@ export function MarketingView() {
               boxShadow: SHADOW.cta,
             }}
           >
-            <span style={MONO}>{tr("Pay $77.49")}</span>
+            <span>
+              {/* Keep the verb in the page's natural writing direction but isolate
+                  the locale-independent amount as its own LTR run, so AR renders
+                  "ادفع $77.49" (symbol-first) instead of reordering to "77.49$".
+                  The amount is identical in every locale, so we reuse the
+                  existing translated phrase and peel the verb off the front. */}
+              <span style={{ ...MONO, direction: "inherit", unicodeBidi: "normal" }}>
+                {tr("Pay $77.49").split(PAY_AMOUNT)[0].trim()}
+              </span>{" "}
+              <span style={MONO}>{PAY_AMOUNT}</span>
+            </span>
           </button>
         </div>
       </div>
@@ -906,7 +920,17 @@ export function MarketingView() {
                 "An illustrative model of what faster table-side checkout can add up to over a full service. Your numbers will vary."
               )}
             </p>
-            <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 6,
+                // Value+unit ("15 min") must read as one LTR sequence even in the
+                // RTL Arabic flow, so the unit doesn't land before the digits.
+                direction: "ltr",
+                unicodeBidi: "isolate",
+              }}
+            >
               <span
                 style={{
                   fontSize: 92,
@@ -956,7 +980,16 @@ export function MarketingView() {
                   borderTop: "1px solid rgba(255,255,255,0.12)",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "baseline",
+                    gap: 4,
+                    // Keep "+30%"/"+22%" sign-first and unit-attached under RTL.
+                    direction: "ltr",
+                    unicodeBidi: "isolate",
+                  }}
+                >
                   <span
                     style={{
                       fontSize: 44,

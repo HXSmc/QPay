@@ -43,6 +43,10 @@ export function BrandHeader() {
           gap: S[4],
           maxWidth: 1080,
           margin: "0 auto",
+          minWidth: 0,
+          // Let the row fold onto a second line instead of forcing horizontal
+          // overflow on very narrow viewports (the Arabic CTA is longer than EN).
+          flexWrap: "wrap",
           height: 60,
           // Logical padding so the wider logo-side gap follows the writing
           // direction (flips correctly under RTL).
@@ -67,6 +71,8 @@ export function BrandHeader() {
             textDecoration: "none",
             color: C.text,
             borderRadius: R.sm,
+            minWidth: 0,
+            flexShrink: 0,
           }}
         >
           <Wordmark />
@@ -77,6 +83,8 @@ export function BrandHeader() {
             display: "inline-flex",
             alignItems: "center",
             gap: S[2],
+            minWidth: 0,
+            flexShrink: 1,
           }}
         >
           <LanguageToggle />
