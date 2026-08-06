@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 const SITE_URL = "https://nuqra.org";
-const MARKETING_PATHS = ["/", "/demo", "/contact", "/privacy", "/terms"];
+const MARKETING_PATHS = ["/", "/demo", "/contact", "/privacy", "/terms", "/copyright"];
 
 // Both the English and Arabic (/ar-prefixed) URL for each marketing page, each
 // entry cross-linking to its sibling in `alternates.languages` — Next does not

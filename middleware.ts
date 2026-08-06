@@ -27,7 +27,7 @@ const REDIRECT_HOSTS = new Set([
 // Marketing pages that exist in both the default (English) tree and under an
 // /ar prefix (Arabic). Anything else under /ar (e.g. /ar/admin) has no Arabic
 // build and just bounces to the real path.
-const MARKETING_PATHS = new Set(["/", "/demo", "/contact", "/privacy", "/terms"]);
+const MARKETING_PATHS = new Set(["/", "/demo", "/contact", "/privacy", "/terms", "/copyright"]);
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -131,5 +131,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/demo", "/contact", "/privacy", "/terms", "/ar", "/ar/:path*", "/admin/:path*"],
+  matcher: ["/", "/demo", "/contact", "/privacy", "/terms", "/copyright", "/ar", "/ar/:path*", "/admin/:path*"],
 };

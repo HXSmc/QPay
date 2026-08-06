@@ -3,7 +3,7 @@
 // Edit here, not in the components.
 
 export const SITE = {
-  company: "Nuqra Inc.",
+  company: "Taweed Establishment",
   /** Canonical app origin. Used to build links in outbound emails so a forged
    *  Host header on a public request can't poison them (host-header injection).
    *  Override per-environment via NEXT_PUBLIC_APP_URL if the domain changes. */
@@ -12,7 +12,7 @@ export const SITE = {
    *  client hydration always agree and it can't silently drift mid-year. */
   copyrightYear: 2026,
   /** Real last-revision date for the legal pages (bump when the text changes). */
-  legalUpdated: "June 2026",
+  legalUpdated: "August 2026",
   /** Sales contact (also used for the tel: link + clipboard copy). */
   salesPhone: "+966566201233",
   /** Sales email — used in the "contact sales" demo email + sender reply-to. */
