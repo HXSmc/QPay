@@ -122,7 +122,7 @@ export default async function CopyrightPage() {
                 padding: "1px 5px",
               }}
             >
-              notekit@nuqra.org
+              {SITE.copyrightEmail}
             </code>
             {"."}
           </p>
@@ -409,7 +409,7 @@ export default async function CopyrightPage() {
                 padding: "1px 5px",
               }}
             >
-              notekit@nuqra.org
+              {SITE.copyrightEmail}
             </code>
             {"."}
           </p>
@@ -442,7 +442,7 @@ export default async function CopyrightPage() {
                 padding: "1px 5px",
               }}
             >
-              notekit@nuqra.org
+              {SITE.copyrightEmail}
             </code>
             {t(" or call +966566201233.", locale)}
             {" "}

@@ -16,9 +16,11 @@ export const SITE = {
   /** Sales contact (also used for the tel: link + clipboard copy). */
   salesPhone: "+966566201233",
   /** Sales email — used in the "contact sales" demo email + sender reply-to. */
-  salesEmail: "sales@nuqra.com",
+  salesEmail: "sales@nuqra.org",
   /** Dedicated contact for privacy / data requests. */
-  privacyEmail: "privacy@nuqra.com",
+  privacyEmail: "privacy@nuqra.org",
+  /** Copyright / DMCA-style notices (published on /copyright). */
+  copyrightEmail: "copyright@nuqra.org",
   salesHours: "Sun-Thu · 9am-6pm",
   /** Trial-account limits, surfaced to prospects at signup so the demo form is
    *  honest about what a trial actually includes. These are the SINGLE SOURCE:
