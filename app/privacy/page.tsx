@@ -155,7 +155,8 @@ export default async function PrivacyPage() {
           <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
             {t("For privacy or data requests, email", locale)} {SITE.privacyEmail} (
             {t("or call", locale)}{" "}
-            {SITE.salesPhone}).
+            {SITE.salesPhone}).{" "}
+            {t("Postal address: EDDA2367, Al Hussam District, Dammam 34223, Saudi Arabia.", locale)}
           </p>
         </div>
 

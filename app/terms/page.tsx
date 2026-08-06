@@ -108,6 +108,9 @@ export default async function TermsPage() {
             )}
           </p>
           <p style={leadBodyStyle}>
+            {t("Postal address: EDDA2367, Al Hussam District, Dammam 34223, Saudi Arabia.", locale)}
+          </p>
+          <p style={leadBodyStyle}>
             {t(
               "Diners who scan a table QR code are not parties to these terms. Their relationship for the meal itself is with the restaurant.",
               locale,
@@ -343,7 +346,8 @@ export default async function TermsPage() {
 
           <h2 style={h2Style}>{t("Contact", locale)}</h2>
           <p style={bodyStyle}>
-            {t("Questions? Call", locale)} {SITE.salesPhone}.
+            {t("Questions? Call", locale)} {SITE.salesPhone}.{" "}
+            {t("Postal address: EDDA2367, Al Hussam District, Dammam 34223, Saudi Arabia.", locale)}
           </p>
         </div>
 

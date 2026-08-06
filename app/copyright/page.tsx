@@ -445,6 +445,8 @@ export default async function CopyrightPage() {
               notekit@nuqra.org
             </code>
             {t(" or call +966566201233.", locale)}
+            {" "}
+            {t("Postal address: EDDA2367, Al Hussam District, Dammam 34223, Saudi Arabia.", locale)}
           </p>
         </div>
 
