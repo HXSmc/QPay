@@ -1,52 +1,52 @@
-// Nuqra logo. A modern, flat monogram: a single bold, slanted "N" - the italic
-// gives forward momentum (fast payments) and the solid weight makes it
-// distinctive and eye-catching while staying legible down to 16px. Used in the
-// marketing header, admin sidebar, login, and as the favicon (app/icon.svg
-// mirrors this geometry).
+// Nuqra logo. Two overlapping paper receipt slips with torn (zigzag) bottom
+// edges, offset diagonally so the white channel left between them draws the
+// letter N - payments made physical, the artifact the product replaces.
+//
+// Hand-traced to real paths from the approved concept art: no <text>, no font
+// dependency, no gradient. app/icon.svg mirrors this geometry exactly.
 
 import { C } from "../../lib/theme";
+
+/** Upper-left slip. Straight top and left edges, torn bottom, N-cut on the right. */
+const SLIP_BACK =
+  "M25.57,2.00L47.41,11.80L34.35,34.65L32.31,23.02L28.63,21.18L16.39,42.41" +
+  "L15.57,39.55L12.71,40.78L12.31,37.71L9.24,39.35L9.04,36.49L6.39,36.08Z";
+
+/** Lower-right slip. Sits under the first; its peak closes the N's diagonal. */
+const SLIP_FRONT =
+  "M47.20,20.37L57.61,26.69L35.37,62.00L34.96,59.14L32.10,60.16L31.90,57.31" +
+  "L29.04,58.33L28.63,55.27L25.78,56.29L25.57,53.43L22.51,54.24L22.31,51.39" +
+  "L19.45,52.41L19.04,49.35L16.39,50.16L29.04,29.55L30.88,40.78L34.35,42.82Z";
 
 export function LogoMark({
   size = 30,
   onDark = false,
-  radius = 8,
   decorative = false,
 }: {
   size?: number;
+  /** Ink surfaces (sidebar, dark bands) need the light half of the palette -
+   *  the default two cyans both disappear against near-black. */
   onDark?: boolean;
-  radius?: number;
   /** When the mark sits next to the "Nuqra" wordmark, hide it from a11y so the
    *  accessible name isn't "Nuqra Nuqra" (label-content-name-mismatch). */
   decorative?: boolean;
 }) {
-  void onDark; // background-agnostic (ember tile reads on light + dark)
-  const tile = `qp-tile-${size}`;
+  const [back, front] = onDark
+    ? [C.brandTint, C.brandLight]
+    : [C.brand, C.brandDark];
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 32 32"
+      viewBox="0 0 64 64"
       fill="none"
       role={decorative ? undefined : "img"}
       aria-label={decorative ? undefined : "Nuqra"}
       aria-hidden={decorative ? true : undefined}
-      style={{ display: "block", borderRadius: radius, flexShrink: 0 }}
+      style={{ display: "block", flexShrink: 0 }}
     >
-      <defs>
-        <linearGradient id={tile} x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor={C.brandLight} />
-          <stop offset="1" stopColor={C.brandDark} />
-        </linearGradient>
-      </defs>
-      {/* ember tile */}
-      <rect width="32" height="32" rx="8" fill={`url(#${tile})`} />
-      {/* stylised slanted N monogram - optically centered (translate offsets the
-          skew), filled and bold for an energetic, eye-catching mark */}
-      <g transform="translate(4.05,0) skewX(-12)">
-        <path d="M8.8 8.5 h3.9 v15 h-3.9 z" fill="#FFFFFF" />
-        <path d="M18 8.5 h3.9 v15 h-3.9 z" fill="#FFFFFF" />
-        <path d="M8.8 8.5 L12.7 8.5 L21.9 23.5 L18 23.5 Z" fill="#FFFFFF" />
-      </g>
+      <path d={SLIP_BACK} fill={back} />
+      <path d={SLIP_FRONT} fill={front} />
     </svg>
   );
 }
@@ -55,14 +55,16 @@ export function Wordmark({
   size = 19,
   markSize = 30,
   color = C.text,
+  onDark = false,
 }: {
   size?: number;
   markSize?: number;
   color?: string;
+  onDark?: boolean;
 }) {
   return (
     <span style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
-      <LogoMark size={markSize} decorative />
+      <LogoMark size={markSize} onDark={onDark} decorative />
       <span
         style={{
           fontSize: size,

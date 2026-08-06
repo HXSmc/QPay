@@ -1,14 +1,5 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="t" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#1FA8C9"/>
-      <stop offset="1" stop-color="#0B5563"/>
-    </linearGradient>
-  </defs>
-  <rect width="32" height="32" rx="8" fill="url(#t)"/>
-  <g transform="translate(4.05,0) skewX(-12)">
-    <path d="M8.8 8.5 h3.9 v15 h-3.9 z" fill="#FFFFFF"/>
-    <path d="M18 8.5 h3.9 v15 h-3.9 z" fill="#FFFFFF"/>
-    <path d="M8.8 8.5 L12.7 8.5 L21.9 23.5 L18 23.5 Z" fill="#FFFFFF"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <!-- Same geometry as LogoMark in app/components/site/Logo.tsx. Change both. -->
+  <path fill="#0E7490" d="M25.57,2.00L47.41,11.80L34.35,34.65L32.31,23.02L28.63,21.18L16.39,42.41L15.57,39.55L12.71,40.78L12.31,37.71L9.24,39.35L9.04,36.49L6.39,36.08Z"/>
+  <path fill="#0B5563" d="M47.20,20.37L57.61,26.69L35.37,62.00L34.96,59.14L32.10,60.16L31.90,57.31L29.04,58.33L28.63,55.27L25.78,56.29L25.57,53.43L22.51,54.24L22.31,51.39L19.45,52.41L19.04,49.35L16.39,50.16L29.04,29.55L30.88,40.78L34.35,42.82Z"/>
 </svg>
