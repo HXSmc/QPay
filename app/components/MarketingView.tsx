@@ -1260,6 +1260,10 @@ export function MarketingView() {
           ·{" "}
           <Link href="/terms" style={{ color: C.muted, textDecoration: "underline" }}>
             {tr("Terms")}
+          </Link>{" "}
+          ·{" "}
+          <Link href="/copyright" style={{ color: C.muted, textDecoration: "underline" }}>
+            {tr("Copyright")}
           </Link>
         </div>
       </div>

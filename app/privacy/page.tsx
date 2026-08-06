@@ -128,6 +128,28 @@ export default async function PrivacyPage() {
               borderTop: `1px solid ${C.border}`,
             }}
           >
+            {t("Copyright complaints", locale)}
+          </h2>
+          <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
+            {t("If you believe material on Nuqra infringes your copyright, our ", locale)}
+            <Link href="/copyright" style={{ color: C.brand, textDecoration: "underline" }}>
+              {t("Copyright and takedown", locale)}
+            </Link>
+            {t(
+              " page explains what to include in a notice, where to send it, what we do with it, how to respond if your file was removed by mistake, and when we terminate accounts for repeat infringement. We remove infringing material within a reasonable time of being notified.",
+              locale,
+            )}
+          </p>
+
+          <h2
+            style={{
+              ...T.h2,
+              marginTop: S[6],
+              marginBottom: S[3],
+              paddingTop: S[6],
+              borderTop: `1px solid ${C.border}`,
+            }}
+          >
             {t("Contact", locale)}
           </h2>
           <p style={{ ...T.body, lineHeight: 1.7, color: C.muted, margin: 0 }}>
