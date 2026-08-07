@@ -136,7 +136,7 @@ const LONG_SEATED_MIN = 60;
 // --- Formatting -------------------------------------------------------------
 
 function sar(n: number, locale: Locale): string {
-  return n.toLocaleString(locale === "ar" ? "ar-EG" : "en-US", {
+  return n.toLocaleString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", {
     minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
     maximumFractionDigits: 2,
   });
