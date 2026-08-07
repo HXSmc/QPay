@@ -1,6 +1,12 @@
 import { BrandHeader } from "./components/site/BrandHeader";
-import { LandingView } from "./components/immersive/LandingView";
-import { NOIR } from "./lib/theme";
+import { Hero } from "./components/landing/Hero";
+import { CommissionLeak } from "./components/landing/CommissionLeak";
+import { TableCycleSection } from "./components/landing/TableCycleSection";
+import { VerdictSection } from "./components/landing/VerdictSection";
+import { HowItWorksSection } from "./components/landing/HowItWorksSection";
+import { PricingSection } from "./components/landing/PricingSection";
+import { ProofSection } from "./components/landing/ProofSection";
+import { ClosingSection } from "./components/landing/ClosingSection";
 
 // Organization + SoftwareApplication structured data. No ratings/reviews:
 // nothing here is unverifiable. Shape preserved from the previous page; only
@@ -31,24 +37,22 @@ const JSON_LD = {
   ],
 };
 
+// The "paper ledger" landing: one light design system top to bottom, the
+// receipt as the interface. See app/components/landing/** for the section
+// patterns (Section wrapper, GhostNumeral, Eyebrow) later sections follow.
 export default function Page() {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        // Full Noir canvas for the immersive landing (DIRECTION §10.1: dark,
-        // full scroll narrative). Theme-locked for this surface, no mid-page flip.
-        background: NOIR.canvas,
-        color: NOIR.text,
-        WebkitFontSmoothing: "antialiased",
-      }}
-    >
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
-      />
-      <BrandHeader variant="noir" />
-      <LandingView />
+    <div style={{ minHeight: "100vh" }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      <BrandHeader />
+      <Hero />
+      <CommissionLeak />
+      <TableCycleSection />
+      <VerdictSection />
+      <HowItWorksSection />
+      <PricingSection />
+      <ProofSection />
+      <ClosingSection />
     </div>
   );
 }
