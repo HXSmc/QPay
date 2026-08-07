@@ -1,8 +1,8 @@
 // Arabic translations for the marketing surface. Keyed by English source string.
 export const ar: Record<string, string> = {
   // Hero
-  "QR payments for restaurants. Turn tables faster, get paid before they leave.":
-    "مدفوعات QR للمطاعم. أدِر طاولاتك بسرعة أكبر واستلم أموالك قبل مغادرتهم.",
+  "QR payments for restaurants. Get paid before they leave the table.":
+    "مدفوعات QR للمطاعم. استلم أموالك قبل أن يغادروا الطاولة.",
   "Diners scan, split, tip, and pay in under 30 seconds. No app, no waiting on the check.":
     "يمسح الضيوف رمز QR، يقسّمون الفاتورة، يضيفون الإكرامية، ويدفعون في أقل من 30 ثانية. بلا تطبيق وبلا انتظار للفاتورة.",
   "Get a free demo": "احصل على عرض توضيحي مجاني",
@@ -44,7 +44,6 @@ export const ar: Record<string, string> = {
   "Paid": "مدفوعة",
 
   // Ink panel
-  "Faster turns, fuller tables": "دوران أسرع، وطاولات أكثر امتلاءً",
   "Guests pay the moment they are ready, so the next party is seated sooner.":
     "يدفع الضيوف في اللحظة التي يكونون فيها جاهزين، لتجلس المجموعة التالية أسرع.",
 
