@@ -273,7 +273,7 @@ export const ar: Record<string, string> = {
   "0% of every bill": "صفر نسبة من كل فاتورة",
   "Pay in the browser, no app": "ادفع من المتصفح، بلا تطبيق",
   "One flat fee, whatever you sell": "رسم ثابت واحد، مهما بِعت",
-  "mada and Apple Pay ready": "جاهز لمدى وApple Pay",
+  "mada and Apple Pay ready": "جاهز لمدى و Apple Pay",
   "Nuqra": "نقرة",
 
   // Landing S2b - pricing panel (section 6): flat fee, no invented figure
