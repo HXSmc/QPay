@@ -39,6 +39,12 @@ export const ar: Record<string, string> = {
   "Built for the rush. Nuqra removes the slowest part of the meal, the wait for the check.":
     "مصمَّم لأوقات الزحام. يلغي Nuqra أبطأ جزء في الوجبة، وهو انتظار الفاتورة.",
 
+  // Table cycle section header
+  "Live floor": "الصالة مباشرة",
+  "Every table, live": "كل طاولة، مباشرة",
+  "Watch a table go from available to ordered to paid, in real time.":
+    "تابع الطاولة من متاحة إلى مطلوبة إلى مدفوعة، لحظة بلحظة.",
+
   // Settled-bill chip
   "Table 12": "طاولة 12",
   "Paid": "مدفوعة",
