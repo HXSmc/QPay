@@ -16,8 +16,6 @@ import {
   MONO,
   STATUS,
   SHADOW,
-  NOIR,
-  GLOW,
   MOTION,
   badge,
   card,
@@ -661,8 +659,9 @@ function KpiStrip({
       ref={reveal.ref}
       className={`qp-reveal-up qp-kpi ${reveal.className}`}
       style={{
-        background: NOIR.canvas,
-        color: NOIR.text,
+        background: C.surface,
+        color: C.text,
+        border: `1px solid ${C.border}`,
         borderRadius: R.lg,
         padding: S[5],
         display: "grid",
@@ -709,7 +708,7 @@ function KpiStrip({
 
       {/* Pilot today + sparkline */}
       <div className="qp-kpi-spark" style={{ display: "flex", flexDirection: "column", gap: S[2], minWidth: 0 }}>
-        <div style={{ ...T.caption, color: NOIR.faint, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <div style={{ ...T.caption, color: C.faint, textTransform: "uppercase", letterSpacing: "0.08em" }}>
           {t("today")} · {t("pilot")}
         </div>
         <Sparkline series={series7.map((p) => p.revenueSar)} min={min} max={max} />
@@ -743,7 +742,7 @@ function KpiTile({
   const { ref, val } = useCountUp(target);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6, minWidth: 0 }}>
-      <div style={{ ...T.caption, color: NOIR.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+      <div style={{ ...T.caption, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>
         {label}
       </div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
@@ -752,7 +751,7 @@ function KpiTile({
           className="qp-count"
           style={{
             ...MONO,
-            color: accent ? GLOW.brand : NOIR.text,
+            color: accent ? C.brand : C.text,
             fontSize: "clamp(28px, 3vw, 40px)",
             fontWeight: 600,
             letterSpacing: "-0.03em",
@@ -762,12 +761,12 @@ function KpiTile({
           {format(val)}
         </span>
         {suffix ? (
-          <span style={{ ...T.label, color: NOIR.faint, fontSize: 13, textTransform: "none", letterSpacing: 0 }}>
+          <span style={{ ...T.label, color: C.faint, fontSize: 13, textTransform: "none", letterSpacing: 0 }}>
             {suffix}
           </span>
         ) : null}
       </div>
-      {sub ? <div style={{ ...T.caption, color: NOIR.faint }}>{sub}</div> : null}
+      {sub ? <div style={{ ...T.caption, color: C.faint }}>{sub}</div> : null}
     </div>
   );
 }
@@ -775,10 +774,10 @@ function KpiTile({
 function PilotStat({ figure, unit }: { figure: string; unit: string }) {
   return (
     <div>
-      <span className="qp-count" style={{ ...MONO, color: NOIR.text, fontSize: 16, fontWeight: 600 }}>
+      <span className="qp-count" style={{ ...MONO, color: C.text, fontSize: 16, fontWeight: 600 }}>
         {figure}
       </span>
-      {unit ? <span style={{ ...T.caption, color: NOIR.faint, marginInlineStart: 3 }}>{unit}</span> : null}
+      {unit ? <span style={{ ...T.caption, color: C.faint, marginInlineStart: 3 }}>{unit}</span> : null}
     </div>
   );
 }
@@ -799,12 +798,12 @@ function Sparkline({ series, min, max }: { series: number[]; min: number; max: n
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} aria-hidden="true" focusable="false" preserveAspectRatio="none">
       <defs>
         <linearGradient id="qp-spark" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={GLOW.brand} stopOpacity={0.32} />
-          <stop offset="100%" stopColor={GLOW.brand} stopOpacity={0} />
+          <stop offset="0%" stopColor={C.brand} stopOpacity={0.32} />
+          <stop offset="100%" stopColor={C.brand} stopOpacity={0} />
         </linearGradient>
       </defs>
       <path d={area} fill="url(#qp-spark)" />
-      <path d={line} fill="none" stroke={GLOW.brand} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <path d={line} fill="none" stroke={C.brand} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -1103,7 +1102,7 @@ function FloorTile({
         {info.live ? (
           <span
             className="qp-glow-pulse"
-            style={{ width: 8, height: 8, borderRadius: R.pill, background: GLOW.brand, display: "inline-block" }}
+            style={{ width: 8, height: 8, borderRadius: R.pill, background: C.brand, display: "inline-block" }}
             aria-hidden="true"
           />
         ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-// /demo/branch: branch-manager live floor view (Noir mission-control).
+// /demo/branch: branch-manager live floor view (light paper-ledger system).
 // Single-branch context: br_dhahran (the pilot). All data from app/demo/_data.ts.
 // Arabic-first RTL default, EN toggle, tablet-first (1024px landscape).
 // Self-contained: local locale state, local UI string dictionary, deterministic
@@ -10,16 +10,17 @@
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import {
-  NOIR,
-  GLOW,
+  C,
+  STATUS,
   R,
   S,
+  SHADOW,
   T,
   TX,
   MONO,
   NUM,
   btn,
-  noirCard,
+  card,
 } from "../../lib/theme";
 import { useReveal } from "../immersive";
 import {
@@ -96,26 +97,25 @@ const PAYMENT_LABEL: Record<string, Locale2> = {
   stcpay: { ar: "STC Pay", en: "STC Pay" },
 };
 
-// --- Table state presentation (dark-tuned) ----------------------------------
-// STATUS tokens are tuned for light surfaces; on Noir we use brighter accent
-// variants for the dot + label text so they hold contrast on near-black, and a
-// NOIR.surfaceAlt pill fill. Color is never the only signal: every state has a
-// text label too (a11y §11).
+// --- Table state presentation (light-tuned) ---------------------------------
+// State color comes from the STATUS tokens (fg/bg/border), which all pass AA
+// on the warm paper canvas. Color is never the only signal: every state has a
+// text label too (a11y §11), and bill_requested/paying carry a pulse.
 
 interface StateMeta {
-  accent: string;
+  kind: keyof typeof STATUS;
   label: Locale2;
   pulse?: boolean;
 }
 
 const STATE_META: Record<TableState, StateMeta> = {
-  available: { accent: "rgba(244,246,248,0.40)", label: { ar: "متاحة", en: "Available" } },
-  seated: { accent: "#60A5FA", label: { ar: "جلس", en: "Seated" } },
-  ordered: { accent: "#FBBF24", label: { ar: "تحضير", en: "Ordered" } },
-  bill_requested: { accent: "#FBBF24", label: { ar: "طلب الفاتورة", en: "Bill requested" }, pulse: true },
-  paying: { accent: GLOW.brand, label: { ar: "يدفع الآن", en: "Paying" }, pulse: true },
-  paid: { accent: "#4ADE80", label: { ar: "مدفوعة", en: "Paid" } },
-  cleaning: { accent: "rgba(244,246,248,0.40)", label: { ar: "تنظيف", en: "Cleaning" } },
+  available: { kind: "neutral", label: { ar: "متاحة", en: "Available" } },
+  seated: { kind: "info", label: { ar: "جلس", en: "Seated" } },
+  ordered: { kind: "warn", label: { ar: "تحضير", en: "Ordered" } },
+  bill_requested: { kind: "warn", label: { ar: "طلب الفاتورة", en: "Bill requested" }, pulse: true },
+  paying: { kind: "info", label: { ar: "يدفع الآن", en: "Paying" }, pulse: true },
+  paid: { kind: "success", label: { ar: "مدفوعة", en: "Paid" } },
+  cleaning: { kind: "neutral", label: { ar: "تنظيف", en: "Cleaning" } },
 };
 
 // --- Demo time anchor -------------------------------------------------------
@@ -159,7 +159,7 @@ function Money({
   return (
     <span style={{ display: "inline-flex", alignItems: "baseline", gap: 5, ...style }}>
       <span style={{ ...MONO }}>{sar(value, locale)}</span>
-      <span style={{ fontSize: "0.6em", color: NOIR.muted, fontWeight: 600 }}>
+      <span style={{ fontSize: "0.6em", color: C.muted, fontWeight: 600 }}>
         {currencySuffix(locale)}
       </span>
     </span>
@@ -265,8 +265,8 @@ export default function BranchFloorPage() {
       lang={locale}
       style={{
         minHeight: "100vh",
-        background: NOIR.canvas,
-        color: NOIR.text,
+        background: C.canvas,
+        color: C.text,
         fontFamily: fontStack,
         WebkitFontSmoothing: "antialiased",
       }}
@@ -367,10 +367,10 @@ function StatusBar({
         position: "sticky",
         top: 0,
         zIndex: 10,
-        background: "rgba(8,10,13,0.86)",
+        background: "rgba(250,249,246,0.86)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
-        borderBottom: `1px solid ${NOIR.border}`,
+        borderBottom: `1px solid ${C.border}`,
       }}
     >
       <div
@@ -386,7 +386,7 @@ function StatusBar({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ ...TX.eyebrow, color: NOIR.faint }}>
+            <span style={{ ...TX.eyebrow, color: C.faint }}>
               {bl(RESTAURANT.name) /* content data, bilingual */}
             </span>
             {isPilot && (
@@ -396,8 +396,9 @@ function StatusBar({
                   fontWeight: 700,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
-                  color: GLOW.brand,
-                  border: `1px solid ${GLOW.brandRing}`,
+                  color: C.brand,
+                  background: C.brandTint,
+                  border: `1px solid ${C.brand}`,
                   borderRadius: R.pill,
                   padding: "2px 8px",
                 }}
@@ -408,16 +409,16 @@ function StatusBar({
           </div>
           <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600, letterSpacing: "-0.01em" }}>
             {branchName}
-            <span style={{ color: NOIR.muted, fontWeight: 400 }}> · {city}</span>
+            <span style={{ color: C.muted, fontWeight: 400 }}> · {city}</span>
           </h1>
         </div>
 
         <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: 18 }}>
           <Stat label={tr("occupancy")} value={`${occupancy.occupied} / ${occupancy.total}`} />
-          <div style={{ width: 1, alignSelf: "stretch", background: NOIR.border }} />
+          <div style={{ width: 1, alignSelf: "stretch", background: C.border }} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-            <span style={{ ...TX.eyebrow, color: NOIR.faint }}>{tr("liveShift")}</span>
-            <span style={{ ...NUM, fontSize: 18, fontWeight: 600, color: NOIR.text }}>
+            <span style={{ ...TX.eyebrow, color: C.faint }}>{tr("liveShift")}</span>
+            <span style={{ ...NUM, fontSize: 18, fontWeight: 600, color: C.text }}>
               <LiveDot /> {clock}
             </span>
           </div>
@@ -427,9 +428,6 @@ function StatusBar({
             aria-label={langLabel}
             style={{
               ...btn("secondary"),
-              background: NOIR.surface,
-              color: NOIR.text,
-              borderColor: NOIR.borderStrong,
               minWidth: 44,
               minHeight: 44,
               padding: "0 12px",
@@ -453,7 +451,7 @@ function LiveDot() {
         width: 8,
         height: 8,
         borderRadius: R.pill,
-        background: GLOW.brand,
+        background: C.brand,
         marginInlineEnd: 6,
         verticalAlign: "middle",
       }}
@@ -464,7 +462,7 @@ function LiveDot() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-      <span style={{ ...TX.eyebrow, color: NOIR.faint }}>{label}</span>
+      <span style={{ ...TX.eyebrow, color: C.faint }}>{label}</span>
       <span style={{ ...NUM, fontSize: 18, fontWeight: 600 }}>{value}</span>
     </div>
   );
@@ -497,7 +495,7 @@ function KpiStrip({
       node: (
         <span style={{ ...MONO }}>
           {data.avgTurn}
-          <span style={{ fontSize: "0.5em", color: NOIR.muted, marginInlineStart: 4 }}>
+          <span style={{ fontSize: "0.5em", color: C.muted, marginInlineStart: 4 }}>
             {locale === "ar" ? "د" : "min"}
           </span>
         </span>
@@ -514,16 +512,15 @@ function KpiStrip({
         gap: 14,
       }}
     >
-      {tiles.map((t, i) => (
+      {tiles.map((t) => (
         <div
           key={t.label}
           style={{
-            ...noirCard({ pad: S[4], radius: R.lg }),
-            background: NOIR.surface,
+            ...card({ pad: S[4], radius: R.lg }),
           }}
         >
-          <div style={{ ...TX.eyebrow, color: NOIR.faint, fontSize: 11 }}>{t.label}</div>
-          <div style={{ ...T.display, fontSize: 30, marginTop: 8, color: NOIR.text }}>{t.node}</div>
+          <div style={{ ...TX.eyebrow, color: C.faint, fontSize: 11 }}>{t.label}</div>
+          <div style={{ ...T.display, fontSize: 30, marginTop: 8, color: C.text }}>{t.node}</div>
         </div>
       ))}
     </div>
@@ -550,9 +547,9 @@ function AttentionStrip({
           marginTop: 16,
           padding: "12px 16px",
           borderRadius: R.lg,
-          border: `1px solid ${NOIR.border}`,
-          background: NOIR.surface,
-          color: NOIR.muted,
+          border: `1px solid ${C.border}`,
+          background: C.surface,
+          color: C.muted,
           fontSize: 14,
         }}
       >
@@ -568,7 +565,7 @@ function AttentionStrip({
         style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 4 }}
       >
         {items.map(({ table, elapsed, kind }) => {
-          const accent = kind === "bill" ? "#FBBF24" : "#F87171";
+          const sk = kind === "bill" ? STATUS.warn : STATUS.danger;
           const reason =
             kind === "bill"
               ? bl(STATE_META.bill_requested.label)
@@ -577,9 +574,9 @@ function AttentionStrip({
             <div
               key={table.id}
               style={{
-                ...noirCard({ pad: S[3], radius: R.md }),
-                background: NOIR.surfaceAlt,
-                borderTop: `2px solid ${accent}`,
+                ...card({ pad: S[3], radius: R.md }),
+                background: sk.bg,
+                borderTop: `2px solid ${sk.fg}`,
                 minWidth: 200,
                 flex: "0 0 auto",
               }}
@@ -587,13 +584,13 @@ function AttentionStrip({
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span
                   aria-hidden="true"
-                  style={{ width: 8, height: 8, borderRadius: R.pill, background: accent }}
+                  style={{ width: 8, height: 8, borderRadius: R.pill, background: sk.fg }}
                 />
                 <span style={{ ...NUM, fontWeight: 700 }}>
                   {tr("table")} {table.number}
                 </span>
               </div>
-              <div style={{ marginTop: 6, fontSize: 13, color: NOIR.muted, lineHeight: 1.45 }}>
+              <div style={{ marginTop: 6, fontSize: 13, color: C.muted, lineHeight: 1.45 }}>
                 {reason}
                 {table.currentTotalSar ? (
                   <>
@@ -642,6 +639,7 @@ function FloorGrid({
       >
         {tables.map((t, i) => {
           const meta = STATE_META[t.state];
+          const sk = STATUS[meta.kind];
           const selected = t.id === selectedId;
           const occupied = ["seated", "ordered", "bill_requested", "paying"].includes(t.state);
           const elapsed = t.openedAt ? elapsedMin(t.openedAt) : null;
@@ -655,18 +653,18 @@ function FloorGrid({
               style={{
                 textAlign: "start",
                 cursor: "pointer",
-                background: NOIR.surface,
-                color: NOIR.text,
+                background: C.surface,
+                color: C.text,
                 border: selected
-                  ? `1px solid ${GLOW.brand}`
-                  : `1px solid ${NOIR.border}`,
+                  ? `1px solid ${C.brand}`
+                  : `1px solid ${C.border}`,
                 borderRadius: R.lg,
                 padding: S[3],
                 minHeight: 112,
                 display: "flex",
                 flexDirection: "column",
                 gap: 8,
-                boxShadow: selected ? `0 0 0 1px ${GLOW.brand}, 0 0 24px ${GLOW.brandSoft}` : undefined,
+                boxShadow: selected ? `0 0 0 1px ${C.brand}, ${SHADOW.e2}` : SHADOW.e1,
                 transition: "border-color 200ms, box-shadow 200ms",
               }}
             >
@@ -675,7 +673,7 @@ function FloorGrid({
                 <span
                   className={meta.pulse ? "qp-glow-pulse" : undefined}
                   aria-hidden="true"
-                  style={{ width: 9, height: 9, borderRadius: R.pill, background: meta.accent }}
+                  style={{ width: 9, height: 9, borderRadius: R.pill, background: sk.fg }}
                 />
               </div>
               <span
@@ -684,9 +682,9 @@ function FloorGrid({
                   fontSize: 11,
                   fontWeight: 700,
                   letterSpacing: "0.03em",
-                  color: meta.accent,
-                  background: NOIR.surfaceAlt,
-                  border: `1px solid ${NOIR.border}`,
+                  color: sk.fg,
+                  background: sk.bg,
+                  border: `1px solid ${sk.border}`,
                   borderRadius: R.pill,
                   padding: "2px 8px",
                 }}
@@ -700,7 +698,7 @@ function FloorGrid({
                   alignItems: "center",
                   justifyContent: "space-between",
                   fontSize: 12,
-                  color: NOIR.muted,
+                  color: C.muted,
                   gap: 8,
                   flexWrap: "wrap",
                 }}
@@ -715,12 +713,12 @@ function FloorGrid({
                 ) : null}
               </div>
               {occupied && elapsed != null ? (
-                <div style={{ fontSize: 12, color: NOIR.faint, ...NUM }}>
+                <div style={{ fontSize: 12, color: C.faint, ...NUM }}>
                   {tr("seatedFor")} {elapsed} {locale === "ar" ? "د" : "min"}
                   {t.currentTotalSar ? (
                     <>
                       {" · "}
-                      <span style={{ color: NOIR.muted }}>{sar(t.currentTotalSar, locale)}</span>
+                      <span style={{ color: C.muted }}>{sar(t.currentTotalSar, locale)}</span>
                     </>
                   ) : null}
                 </div>
@@ -753,6 +751,7 @@ function DetailRail({
   }
   const order = ORDERS.find((o) => o.tableId === selected.id);
   const meta = STATE_META[selected.state];
+  const sk = STATUS[meta.kind];
   const elapsed = selected.openedAt ? elapsedMin(selected.openedAt) : null;
   const lines = order
     ? order.items
@@ -767,16 +766,16 @@ function DetailRail({
   const showDue = ["bill_requested", "paying"].includes(selected.state);
 
   return (
-    <section style={{ ...noirCard({ pad: S[5], radius: R.lg }), background: NOIR.surface }}>
+    <section style={{ ...card({ pad: S[5], radius: R.lg }) }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <span style={{ ...MONO, fontSize: 26, fontWeight: 600 }}>{selected.number}</span>
         <span
           style={{
             fontSize: 11,
             fontWeight: 700,
-            color: meta.accent,
-            background: NOIR.surfaceAlt,
-            border: `1px solid ${NOIR.border}`,
+            color: sk.fg,
+            background: sk.bg,
+            border: `1px solid ${sk.border}`,
             borderRadius: R.pill,
             padding: "3px 9px",
           }}
@@ -788,8 +787,6 @@ function DetailRail({
           onClick={onClear}
           style={{
             ...btn("ghost"),
-            background: "transparent",
-            color: NOIR.muted,
             marginInlineStart: "auto",
             minHeight: 36,
             padding: "6px 10px",
@@ -805,7 +802,7 @@ function DetailRail({
           display: "flex",
           gap: 20,
           flexWrap: "wrap",
-          color: NOIR.muted,
+          color: C.muted,
           fontSize: 13,
         }}
       >
@@ -834,13 +831,13 @@ function DetailRail({
                 alignItems: "baseline",
                 gap: 10,
                 padding: "10px 0",
-                borderBottom: `1px solid ${NOIR.border}`,
+                borderBottom: `1px solid ${C.border}`,
               }}
             >
               <span
                 style={{
                   ...MONO,
-                  color: GLOW.brand,
+                  color: C.brand,
                   fontWeight: 700,
                   minWidth: 28,
                 }}
@@ -848,7 +845,7 @@ function DetailRail({
                 {l.qty}×
               </span>
               <span style={{ flex: 1, fontSize: 14 }}>{bl(l.name)}</span>
-              <span style={{ ...MONO, color: NOIR.muted, fontSize: 13 }}>
+              <span style={{ ...MONO, color: C.muted, fontSize: 13 }}>
                 {sar(l.price * l.qty, locale)}
               </span>
             </div>
@@ -862,18 +859,18 @@ function DetailRail({
               justifyContent: "space-between",
             }}
           >
-            <span style={{ ...TX.eyebrow, color: NOIR.faint }}>
+            <span style={{ ...TX.eyebrow, color: C.faint }}>
               {showDue ? tr("amountDue") : tr("orderTotal")}
             </span>
             <Money
               value={due}
               locale={locale}
-              style={{ fontSize: 24, fontWeight: 600, color: showDue ? GLOW.brand : NOIR.text }}
+              style={{ fontSize: 24, fontWeight: 600, color: showDue ? C.brand : C.text }}
             />
           </div>
         </div>
       ) : (
-        <p style={{ marginTop: 18, color: NOIR.muted, fontSize: 14, lineHeight: 1.6 }}>
+        <p style={{ marginTop: 18, color: C.muted, fontSize: 14, lineHeight: 1.6 }}>
           {tr("noOrder")}
         </p>
       )}
@@ -892,10 +889,10 @@ function OpenTickets({
 }) {
   const tickets = ORDERS.filter((o) => o.status !== "closed");
   return (
-    <section style={{ ...noirCard({ pad: S[5], radius: R.lg }), background: NOIR.surface }}>
+    <section style={{ ...card({ pad: S[5], radius: R.lg }) }}>
       <SectionLabel>{tr("openTickets")}</SectionLabel>
       {tickets.length === 0 ? (
-        <p style={{ color: NOIR.muted, fontSize: 14 }}>{tr("selectHint")}</p>
+        <p style={{ color: C.muted, fontSize: 14 }}>{tr("selectHint")}</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
           {tickets.map((o) => {
@@ -906,21 +903,21 @@ function OpenTickets({
               <div
                 key={o.id}
                 style={{
-                  border: `1px solid ${NOIR.border}`,
+                  border: `1px solid ${C.border}`,
                   borderRadius: R.md,
                   padding: S[3],
-                  background: NOIR.surfaceAlt,
+                  background: C.surfaceAlt,
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span style={{ ...NUM, fontWeight: 700 }}>
                     {tr("table")} {t?.number ?? "?"}
                   </span>
-                  <span style={{ ...NUM, fontSize: 12, color: NOIR.muted }}>
+                  <span style={{ ...NUM, fontSize: 12, color: C.muted }}>
                     {tr("seatedFor")} {elapsed} {locale === "ar" ? "د" : "min"}
                   </span>
                 </div>
-                <div style={{ marginTop: 6, fontSize: 13, color: NOIR.muted }}>
+                <div style={{ marginTop: 6, fontSize: 13, color: C.muted }}>
                   {bl(STATE_META.ordered.label)} · {count} {locale === "ar" ? "صنف" : "items"}
                   {t?.currentTotalSar ? (
                     <>
@@ -934,7 +931,7 @@ function OpenTickets({
           })}
         </div>
       )}
-      <p style={{ marginTop: 14, color: NOIR.faint, fontSize: 12.5, lineHeight: 1.5 }}>
+      <p style={{ marginTop: 14, color: C.faint, fontSize: 12.5, lineHeight: 1.5 }}>
         {tr("selectHint")}
       </p>
     </section>
@@ -973,8 +970,7 @@ function StaffSection({
           <div
             key={s.id}
             style={{
-              ...noirCard({ pad: S[3], radius: R.md }),
-              background: NOIR.surface,
+              ...card({ pad: S[3], radius: R.md }),
               display: "flex",
               alignItems: "center",
               gap: 12,
@@ -986,12 +982,12 @@ function StaffSection({
                 width: 36,
                 height: 36,
                 borderRadius: R.pill,
-                background: NOIR.surfaceAlt,
-                border: `1px solid ${NOIR.border}`,
+                background: C.surfaceAlt,
+                border: `1px solid ${C.border}`,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                color: GLOW.brand,
+                color: C.brand,
                 fontWeight: 700,
                 fontSize: 14,
                 flexShrink: 0,
@@ -1003,7 +999,7 @@ function StaffSection({
               <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {bl(s.name)}
               </div>
-              <div style={{ fontSize: 12.5, color: NOIR.muted }}>{bl(ROLE_LABEL[s.role])}</div>
+              <div style={{ fontSize: 12.5, color: C.muted }}>{bl(ROLE_LABEL[s.role])}</div>
             </div>
           </div>
         ))}
@@ -1071,9 +1067,9 @@ function EodSection({
         }}
       >
         {summary.map((s) => (
-          <div key={s.label} style={{ ...noirCard({ pad: S[4], radius: R.lg }), background: NOIR.surface }}>
-            <div style={{ ...TX.eyebrow, color: NOIR.faint, fontSize: 11 }}>{s.label}</div>
-            <div style={{ marginTop: 8, color: NOIR.text }}>{s.node}</div>
+          <div key={s.label} style={{ ...card({ pad: S[4], radius: R.lg }) }}>
+            <div style={{ ...TX.eyebrow, color: C.faint, fontSize: 11 }}>{s.label}</div>
+            <div style={{ marginTop: 8, color: C.text }}>{s.node}</div>
           </div>
         ))}
       </div>
@@ -1087,8 +1083,8 @@ function EodSection({
         }}
         className="qp-branch-eodmix"
       >
-        <div style={{ ...noirCard({ pad: S[5], radius: R.lg }), background: NOIR.surface }}>
-          <div style={{ ...TX.eyebrow, color: NOIR.faint, fontSize: 11 }}>{tr("paymentMix")}</div>
+        <div style={{ ...card({ pad: S[5], radius: R.lg }) }}>
+          <div style={{ ...TX.eyebrow, color: C.faint, fontSize: 11 }}>{tr("paymentMix")}</div>
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
             {data.mix.map((m) => {
               const pct = Math.round((m.amount / mixTotal) * 100);
@@ -1103,7 +1099,7 @@ function EodSection({
                     }}
                   >
                     <span>{bl(PAYMENT_LABEL[m.method] ?? { ar: m.method, en: m.method })}</span>
-                    <span style={{ ...MONO, color: NOIR.muted }}>
+                    <span style={{ ...MONO, color: C.muted }}>
                       {pct}% · {sar(m.amount, locale)} {currencySuffix(locale)}
                     </span>
                   </div>
@@ -1111,7 +1107,7 @@ function EodSection({
                     style={{
                       height: 8,
                       borderRadius: R.pill,
-                      background: NOIR.surfaceAlt,
+                      background: C.surfaceAlt,
                       overflow: "hidden",
                     }}
                   >
@@ -1119,7 +1115,7 @@ function EodSection({
                       style={{
                         height: "100%",
                         width: `${pct}%`,
-                        background: GLOW.brand,
+                        background: C.brand,
                         borderRadius: R.pill,
                       }}
                     />
@@ -1128,22 +1124,22 @@ function EodSection({
               );
             })}
             {data.mix.length === 0 ? (
-              <p style={{ color: NOIR.muted, fontSize: 13 }}>
+              <p style={{ color: C.muted, fontSize: 13 }}>
                 {locale === "ar" ? "لا توجد عمليات بعد." : "No transactions yet."}
               </p>
             ) : null}
           </div>
         </div>
 
-        <div style={{ ...noirCard({ pad: S[5], radius: R.lg }), background: NOIR.surface }}>
-          <div style={{ ...TX.eyebrow, color: NOIR.faint, fontSize: 11 }}>{tr("vsYesterday")}</div>
+        <div style={{ ...card({ pad: S[5], radius: R.lg }) }}>
+          <div style={{ ...TX.eyebrow, color: C.faint, fontSize: 11 }}>{tr("vsYesterday")}</div>
           <div style={{ marginTop: 10, display: "flex", alignItems: "baseline", gap: 8 }}>
-            <span style={{ ...numIsolate, fontSize: 30, fontWeight: 600, color: GLOW.brand }}>
+            <span style={{ ...numIsolate, fontSize: 30, fontWeight: 600, color: C.brand }}>
               {data.deltaPct >= 0 ? "+" : ""}
               {data.deltaPct}%
             </span>
           </div>
-          <p style={{ marginTop: 8, color: NOIR.muted, fontSize: 13, lineHeight: 1.55 }}>
+          <p style={{ marginTop: 8, color: C.muted, fontSize: 13, lineHeight: 1.55 }}>
             {locale === "ar"
               ? "نمو الإيراد مقارنة بيوم أمس، وفق بيانات آخر أسبوعين."
               : "Revenue growth vs yesterday, from the last two weeks of data."}
@@ -1167,7 +1163,7 @@ function SectionLabel({ children }: { children: ReactNode }) {
     <h2
       style={{
         ...TX.eyebrow,
-        color: NOIR.muted,
+        color: C.muted,
         fontSize: 12,
         margin: "0 0 12px",
       }}
