@@ -112,7 +112,7 @@ export function PricingSection() {
           <div
             key={line}
             className={i > 0 ? "qp-hairline-dotted" : undefined}
-            style={{ display: "flex", alignItems: "center", gap: S[3], padding: `${S[3]}px ${S[5]}` }}
+            style={{ display: "flex", alignItems: "center", gap: S[3], padding: `${S[3]}px ${S[5]}px` }}
           >
             <CheckIcon />
             <span style={{ fontSize: 14.5, color: C.text }}>{tr(line)}</span>
@@ -127,7 +127,7 @@ export function PricingSection() {
           <div
             key={label}
             className="qp-hairline-dotted"
-            style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: S[4], padding: `${S[3]}px ${S[5]}` }}
+            style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: S[4], padding: `${S[3]}px ${S[5]}px` }}
           >
             <span style={{ fontSize: 14.5, color: C.text }}>{label}</span>
             <span style={{ ...MONO, fontSize: 14.5, fontWeight: 600, color: C.mintInk }}>{amt}</span>

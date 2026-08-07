@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
+import Link from "next/link";
 import {
   C,
   STATUS,
@@ -81,6 +82,7 @@ const UI = {
   paymentMix: { ar: "توزيع طرق الدفع", en: "Payment method mix" },
   vsYesterday: { ar: "مقارنة بالأمس", en: "vs yesterday" },
   pilotBadge: { ar: "الفرع التجريبي", en: "Pilot branch" },
+  groupAdmin: { ar: "إدارة المجموعة", en: "Group admin" },
 } satisfies Record<string, Locale2>;
 
 const ROLE_LABEL: Record<string, Locale2> = {
@@ -422,6 +424,18 @@ function StatusBar({
               <LiveDot /> {clock}
             </span>
           </div>
+          <Link
+            href="/demo/admin"
+            style={{
+              ...btn("secondary"),
+              minHeight: 44,
+              padding: "0 14px",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {tr("groupAdmin")}
+          </Link>
           <button
             type="button"
             onClick={onToggleLang}
