@@ -873,6 +873,32 @@ export function MarketingView() {
           padding: "8px 32px 0",
         }}
       >
+        <div style={{ maxWidth: 620, marginBottom: 40 }}>
+          <div style={eyebrow}>{tr("Live floor")}</div>
+          <h2
+            style={{
+              fontSize: 42,
+              fontWeight: 700,
+              letterSpacing: "-0.03em",
+              lineHeight: 1.08,
+              color: C.text,
+              margin: "14px 0 0",
+              textWrap: "balance",
+            }}
+          >
+            {tr("Every table, live")}
+          </h2>
+          <p
+            style={{
+              fontSize: 17.5,
+              color: C.muted,
+              margin: "16px 0 0",
+              lineHeight: 1.55,
+            }}
+          >
+            {tr("Watch a table go from available to ordered to paid, in real time.")}
+          </p>
+        </div>
         <TableCycle />
       </div>
 

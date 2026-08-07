@@ -40,13 +40,14 @@ const PERSPECTIVE = 1500;
 // Cover Flow geometry caps (desktop values; each is clamp()'d against the
 // viewport in the transform string so side cards spread less, and peek at
 // the edges instead of overflowing, on narrow screens).
-const SPREAD_X = 340; // how far side cards translate from center
+const SPREAD_X = 380; // how far side cards translate from center
 const DEPTH_Z = 260; // how far side cards push back in depth
 const TILT_Y = 42; // degrees side cards rotate inward toward center
 const SIDE_SCALE = 0.86;
 const SIDE_OPACITY = 0.55;
 const DRAG_DEG_PER_PX = 0.45; // rotation sensitivity while dragging
 const TAP_PX = 8; // below this movement a pointer up/down counts as a click
+const STAGE_PAD_Y = S[4]; // breathing room above/below the stage, both branches
 
 // Check mark used on the Paid face (same stroke language as the rest of the page).
 const CHECK = (
@@ -68,11 +69,29 @@ const CHECK = (
 type StateKey = "available" | "ordered" | "paid";
 type BadgeKind = "info" | "warn" | "success";
 
-const STATES: { key: StateKey; en: string; ar: string; badge: BadgeKind }[] = [
-  { key: "available", en: "Available", ar: "متاحة", badge: "info" },
-  { key: "ordered", en: "Ordered", ar: "تم الطلب", badge: "warn" },
-  { key: "paid", en: "Paid", ar: "مدفوعة", badge: "success" },
+// Each state lives at its own table so the three cards read as three real
+// tables in the room, not one table cycling through faces.
+const STATES: {
+  key: StateKey;
+  en: string;
+  ar: string;
+  badge: BadgeKind;
+  tableEn: string;
+  tableAr: string;
+}[] = [
+  { key: "available", en: "Available", ar: "متاحة", badge: "info", tableEn: "Table 12", tableAr: "الطاولة 12" },
+  { key: "ordered", en: "Ordered", ar: "تم الطلب", badge: "warn", tableEn: "Table 7", tableAr: "الطاولة 7" },
+  { key: "paid", en: "Paid", ar: "مدفوعة", badge: "success", tableEn: "Table 3", tableAr: "الطاولة 3" },
 ];
+
+// State-tinted accent (top border) per card, drawn from the existing STATUS
+// tokens plus the brand cyan for "available": quiet, single-hue-per-card,
+// no new colors.
+const ACCENT: Record<BadgeKind, string> = {
+  info: C.brand,
+  warn: STATUS.warn.fg,
+  success: STATUS.success.fg,
+};
 
 // Ordered line items. Amounts are SAR and arithmetically consistent (they sum to
 // the Paid total), echoing the magnitudes of the live-bill preview.
@@ -129,8 +148,16 @@ export function TableCycle() {
   }, [reduced, paused, manualPause, dragging]);
 
   const label = (s: (typeof STATES)[number]) => (rtl ? s.ar : s.en);
-  const tableLabel = rtl ? "الطاولة 12" : "Table 12";
+  const tableFor = (s: (typeof STATES)[number]) => (rtl ? s.tableAr : s.tableEn);
   const current = STATES[frontIndex];
+
+  // Badge with slightly stronger contrast than the shared theme default (a
+  // touch heavier border + weight) so state reads at a glance on the card.
+  const cardBadge = (kind: BadgeKind) => ({
+    ...badge(kind),
+    fontWeight: 800,
+    borderWidth: 1.5,
+  });
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (reduced) return;
@@ -304,7 +331,7 @@ export function TableCycle() {
             gap: 6,
             padding: "6px 12px",
             borderRadius: R.pill,
-            ...badge("success"),
+            ...cardBadge("success"),
             fontSize: 12.5,
           }}
         >
@@ -333,7 +360,9 @@ export function TableCycle() {
           width: `clamp(200px, 62vw, ${CARD_W}px)`,
           height: HEIGHT,
           background: C.surface,
-          border: `1px solid ${isFront ? C.borderStrong : C.border}`,
+          borderInline: `1px solid ${isFront ? C.borderStrong : C.border}`,
+          borderBottom: `1px solid ${isFront ? C.borderStrong : C.border}`,
+          borderTop: `3px solid ${ACCENT[s.badge]}`,
           borderRadius: R.lg,
           boxShadow: isFront ? SHADOW.e2 : SHADOW.e1,
           padding: S[5],
@@ -353,9 +382,9 @@ export function TableCycle() {
           }}
         >
           <span style={{ fontSize: 12.5, fontWeight: 600, color: C.muted }}>
-            {tableLabel}
+            {tableFor(s)}
           </span>
-          <span style={{ ...badge(s.badge), fontSize: 11 }}>{label(s)}</span>
+          <span style={{ ...cardBadge(s.badge), fontSize: 11 }}>{label(s)}</span>
         </div>
         {faceBody(i)}
       </div>
@@ -369,11 +398,12 @@ export function TableCycle() {
       <div
         style={{
           display: "flex",
-          gap: S[3],
+          gap: S[4],
           flexWrap: "wrap",
           justifyContent: "center",
           maxWidth: MAX_W_STATIC,
           margin: "0 auto",
+          padding: `${STAGE_PAD_Y}px 0`,
         }}
       >
         {STATES.map((s, i) => {
@@ -399,7 +429,9 @@ export function TableCycle() {
               <div
                 style={{
                   background: C.surface,
-                  border: `1px solid ${active ? C.brand : C.border}`,
+                  borderInline: `1px solid ${active ? C.brand : C.border}`,
+                  borderBottom: `1px solid ${active ? C.brand : C.border}`,
+                  borderTop: `3px solid ${ACCENT[s.badge]}`,
                   borderRadius: R.lg,
                   boxShadow: active ? SHADOW.e2 : SHADOW.e1,
                   padding: S[4],
@@ -420,9 +452,9 @@ export function TableCycle() {
                   <span
                     style={{ fontSize: 11.5, fontWeight: 600, color: C.muted }}
                   >
-                    {tableLabel}
+                    {tableFor(s)}
                   </span>
-                  <span style={{ ...badge(s.badge), fontSize: 10.5 }}>
+                  <span style={{ ...cardBadge(s.badge), fontSize: 10.5 }}>
                     {label(s)}
                   </span>
                 </div>
@@ -473,7 +505,8 @@ export function TableCycle() {
       onPointerCancel={endDrag}
       style={{
         width: "100%",
-        height: HEIGHT,
+        height: HEIGHT + STAGE_PAD_Y * 2,
+        padding: `${STAGE_PAD_Y}px 0`,
         outline: "none",
         cursor: dragging ? "grabbing" : "grab",
         touchAction: "pan-y",
@@ -501,7 +534,7 @@ export function TableCycle() {
           border: 0,
         }}
       >
-        {tableLabel} {label(current)}
+        {tableFor(current)} {label(current)}
       </span>
       <div
         style={{
