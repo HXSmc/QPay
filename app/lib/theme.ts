@@ -229,44 +229,17 @@ export function badge(kind: keyof typeof STATUS): CSSProperties {
 // =============================================================================
 // IMMERSIVE EXTENSION — additive only. Every export above this line keeps
 // compiling unchanged (real /admin routes import C, S, R, T, SHADOW, MONO, btn,
-// card, field, badge as-is). The tokens below are the dark "Noir" world used by
-// the cinematic landing page and the /demo/branch mission-control surface, plus
-// a wider spacing/motion/type vocabulary for scroll-driven storytelling. This
-// whole dark world is slated for removal during the ui-editorial migration —
-// see app/demo/DIRECTION.md for the brief these tokens served.
+// card, field, badge as-is). The tokens below are the wider spacing/motion/type
+// vocabulary retained from the scroll-driven storytelling system. The former
+// dark-canvas world (off-black surface, glow variant of the accent, dark card
+// helper) was removed during the ui-editorial migration to the single
+// paper-ledger light system.
 // =============================================================================
 
 /** Extra 8pt-rhythm steps for section-level (not component-level) spacing on
  *  immersive surfaces. Spreads S so SX[1..8] === S[1..8]; S itself is
  *  untouched (no mutation of an existing export). */
 export const SX = { ...S, 9: 96, 10: 140 } as const;
-
-// --- Noir surface (dark canvas world) ---------------------------------------
-/** @deprecated remove after ui-editorial migration */
-// Off-black, not pure #000 (kills depth). Off-white ink, not pure #fff.
-export const NOIR = {
-  canvas: "#080A0D", // page background for the dark world
-  surface: "#10141A", // elevated panel on canvas
-  surfaceAlt: "#161B22", // secondary panel (nested cards, table rows)
-  glass: "rgba(16,20,26,0.72)", // frosted panel over imagery/gradients
-  border: "rgba(244,246,248,0.10)",
-  borderStrong: "rgba(244,246,248,0.18)",
-  text: "#F4F6F8", // primary ink on dark
-  muted: "rgba(244,246,248,0.66)", // secondary ink, ~4.6:1 on canvas
-  faint: "rgba(244,246,248,0.40)", // tertiary / disabled-ish
-} as const;
-
-// --- Glow (accent luminous variant for the dark world) ----------------------
-/** @deprecated remove after ui-editorial migration */
-// Derived from the single accent (C.brand) — not a second accent, and never the
-// bright logo cyan (which lives only inside Logo/wordmark assets). Used for glow
-// rings, live-status pulses, and the tap-to-pay ripple motif on dark surfaces.
-export const GLOW = {
-  brand: "#0E7490",
-  brandSoft: "rgba(14,116,144,0.18)",
-  brandRing: "rgba(14,116,144,0.40)",
-  brandText: "0 0 24px rgba(14,116,144,0.45)", // text-shadow value
-} as const;
 
 // --- Motion vocabulary (exact durations/eases, named) -----------------------
 // `ease` matches the curve already used across qp-cta/qp-solution/qp-reveal in
@@ -312,16 +285,3 @@ export const TX = {
   },
 } as const satisfies Record<string, CSSProperties>;
 
-/** Dark-surface card — same shape language as card() (R.lg, S[5] pad) but on
- *  the Noir palette. Keep card() itself untouched for light surfaces. */
-export function noirCard(opts: { pad?: number; radius?: number; glass?: boolean } = {}): CSSProperties {
-  const { pad = S[5], radius = R.lg, glass = false } = opts;
-  return {
-    background: glass ? NOIR.glass : NOIR.surface,
-    border: `1px solid ${NOIR.border}`,
-    borderRadius: radius,
-    padding: pad,
-    backdropFilter: glass ? "blur(20px) saturate(160%)" : undefined,
-    WebkitBackdropFilter: glass ? "blur(20px) saturate(160%)" : undefined,
-  };
-}
