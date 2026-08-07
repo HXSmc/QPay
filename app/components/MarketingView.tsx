@@ -7,6 +7,7 @@ import { SITE } from "../lib/site";
 import { C, R, S, SHADOW, T, MONO, btn } from "../lib/theme";
 import { useT } from "../lib/i18n-client";
 import { usePrefersReducedMotion } from "../lib/use-reduced-motion";
+import { TableCycle } from "./TableCycle";
 
 const SOLUTIONS = [
   {
@@ -859,6 +860,20 @@ export function MarketingView() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Table lifecycle: Available -> Ordered -> Paid, a wide Cover
+          Flow-style 3D card spread, sitting between the feature cards above
+          and the math/metrics band below. */}
+      <div
+        className="qp-section"
+        style={{
+          maxWidth: 1120,
+          margin: "0 auto",
+          padding: "8px 32px 0",
+        }}
+      >
+        <TableCycle />
       </div>
 
       {/* METRICS band - editorial ledger: one hero figure + hairline rows. */}
