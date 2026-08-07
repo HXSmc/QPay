@@ -15,7 +15,7 @@ import { hashPassword } from "./auth";
 import { SUPER_EMAIL, SUPER_PASSWORD } from "./constants";
 import { fmt, type Currency } from "./data";
 import { decryptPosConfig, encryptPosConfig } from "./pos-secrets";
-import { sb } from "./supabase";
+import { deleteMenuObjects, sb } from "./supabase";
 import {
   applyPayment,
   buildOrderLines,
@@ -622,6 +622,22 @@ export async function createAdmin(
 
 export async function deleteAdmin(id: string): Promise<boolean> {
   const client = await sb();
+  // Purge the account's menu files from Storage BEFORE the DB cascade drops the
+  // `menus` rows that record their paths — otherwise the objects orphan in the
+  // public bucket forever, contradicting the deletion promise in terms/copyright
+  // policy. Best-effort: a storage failure must not block account deletion.
+  const { data: menuRows, error: menuErr } = await client
+    .from("menus")
+    .select("filename")
+    .eq("owner", id);
+  if (menuErr) {
+    console.error(`store: menu lookup before account delete failed — ${menuErr.message}`);
+  } else if (menuRows && menuRows.length > 0) {
+    const paths = menuRows.map((r) => r.filename as string).filter(Boolean);
+    await deleteMenuObjects(paths).catch((err) =>
+      console.error(`store: menu storage purge before account delete failed — ${err.message}`),
+    );
+  }
   // Cascade (tables/transactions/menus/settings/branches + child branch-admins)
   // is enforced by FK ON DELETE CASCADE; the super account can't be deleted.
   const { data, error } = await client

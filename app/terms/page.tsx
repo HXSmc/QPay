@@ -81,7 +81,7 @@ export default async function TermsPage() {
             marginBottom: S[6],
           }}
         >
-          {SITE.company} · {t("last updated", locale)} {SITE.legalUpdated}
+          {SITE.company} · {t("last updated", locale)} {SITE.termsUpdated}
         </p>
 
         <div
@@ -192,6 +192,9 @@ export default async function TermsPage() {
             )}
           </p>
           <p style={leadBodyStyle}>
+            {t("How claims are notified and handled is set out under Indemnity below.", locale)}
+          </p>
+          <p style={leadBodyStyle}>
             {t("If you believe material on Nuqra infringes your copyright, see our ", locale)}
             <Link href="/copyright" style={{ color: C.brand, textDecoration: "underline" }}>
               {t("Copyright and takedown", locale)}
@@ -262,6 +265,20 @@ export default async function TermsPage() {
             {t("We may suspend or terminate an account that breaks these rules.", locale)}
           </p>
 
+          <h2 style={h2Style}>{t("Indemnity", locale)}</h2>
+          <p style={bodyStyle}>
+            {t(
+              "You will defend us against, and cover us for, any claim, demand, action, fine or proceeding brought or imposed against us by a third party, and any resulting loss, damages, fines, and reasonable costs and legal fees, to the extent it arises out of: (a) your breach of these terms; (b) your use of Nuqra unlawfully or otherwise than as these terms allow; (c) material you upload, as set out above; or (d) a claim by a diner, a supplier, an employee or a regulator relating to your menu content, your prices, your allergen or ingredient information, food safety, or the meal itself.",
+              locale,
+            )}
+          </p>
+          <p style={leadBodyStyle}>
+            {t(
+              "For your indemnity to apply we will tell you about the claim without undue delay and let you take part in handling it at your own cost. We keep sole conduct of the defence and of any settlement of a claim brought against us, and you may not settle a claim, or admit liability on our behalf, without our written agreement.",
+              locale,
+            )}
+          </p>
+
           <h2 style={h2Style}>{t("Copyright complaints", locale)}</h2>
           <p style={bodyStyle}>
             {t("If you believe material on Nuqra infringes your copyright, our ", locale)}
@@ -307,6 +324,18 @@ export default async function TermsPage() {
               locale,
             )}
           </p>
+          <p style={leadBodyStyle}>
+            {t(
+              "Subject always to the paragraph above on liability that cannot be limited by law, our total liability to you for all claims arising out of or in connection with these terms and your use of Nuqra, taken together in any twelve month period, will not exceed the total fees you paid us for Nuqra in the twelve months before the event giving rise to the claim. If you use Nuqra on a free, trial or pilot basis, or if no fees were payable in that period, our total liability will not exceed one thousand Saudi riyals (SAR 1,000).",
+              locale,
+            )}
+          </p>
+          <p style={leadBodyStyle}>
+            {t(
+              "This limit applies to our contractual liability under these terms. It does not purport to limit any liability that Saudi law does not allow to be limited by agreement, and it does not apply to liability for a harmful act.",
+              locale,
+            )}
+          </p>
           <h2 style={h2Style}>{t("Suspension and termination", locale)}</h2>
           <p style={bodyStyle}>
             {t("You may close your account at any time by contacting us.", locale)}
@@ -327,11 +356,35 @@ export default async function TermsPage() {
             </Link>
             .
           </p>
+          <p style={leadBodyStyle}>
+            {t(
+              "Either of us may end this agreement for convenience by giving the other thirty (30) days notice in writing. If we end it for convenience, we will refund any fees you have paid in advance for the period after termination. Ending the agreement does not refund fees for a period you have already used.",
+              locale,
+            )}
+          </p>
+          <p style={leadBodyStyle}>
+            {t(
+              "If fees become payable for your plan and an invoice is not paid by its due date, we may suspend your account after giving you notice and a reasonable opportunity to pay, and we may terminate it if the invoice remains unpaid thirty (30) days after that notice. Suspension for non-payment does not reduce what you already owe.",
+              locale,
+            )}
+          </p>
+          <p style={leadBodyStyle}>
+            {t(
+              "Ending this agreement, however it ends, does not affect the sections on what we own, the menus and images you upload (including the licence you give us), service availability and no warranty, limitation of liability, indemnity, and governing law and disputes. Those sections continue to apply after your account closes, together with any right or liability that had already arisen.",
+              locale,
+            )}
+          </p>
 
           <h2 style={h2Style}>{t("Governing law and disputes", locale)}</h2>
           <p style={bodyStyle}>
             {t(
               "These terms are governed by the laws of the Kingdom of Saudi Arabia. If a dispute arises, please contact us first so we can try to resolve it directly. If we cannot, the competent courts of the Kingdom of Saudi Arabia have jurisdiction.",
+              locale,
+            )}
+          </p>
+          <p style={leadBodyStyle}>
+            {t(
+              "These terms are published in Arabic and in English. If there is any difference between the two versions, the Arabic version prevails.",
               locale,
             )}
           </p>

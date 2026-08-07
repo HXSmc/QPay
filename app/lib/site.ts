@@ -13,6 +13,9 @@ export const SITE = {
   copyrightYear: 2026,
   /** Real last-revision date for the legal pages (bump when the text changes). */
   legalUpdated: "August 2026",
+  /** Real last-revision date for the terms page specifically (separate from
+   *  legalUpdated so a terms-only edit doesn't imply privacy/copyright changed too). */
+  termsUpdated: "7 August 2026",
   /** Sales contact (also used for the tel: link + clipboard copy). */
   salesPhone: "+966566201233",
   /** Sales email — used in the "contact sales" demo email + sender reply-to. */

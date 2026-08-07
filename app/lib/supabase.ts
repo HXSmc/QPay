@@ -154,3 +154,14 @@ export async function deleteMenuObject(storagePath: string): Promise<void> {
     throw new Error(`storage delete failed: ${error.message}`);
   }
 }
+
+/** Batch-delete stored menu objects (service role), e.g. an account's whole
+ * menu history on account deletion. "not found" is treated as success. */
+export async function deleteMenuObjects(storagePaths: string[]): Promise<void> {
+  if (storagePaths.length === 0) return;
+  const client = await sb();
+  const { error } = await client.storage.from(MENUS_BUCKET).remove(storagePaths);
+  if (error && !/not.?found/i.test(error.message)) {
+    throw new Error(`storage delete failed: ${error.message}`);
+  }
+}

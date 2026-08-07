@@ -108,6 +108,7 @@ export const ar: Record<string, string> = {
     "نقرة تشغّله مؤسسة توحيد، وهي مؤسسة سعودية بسجل تجاري رقم 7054836007. ويُقصد بلفظ «نحن» في هذه الشروط مؤسسة توحيد، ويُقصد بلفظ «أنت» المنشأة المطعمية صاحبة الحساب في نقرة، ومعها كل من يستخدم الحساب نيابةً عنها.",
   "Diners who scan a table QR code are not parties to these terms. Their relationship for the meal itself is with the restaurant.":
     "أما روّاد المطعم الذين يمسحون رمز الطاولة فليسوا أطرافًا في هذه الشروط، وعلاقتهم بشأن الوجبة نفسها قائمة مع المطعم.",
+  Accounts: "الحسابات",
 
   "Your right to use Nuqra": "حقك في استخدام نقرة",
   "For as long as your account is active, we grant you a limited, non-exclusive, non-transferable, non-sublicensable and revocable right to use Nuqra to run scan-to-pay ordering at the branches and tables covered by your plan. That is a right to use the service, not a sale of it.":
@@ -138,6 +139,8 @@ export const ar: Record<string, string> = {
   "You cover us if that promise is wrong.": "تحمّلك للتبعة إن كان هذا الإقرار غير صحيح.",
   " If a third party brings a claim against us because material you uploaded infringed their rights, you will cover our reasonable costs and any amount we have to pay, provided we tell you about the claim promptly and let you take part in handling it.":
     " إذا رفع طرف ثالث مطالبة ضدنا بسبب مادة رفعتها أنت تنتهك حقوقه، فإنك تتحمّل تكاليفنا المعقولة وأي مبلغ يلزمنا سداده، شريطة أن نُبلغك بالمطالبة دون إبطاء وأن نتيح لك المشاركة في التعامل معها.",
+  "How claims are notified and handled is set out under Indemnity below.":
+    "وطريقة الإخطار بالمطالبات والتعامل معها موضّحة في بند التعويض أدناه.",
   "If you believe material on Nuqra infringes your copyright, see our ":
     "وإذا كنت تعتقد أن مادةً على نقرة تنتهك حق مؤلفك، فراجع صفحة ",
   " page.": ".",
@@ -163,6 +166,12 @@ export const ar: Record<string, string> = {
   "We may suspend or terminate an account that breaks these rules.":
     "ويجوز لنا إيقاف الحساب المخالف لهذه القواعد أو إنهاؤه.",
 
+  Indemnity: "التعويض",
+  "You will defend us against, and cover us for, any claim, demand, action, fine or proceeding brought or imposed against us by a third party, and any resulting loss, damages, fines, and reasonable costs and legal fees, to the extent it arises out of: (a) your breach of these terms; (b) your use of Nuqra unlawfully or otherwise than as these terms allow; (c) material you upload, as set out above; or (d) a claim by a diner, a supplier, an employee or a regulator relating to your menu content, your prices, your allergen or ingredient information, food safety, or the meal itself.":
+    "تتولى الدفاع عنا وتعوّضنا عن أي مطالبة أو ادعاء أو دعوى أو غرامة أو إجراء يرفعه أو يوقعه علينا طرف ثالث، وعمّا ينشأ عن ذلك من خسائر وأضرار وغرامات وتكاليف وأتعاب محاماة معقولة، وذلك بقدر ما ينشأ عن: (أ) إخلالك بهذه الشروط؛ (ب) استخدامك لنقرة على نحو غير مشروع أو على غير ما تجيزه هذه الشروط؛ (ج) المواد التي ترفعها، على النحو الموضّح أعلاه؛ (د) مطالبة من رائد مطعم أو مورّد أو موظف أو جهة رقابية تتعلق بمحتوى قائمتك أو أسعارك أو بياناتك عن مسبّبات الحساسية أو المكوّنات أو بسلامة الغذاء أو بالوجبة نفسها.",
+  "For your indemnity to apply we will tell you about the claim without undue delay and let you take part in handling it at your own cost. We keep sole conduct of the defence and of any settlement of a claim brought against us, and you may not settle a claim, or admit liability on our behalf, without our written agreement.":
+    "ولإعمال هذا التعويض، نُبلغك بالمطالبة دون إبطاء ونتيح لك المشاركة في التعامل معها على نفقتك. ونحتفظ وحدنا بإدارة الدفاع في أي مطالبة تُرفع علينا وبتسويتها، ولا يجوز لك تسوية مطالبة أو الإقرار بالمسؤولية نيابةً عنا دون موافقتنا الكتابية.",
+
   "Copyright complaints": "شكاوى حقوق المؤلف",
   "If you believe material on Nuqra infringes your copyright, our ":
     "إذا كنت تعتقد أن مادةً على نقرة تنتهك حق مؤلفك، فإن صفحة ",
@@ -182,6 +191,10 @@ export const ar: Record<string, string> = {
     "لا يحدّ أي مما ورد في هذه الشروط من مسؤولية لا يجوز الحد منها نظامًا، بما في ذلك المسؤولية عن الغش، أو عن الوفاة أو الإصابة الجسدية الناشئة عن الإهمال، أو عن أي أمر لا تُجيز المحكمة السعودية استثناءه.",
   "Subject to that, to the fullest extent permitted by law we are not liable for lost profits, lost revenue, lost sales, lost or corrupted data, business interruption, or any indirect or consequential loss, arising from your use of Nuqra, however it arises.":
     "ومع مراعاة ما تقدّم، وإلى أقصى حد يسمح به النظام، لا نُسأل عن الأرباح الفائتة، أو الإيرادات الفائتة، أو المبيعات الفائتة، أو فقدان البيانات أو تلفها، أو تعطّل الأعمال، أو أي خسارة غير مباشرة أو تبعية، تنشأ عن استخدامك لنقرة، أيًّا كان سبب نشوئها.",
+  "Subject always to the paragraph above on liability that cannot be limited by law, our total liability to you for all claims arising out of or in connection with these terms and your use of Nuqra, taken together in any twelve month period, will not exceed the total fees you paid us for Nuqra in the twelve months before the event giving rise to the claim. If you use Nuqra on a free, trial or pilot basis, or if no fees were payable in that period, our total liability will not exceed one thousand Saudi riyals (SAR 1,000).":
+    "ومع عدم الإخلال بما ورد في الفقرة السابقة بشأن المسؤولية التي لا يجوز الحد منها نظامًا، فإن إجمالي مسؤوليتنا تجاهك عن جميع المطالبات الناشئة عن هذه الشروط أو عن استخدامك لنقرة أو المتصلة بها، مجتمعةً خلال أي مدة اثني عشر شهرًا، لن يتجاوز مجموع الرسوم التي سددتها إلينا مقابل نقرة خلال الاثني عشر شهرًا السابقة على الواقعة التي نشأت عنها المطالبة. وإذا كنت تستخدم نقرة على أساس مجاني أو تجريبي أو استرشادي، أو لم تكن هناك رسوم مستحقة خلال تلك المدة، فلن يتجاوز إجمالي مسؤوليتنا ألف ريال سعودي (1,000 ريال).",
+  "This limit applies to our contractual liability under these terms. It does not purport to limit any liability that Saudi law does not allow to be limited by agreement, and it does not apply to liability for a harmful act.":
+    "ويقتصر هذا الحد على مسؤوليتنا العقدية بموجب هذه الشروط، ولا يُقصد به الحد من أي مسؤولية لا يجيز النظام السعودي الحد منها بالاتفاق، ولا من المسؤولية عن الفعل الضار.",
   "Suspension and termination": "الإيقاف والإنهاء",
   "You may close your account at any time by contacting us.":
     "يمكنك إغلاق حسابك في أي وقت بالتواصل معنا.",
@@ -189,10 +202,18 @@ export const ar: Record<string, string> = {
     "ويجوز لنا إيقاف أو إنهاء الحساب المخالف لهذه الشروط، أو المستخدم على نحو غير مشروع، أو الذي ينشئ خطرًا أمنيًا أو نظاميًا علينا أو على عملاء آخرين. وسننذرك أولًا حيثما كان ذلك معقولًا، غير أننا غير ملزمين بذلك متى كانت المشكلة جسيمة.",
   "When an account closes, your stored menu files are deleted and your QR codes stop working. Export anything you need first. We may keep records we are required to keep by law, as described in our ":
     "وعند إغلاق الحساب، تُحذف ملفات قوائمك المخزّنة وتتوقف رموز الاستجابة السريعة عن العمل. فصدّر ما تحتاجه أولًا. وقد نحتفظ بالسجلات التي يُلزمنا النظام بحفظها، على النحو الموضّح في ",
+  "Either of us may end this agreement for convenience by giving the other thirty (30) days notice in writing. If we end it for convenience, we will refund any fees you have paid in advance for the period after termination. Ending the agreement does not refund fees for a period you have already used.":
+    "ولأيٍّ منّا إنهاء هذه الاتفاقية دون سبب بإشعار كتابي إلى الطرف الآخر مدته ثلاثون (30) يومًا. وإذا أنهيناها نحن دون سبب، رددنا إليك ما سددته مقدمًا من رسوم عن المدة اللاحقة للإنهاء. ولا يترتب على الإنهاء ردّ رسوم عن مدة انتفعت بها فعلًا.",
+  "If fees become payable for your plan and an invoice is not paid by its due date, we may suspend your account after giving you notice and a reasonable opportunity to pay, and we may terminate it if the invoice remains unpaid thirty (30) days after that notice. Suspension for non-payment does not reduce what you already owe.":
+    "وإذا أصبحت باقتك خاضعة لرسوم ولم تُسدَّد فاتورة في تاريخ استحقاقها، جاز لنا إيقاف حسابك بعد إشعارك ومنحك مهلة معقولة للسداد، وجاز لنا إنهاؤه إذا بقيت الفاتورة غير مسددة ثلاثين (30) يومًا من ذلك الإشعار. ولا ينقص الإيقاف بسبب عدم السداد شيئًا مما هو مستحق عليك أصلًا.",
+  "Ending this agreement, however it ends, does not affect the sections on what we own, the menus and images you upload (including the licence you give us), service availability and no warranty, limitation of liability, indemnity, and governing law and disputes. Those sections continue to apply after your account closes, together with any right or liability that had already arisen.":
+    "ولا يخلّ إنهاء هذه الاتفاقية، أيًّا كان سبب إنهائها، بأحكام البنود الخاصة بما نملكه، وبالقوائم والصور التي ترفعها (بما في ذلك الترخيص الذي تمنحنا إياه)، وبإتاحة الخدمة وعدم الضمان، وبحدود المسؤولية، وبالتعويض، وبالنظام الواجب التطبيق وتسوية المنازعات. فتظل هذه البنود سارية بعد إغلاق حسابك، ومعها كل حق أو التزام كان قد نشأ قبل ذلك.",
 
   "Governing law and disputes": "النظام الواجب التطبيق وتسوية المنازعات",
   "These terms are governed by the laws of the Kingdom of Saudi Arabia. If a dispute arises, please contact us first so we can try to resolve it directly. If we cannot, the competent courts of the Kingdom of Saudi Arabia have jurisdiction.":
     "تخضع هذه الشروط لأنظمة المملكة العربية السعودية. وإذا نشأ نزاع، فيرجى التواصل معنا أولًا لنحاول تسويته مباشرةً. وإن تعذّر ذلك، تختص المحاكم المختصة في المملكة العربية السعودية بنظره.",
+  "These terms are published in Arabic and in English. If there is any difference between the two versions, the Arabic version prevails.":
+    "تُنشر هذه الشروط باللغتين العربية والإنجليزية. وإذا وُجد اختلاف بين النصّين، يُعتد بالنص العربي.",
 
   "Changes to these terms": "التعديلات على هذه الشروط",
   "We may update these terms. When we make a material change we will post it here with an updated date at the top, and continued use of Nuqra after that counts as acceptance.":
