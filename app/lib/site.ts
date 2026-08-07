@@ -32,8 +32,6 @@ export const SITE = {
   heroBadge: "7-day free trial · No card · Live in minutes",
   /** Honest capability line (no unverifiable certifications). */
   trustLine: "No app for diners · Works with your POS · Encrypted payments",
-  /** Short footer reassurance. */
-  footerClaim: "7-day free trial · Cancel anytime",
   /** ROI metrics band. */
   metrics: [
     { value: "15", unit: "min", label: "saved per table" },

@@ -91,6 +91,12 @@ export const ar: Record<string, string> = {
   " (your items)": " (أصنافك)",
   "Secured by Nuqra, 256-bit encryption": "محمي بواسطة Nuqra، تشفير 256-بت",
 
+  // Demo-payment honesty labels (payments are simulated pending SAMA licensing)
+  "Demo payment — simulated, no money is charged.":
+    "دفع تجريبي — محاكاة فقط، لا يتم خصم أي مبلغ.",
+  "Simulated payment — no real money was charged.":
+    "دفعة محاكاة — لم يتم خصم أي مبلغ حقيقي.",
+
   // MenuModal
   Menu: "القائمة",
   "View menu fullscreen": "عرض القائمة بملء الشاشة",

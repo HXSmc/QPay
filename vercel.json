@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "app/api/auth/**/route.ts": { "memory": 2048, "maxDuration": 20 }
+  }
+}

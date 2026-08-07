@@ -30,6 +30,10 @@ const csp = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   // The browser fetches /api (self) and PUTs menu uploads directly to Supabase Storage.
+  // FUTURE (GlitchTip error tracking): when the self-hosted GlitchTip server exists and
+  // NEXT_PUBLIC_SENTRY_DSN is set, the client SDK will POST envelopes to the GlitchTip
+  // host. Add that origin here, e.g. `connect-src 'self' ${SUPABASE_STORAGE_ORIGIN} https://<glitchtip-host>`
+  // (do NOT add it until the host is known and pinned — never a wildcard).
   `connect-src 'self' ${SUPABASE_STORAGE_ORIGIN}`,
   // PDF menus render in an <iframe> from Supabase Storage (prod) or the
   // same-origin /uploads path (dev) — allow those, not blanket 'none'.

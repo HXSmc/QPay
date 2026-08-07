@@ -850,6 +850,37 @@ export function CustomerView({
                         </>
                       )}
                     </div>
+                    {/* Demo notice on the receipt — the "Paid" amount above is a
+                        simulated settlement, so the success state can never read
+                        as a real charge being collected. */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 7,
+                        marginTop: 9,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: STATUS.warn.fg,
+                      }}
+                    >
+                      <svg
+                        aria-hidden="true"
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ flexShrink: 0 }}
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 16v-4M12 8h.01" />
+                      </svg>
+                      <span>{tr("Simulated payment — no real money was charged.")}</span>
+                    </div>
                   </div>
                 )}
 
@@ -1274,8 +1305,45 @@ export function CustomerView({
                       </div>
                     )}
 
+                    {/* Demo notice — honest labelling. Payments are simulated on
+                        purpose (pending SAMA licensing); this banner sits above the
+                        pay buttons so a diner can never believe a real charge will
+                        happen before tapping. */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginTop: S[5],
+                        padding: "9px 12px",
+                        borderRadius: R.md,
+                        background: STATUS.warn.bg,
+                        border: `1px solid ${STATUS.warn.border}`,
+                        color: STATUS.warn.fg,
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                    >
+                      <svg
+                        aria-hidden="true"
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        style={{ flexShrink: 0 }}
+                      >
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 16v-4M12 8h.01" />
+                      </svg>
+                      <span>{tr("Demo payment — simulated, no money is charged.")}</span>
+                    </div>
+
                     {/* Apple / Google pay */}
-                    <div style={{ display: "flex", gap: S[2], marginTop: S[5] }}>
+                    <div style={{ display: "flex", gap: S[2], marginTop: S[3] }}>
                       <button
                         onClick={() => handlePay("Apple Pay")}
                         disabled={payDisabled}
