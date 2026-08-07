@@ -149,7 +149,7 @@ function Money({
   color?: string;
 }) {
   return (
-    <span style={{ ...MONO, fontSize: size, fontWeight: weight, color }}>
+    <span style={{ ...MONO, fontSize: size, fontWeight: weight, color, whiteSpace: "nowrap" }}>
       {fmt(value, CURRENCY)}
     </span>
   );
@@ -750,7 +750,7 @@ export default function DemoCustomerPage() {
                 )}
 
                 {/* --- Total + pay (total re-pops on change) --------------- */}
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: S[6] }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: S[3], marginTop: S[6] }}>
                   <span style={{ ...T.h3, fontSize: 16, color: C.text }}>{tr("total")}</span>
                   <span key={popKey} style={{ display: "inline-block", animation: totalPop }}>
                     <Money value={payAmount} size={T.display.fontSize} weight={700} color={C.brand} />
