@@ -9,7 +9,7 @@
 // Paper-ledger light system (C.* tokens), Arabic-first RTL default. Nothing
 // here is production: no fetch, no Supabase, no auth. All data from _data.ts.
 
-import { createContext, useContext, useMemo, useState, useEffect, useRef, type ReactNode, type CSSProperties } from "react";
+import { createContext, useContext, useMemo, useState, useEffect, useRef, type ReactNode, type CSSProperties, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -32,9 +32,11 @@ import {
   RESTAURANT,
   BRANCHES,
   TABLES,
+  MENU_ITEMS,
   BRANCH_SUMMARIES,
   STAFF,
   type Bilingual,
+  type Table,
   type TableState,
   type Order,
   type MenuItem,
@@ -46,6 +48,11 @@ import {
 // ---------------------------------------------------------------------------
 
 export type Locale = "ar" | "en";
+
+/** Which demo persona is driving the admin shell. Drives nav filtering, the
+ *  Settings page variant, and the branch-only floor interactivity. In-memory
+ *  client state only (no persistence). */
+export type DemoRole = "group" | "branch";
 
 export const UI = {
   demoBadge: { en: "Demo", ar: "نسخة تجريبية" },
@@ -162,6 +169,45 @@ export const UI = {
   seats: { en: "seats", ar: "مقاعد" },
   guestsUnit: { en: "guests", ar: "ضيف" },
   ago: { en: "ago", ar: "منذ" },
+  // settings + interactivity (demo-only surfaces)
+  navSettings: { en: "Settings", ar: "الإعدادات" },
+  settingsSubBranch: { en: "Branch configuration (demo)", ar: "إعدادات الفرع (تجريبي)" },
+  settingsSubGroup: { en: "Group configuration (demo)", ar: "إعدادات المجموعة (تجريبي)" },
+  secIntegration: { en: "POS integration", ar: "تكامل نقاط البيع" },
+  posProvider: { en: "POS provider", ar: "مزوّد نقاط البيع" },
+  posConnected: { en: "Connected", ar: "متصل" },
+  posDisconnected: { en: "Not connected", ar: "غير متصل" },
+  connect: { en: "Connect", ar: "ربط" },
+  disconnect: { en: "Disconnect", ar: "قطع الربط" },
+  branchIdField: { en: "Branch ID", ar: "معرّف الفرع" },
+  zatcaIdField: { en: "ZATCA ID", ar: "المعرّف الضريبي (زاتكا)" },
+  secProfile: { en: "Restaurant profile", ar: "ملف المطعم" },
+  legalNameField: { en: "Legal name", ar: "الاسم القانوني" },
+  vatNumberField: { en: "VAT number", ar: "الرقم الضريبي" },
+  defaultCurrencyField: { en: "Default currency", ar: "العملة الافتراضية" },
+  save: { en: "Save changes", ar: "حفظ التغييرات" },
+  saved: { en: "Saved (demo)", ar: "تم الحفظ (تجريبي)" },
+  addOrder: { en: "Add order", ar: "إضافة طلب" },
+  markSeated: { en: "Mark seated", ar: "تأكيد الجلوس" },
+  selectTable: { en: "Table", ar: "الطاولة" },
+  selectItem: { en: "Item", ar: "الصنف" },
+  add: { en: "Add", ar: "إضافة" },
+  orderAdded: { en: "Order added to table (demo)", ar: "تمت إضافة الطلب إلى الطاولة (تجريبي)" },
+  seatedMarked: { en: "Table marked seated (demo)", ar: "تم تأكيد جلوس الطاولة (تجريبي)" },
+  noFreeTables: { en: "No free tables", ar: "لا توجد طاولات متاحة" },
+  addMember: { en: "Add member", ar: "إضافة عضو" },
+  memberName: { en: "Name", ar: "الاسم" },
+  memberRole: { en: "Role", ar: "الدور" },
+  remove: { en: "Remove", ar: "إزالة" },
+  memberAdded: { en: "Member added (demo)", ar: "تمت إضافة العضو (تجريبي)" },
+  memberRemoved: { en: "Member removed (demo)", ar: "تمت إزالة العضو (تجريبي)" },
+  nameRequired: { en: "Enter a name", ar: "أدخل اسمًا" },
+  editItem: { en: "Edit item", ar: "تعديل الصنف" },
+  edit: { en: "Edit", ar: "تعديل" },
+  cancel: { en: "Cancel", ar: "إلغاء" },
+  itemName: { en: "Item name", ar: "اسم الصنف" },
+  itemPrice: { en: "Price (SAR)", ar: "السعر (ر.س)" },
+  itemSaved: { en: "Item updated (demo)", ar: "تم تحديث الصنف (تجريبي)" },
 } as const satisfies Record<string, Bilingual>;
 
 export type UIKey = keyof typeof UI;
@@ -170,6 +216,18 @@ export const tr = (locale: Locale, key: UIKey) =>
   locale === "ar" ? UI[key].ar : UI[key].en;
 
 export const bi = (locale: Locale, b: Bilingual) => (locale === "ar" ? b.ar : b.en);
+
+/** Shared uppercase field-label style for the admin subpages (DRY — used by
+ *  settings, tables, team, menu). */
+export const LABEL_STYLE: CSSProperties = {
+  ...T.caption,
+  color: C.muted,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.05em",
+  display: "block",
+  marginBottom: 6,
+};
 
 // Latin-digit grouping for every figure (numbers stay LTR inside RTL flow via MONO).
 export const fmtInt = (n: number) => Math.round(n).toLocaleString("en-US");
@@ -180,15 +238,20 @@ export const fmtDec = (n: number, d = 1) =>
 // Sidebar nav: real routes, not same-page anchors. Dashboard == the overview.
 // ---------------------------------------------------------------------------
 
-export const NAV: { key: UIKey; href: string }[] = [
-  { key: "navDashboard", href: "/demo/admin" },
-  { key: "navTables", href: "/demo/admin/tables" },
-  { key: "navBranches", href: "/demo/admin/branches" },
-  { key: "navOrders", href: "/demo/admin/orders" },
-  { key: "navTransactions", href: "/demo/admin/transactions" },
-  { key: "navMenu", href: "/demo/admin/menu" },
-  { key: "navAnalytics", href: "/demo/admin/analytics" },
-  { key: "navTeam", href: "/demo/admin/team" },
+// Each item declares which demo roles see it. Filtering happens in the sidebar.
+// Branch admin: Dashboard, Tables, Orders, Menu, Team, Settings.
+// Group admin: Dashboard, Tables, Branches, Transactions, Menu, Analytics, Team,
+// Settings (Orders is branch-only).
+export const NAV: { key: UIKey; href: string; roles: DemoRole[] }[] = [
+  { key: "navDashboard", href: "/demo/admin", roles: ["group", "branch"] },
+  { key: "navTables", href: "/demo/admin/tables", roles: ["group", "branch"] },
+  { key: "navOrders", href: "/demo/admin/orders", roles: ["branch"] },
+  { key: "navBranches", href: "/demo/admin/branches", roles: ["group"] },
+  { key: "navTransactions", href: "/demo/admin/transactions", roles: ["group"] },
+  { key: "navMenu", href: "/demo/admin/menu", roles: ["group", "branch"] },
+  { key: "navAnalytics", href: "/demo/admin/analytics", roles: ["group"] },
+  { key: "navTeam", href: "/demo/admin/team", roles: ["group", "branch"] },
+  { key: "navSettings", href: "/demo/admin/settings", roles: ["group", "branch"] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -200,6 +263,17 @@ export interface AdminDemoState {
   setLocale: (l: Locale) => void;
   branchId: string;
   setBranchId: (id: string) => void;
+  role: DemoRole;
+  setRole: (r: DemoRole) => void;
+  // Editable in-memory mock data (criterion 5). Seeded from _data.ts; mutations
+  // live only for the session (no fetch / localStorage). Lifted into the shell
+  // context so tables/menu/team edits persist across subpage navigation.
+  tables: Table[];
+  setTables: Dispatch<SetStateAction<Table[]>>;
+  menuItems: MenuItem[];
+  setMenuItems: Dispatch<SetStateAction<MenuItem[]>>;
+  staff: StaffMember[];
+  setStaff: Dispatch<SetStateAction<StaffMember[]>>;
 }
 
 const AdminDemoContext = createContext<AdminDemoState | null>(null);
@@ -213,11 +287,28 @@ export function useAdminDemo(): AdminDemoState {
 export function AdminDemoProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("ar");
   const [branchId, setBranchId] = useState<string>("br_dhahran");
+  const [role, setRole] = useState<DemoRole>("group");
+  const [tables, setTables] = useState<Table[]>(TABLES);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>(MENU_ITEMS);
+  const [staff, setStaff] = useState<StaffMember[]>(STAFF);
   const setLocale = (l: Locale) => setLocaleState(l);
   const setBranch = (id: string) => setBranchId(id);
   const value = useMemo<AdminDemoState>(
-    () => ({ locale, setLocale, branchId, setBranchId: setBranch }),
-    [locale, branchId],
+    () => ({
+      locale,
+      setLocale,
+      branchId,
+      setBranchId: setBranch,
+      role,
+      setRole,
+      tables,
+      setTables,
+      menuItems,
+      setMenuItems,
+      staff,
+      setStaff,
+    }),
+    [locale, branchId, role, tables, menuItems, staff],
   );
   return <AdminDemoContext.Provider value={value}>{children}</AdminDemoContext.Provider>;
 }
@@ -362,9 +453,10 @@ export function AdminShell({ children }: { children: ReactNode }) {
 // ===========================================================================
 
 function AdminSidebar() {
-  const { locale } = useAdminDemo();
+  const { locale, role } = useAdminDemo();
   const pathname = usePathname();
   const t = (k: UIKey) => tr(locale, k);
+  const items = NAV.filter((it) => it.roles.includes(role));
 
   return (
     <div
@@ -409,7 +501,7 @@ function AdminSidebar() {
         {t("manage")}
       </div>
       <nav aria-label={t("manage")} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {NAV.map((it) => {
+        {items.map((it) => {
           const on = isActive(pathname, it.href);
           return (
             <Link
@@ -505,7 +597,7 @@ function AdminTopBar() {
 
       <div style={{ marginInlineStart: "auto", display: "flex", alignItems: "center", gap: S[2] }}>
         <BranchSwitcher value={branchId} onChange={setBranchId} />
-        <RoleSwitch locale={locale} />
+        <RoleSwitch />
         <button
           type="button"
           onClick={() => setLocale(locale === "ar" ? "en" : "ar")}
@@ -581,23 +673,57 @@ function BranchSwitcher({
   );
 }
 
-/** Demo role hop: Group admin (this surface) ⇄ Branch admin (/demo/branch). */
-function RoleSwitch({ locale }: { locale: Locale }) {
+/** Demo role toggle: Group admin ⇄ Branch admin, in-place (client state in the
+ *  shell context). Drives nav filtering, the Settings variant, and the
+ *  branch-only floor interactivity. Mirrors the BranchSwitcher segmented shape. */
+function RoleSwitch() {
+  const { locale, role, setRole } = useAdminDemo();
   const t = (k: UIKey) => tr(locale, k);
+  const opts: { id: DemoRole; label: string }[] = [
+    { id: "group", label: t("switchToAdmin") },
+    { id: "branch", label: t("switchToBranch") },
+  ];
   return (
-    <Link
-      href="/demo/branch"
-      className="qp-press"
+    <div
+      role="group"
+      aria-label={t("demoRole")}
       style={{
-        ...btn("secondary"),
-        minHeight: 44,
-        padding: "10px 14px",
-        textDecoration: "none",
+        display: "inline-flex",
+        background: C.surfaceAlt,
+        border: `1px solid ${C.border}`,
+        borderRadius: R.md,
+        padding: 3,
+        gap: 2,
       }}
-      aria-label={t("switchToBranch")}
     >
-      {t("switchToBranch")}
-    </Link>
+      {opts.map((o) => {
+        const on = o.id === role;
+        return (
+          <button
+            key={o.id}
+            type="button"
+            onClick={() => setRole(o.id)}
+            aria-pressed={on}
+            className="qp-press"
+            style={{
+              border: "none",
+              background: on ? C.surface : "transparent",
+              color: on ? C.text : C.muted,
+              fontWeight: 600,
+              fontSize: 13,
+              padding: "8px 14px",
+              borderRadius: R.sm,
+              cursor: "pointer",
+              minHeight: 36,
+              whiteSpace: "nowrap",
+              boxShadow: on ? SHADOW.e1 : undefined,
+            }}
+          >
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1410,12 +1536,22 @@ function tierBadge(tier: string): CSSProperties {
 // Team panel
 // ===========================================================================
 
-export function TeamPanel({ locale, branchId }: { locale: Locale; branchId: string }) {
+export function TeamPanel({
+  locale,
+  branchId,
+  staff = STAFF,
+  onRemove,
+}: {
+  locale: Locale;
+  branchId: string;
+  staff?: StaffMember[];
+  onRemove?: (id: string) => void;
+}) {
   const t = (k: UIKey) => tr(locale, k);
   const filter = branchId === "all" ? null : branchId;
 
   // Owner always shows (group-level). Otherwise scope to the selected branch.
-  const members = STAFF.filter((m) => m.role === "owner" || !filter || m.branchId === filter);
+  const members = staff.filter((m) => m.role === "owner" || !filter || m.branchId === filter);
 
   // Group: owner under HQ, rest under their branch.
   const groups: { label: string; members: StaffMember[] }[] = [];
@@ -1478,6 +1614,26 @@ export function TeamPanel({ locale, branchId }: { locale: Locale; branchId: stri
                   <span style={badge(active ? "success" : "neutral")}>
                     {active ? t("stActive") : t("stInvited")}
                   </span>
+                  {onRemove && m.role !== "owner" ? (
+                    <button
+                      type="button"
+                      onClick={() => onRemove(m.id)}
+                      aria-label={`${t("remove")} ${bi(locale, m.name)}`}
+                      className="qp-press"
+                      style={{
+                        ...T.caption,
+                        border: `1px solid ${C.border}`,
+                        background: "transparent",
+                        color: C.muted,
+                        borderRadius: R.sm,
+                        padding: "4px 10px",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {t("remove")}
+                    </button>
+                  ) : null}
                 </div>
               );
             })}
