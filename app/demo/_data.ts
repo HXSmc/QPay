@@ -6,7 +6,9 @@
 // Flavor: "Lumah Pizza" — a fictional multi-branch restaurant, Dhahran
 // (Eastern Province, KSA). Two more branches (Al Khobar, Dammam) round out
 // the multi-branch admin view. All names/prices/timestamps are invented mock
-// content, not real business data.
+// content, not real business data. Settings identifiers shown in the admin
+// demo (ZATCA/VAT/branch IDs) are invented placeholders too — structurally
+// shaped like the real format but checksum-invalid, never a real taxpayer.
 
 export interface Bilingual {
   en: string;

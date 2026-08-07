@@ -49,8 +49,11 @@ export default function TablesPage() {
         ))}
       </div>
 
+      {/* key={branchId} remounts per branch so the seatId/orderTableId/itemId
+          seeds resync to the newly-scoped tables (no stale cross-branch state). */}
       {role === "branch" ? (
         <FloorActions
+          key={branchId}
           locale={locale}
           tables={scoped}
           menuItems={menuItems}

@@ -38,9 +38,13 @@ body {
    on the demo's client-toggled shell (dir set on its container, where html lang
    stays "en" so the html[lang="ar"] rule below never matches). The shell sets
    font-family on itself; descendants inherit it (T.* type tokens set no
-   fontFamily inline). Ledger figures keep --font-mono (Latin digits) via inline
-   MONO. Latin (dir="ltr") is untouched. letter-spacing needs !important to beat
-   the inline letterSpacing from the T.* type tokens. */
+   fontFamily inline). :dir(rtl) resets letter-spacing globally in any Arabic
+   context — INCLUDING embedded Latin text and mono/ledger figures (their inline
+   direction:ltr changes text direction, not the HTML dir attribute, so they
+   still match :dir(rtl)). Their -0.01em tracking is therefore reset too; this
+   is intentional and visually negligible (a hair of negative tracking on Latin
+   digits). letter-spacing needs !important to beat the inline letterSpacing
+   from the T.* type tokens. */
 html[lang="ar"] body,
 [dir="rtl"] {
   font-family: var(--font-ar), system-ui, -apple-system, sans-serif;

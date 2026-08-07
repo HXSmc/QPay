@@ -5,7 +5,7 @@
 // integration, and a restaurant-profile block. All editable client state only
 // (no fetch / no persistence). Same paper-ledger language as sibling subpages.
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type Dispatch, type SetStateAction } from "react";
 import { S, T, SHADOW, card, field, btn, badge } from "../../../lib/theme";
 import { RESTAURANT } from "../../_data";
 import { PageHead, useAdminDemo, tr, LABEL_STYLE, type UIKey } from "../_shared";
@@ -40,36 +40,19 @@ function BranchSettings({ locale }: { locale: "ar" | "en" }) {
   const [provider, setProvider] = useState<string>(RESTAURANT.posIntegration);
   const [connected, setConnected] = useState(true);
   const [branchId, setBranchId] = useState("br_dhahran");
-  const [saved, setSaved] = useState(false);
+  const { saved, onSave } = useSavedFlash();
 
   return (
     <>
       <SettingsCard title={t("secIntegration")}>
-        <Field label={t("posProvider")} htmlFor="qp-pos-provider">
-          <select
-            id="qp-pos-provider"
-            value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-            style={{ ...field(), padding: "11px 13px" }}
-          >
-            {POS_PROVIDERS.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </Field>
-        <div style={{ display: "flex", alignItems: "center", gap: S[2], flexWrap: "wrap" }}>
-          <span style={badge(connected ? "success" : "neutral")}>
-            {connected ? t("posConnected") : t("posDisconnected")}
-          </span>
-          <button
-            type="button"
-            className="qp-press"
-            onClick={() => setConnected((v) => !v)}
-            style={btn(connected ? "secondary" : "primary", { size: "sm" })}
-          >
-            {connected ? t("disconnect") : t("connect")}
-          </button>
-        </div>
+        <PosIntegrationCard
+          locale={locale}
+          provider={provider}
+          setProvider={setProvider}
+          connected={connected}
+          setConnected={setConnected}
+          selectId="qp-pos-provider"
+        />
       </SettingsCard>
 
       <SettingsCard title={t("branchIdField")}>
@@ -83,7 +66,7 @@ function BranchSettings({ locale }: { locale: "ar" | "en" }) {
         </Field>
       </SettingsCard>
 
-      <SaveBar saved={saved} onSave={() => { setSaved(true); window.setTimeout(() => setSaved(false), 2500); }} labels={{ save: t("save"), saved: t("saved") }} />
+      <SaveBar saved={saved} onSave={onSave} labels={{ save: t("save"), saved: t("saved") }} />
     </>
   );
 }
@@ -94,13 +77,13 @@ function BranchSettings({ locale }: { locale: "ar" | "en" }) {
 
 function GroupSettings({ locale }: { locale: "ar" | "en" }) {
   const t = (k: UIKey) => tr(locale, k);
-  const [zatca, setZatca] = useState("310447592500003");
+  const [zatca, setZatca] = useState("310000000000003");
   const [provider, setProvider] = useState<string>(RESTAURANT.posIntegration);
   const [connected, setConnected] = useState(true);
   const [legalName, setLegalName] = useState(RESTAURANT.legalName);
-  const [vat, setVat] = useState("300447592500003");
+  const [vat, setVat] = useState("300000000000003");
   const [currency, setCurrency] = useState("SAR");
-  const [saved, setSaved] = useState(false);
+  const { saved, onSave } = useSavedFlash();
 
   return (
     <>
@@ -116,31 +99,14 @@ function GroupSettings({ locale }: { locale: "ar" | "en" }) {
       </SettingsCard>
 
       <SettingsCard title={t("secIntegration")}>
-        <Field label={t("posProvider")} htmlFor="qp-pos-provider-g">
-          <select
-            id="qp-pos-provider-g"
-            value={provider}
-            onChange={(e) => setProvider(e.target.value)}
-            style={{ ...field(), padding: "11px 13px" }}
-          >
-            {POS_PROVIDERS.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </Field>
-        <div style={{ display: "flex", alignItems: "center", gap: S[2], flexWrap: "wrap" }}>
-          <span style={badge(connected ? "success" : "neutral")}>
-            {connected ? t("posConnected") : t("posDisconnected")}
-          </span>
-          <button
-            type="button"
-            className="qp-press"
-            onClick={() => setConnected((v) => !v)}
-            style={btn(connected ? "secondary" : "primary", { size: "sm" })}
-          >
-            {connected ? t("disconnect") : t("connect")}
-          </button>
-        </div>
+        <PosIntegrationCard
+          locale={locale}
+          provider={provider}
+          setProvider={setProvider}
+          connected={connected}
+          setConnected={setConnected}
+          selectId="qp-pos-provider-g"
+        />
       </SettingsCard>
 
       <SettingsCard title={t("secProfile")}>
@@ -169,7 +135,7 @@ function GroupSettings({ locale }: { locale: "ar" | "en" }) {
         </Field>
       </SettingsCard>
 
-      <SaveBar saved={saved} onSave={() => { setSaved(true); window.setTimeout(() => setSaved(false), 2500); }} labels={{ save: t("save"), saved: t("saved") }} />
+      <SaveBar saved={saved} onSave={onSave} labels={{ save: t("save"), saved: t("saved") }} />
     </>
   );
 }
@@ -177,6 +143,68 @@ function GroupSettings({ locale }: { locale: "ar" | "en" }) {
 // ---------------------------------------------------------------------------
 // Shared bits
 // ---------------------------------------------------------------------------
+
+/** POS-integration card body (provider select + connected badge + connect/
+ *  disconnect toggle). Shared by both the branch and group Settings variants —
+ *  they previously duplicated this block plus its provider/connected state.
+ *  selectId differs per variant to keep the <label htmlFor> unique. */
+function PosIntegrationCard({
+  locale,
+  provider,
+  setProvider,
+  connected,
+  setConnected,
+  selectId,
+}: {
+  locale: "ar" | "en";
+  provider: string;
+  setProvider: Dispatch<SetStateAction<string>>;
+  connected: boolean;
+  setConnected: Dispatch<SetStateAction<boolean>>;
+  selectId: string;
+}) {
+  const t = (k: UIKey) => tr(locale, k);
+  return (
+    <>
+      <Field label={t("posProvider")} htmlFor={selectId}>
+        <select
+          id={selectId}
+          value={provider}
+          onChange={(e) => setProvider(e.target.value)}
+          style={{ ...field(), padding: "11px 13px" }}
+        >
+          {POS_PROVIDERS.map((p) => (
+            <option key={p} value={p}>{p}</option>
+          ))}
+        </select>
+      </Field>
+      <div style={{ display: "flex", alignItems: "center", gap: S[2], flexWrap: "wrap" }}>
+        <span style={badge(connected ? "success" : "neutral")}>
+          {connected ? t("posConnected") : t("posDisconnected")}
+        </span>
+        <button
+          type="button"
+          className="qp-press"
+          onClick={() => setConnected((v) => !v)}
+          style={btn(connected ? "secondary" : "primary", { size: "sm" })}
+        >
+          {connected ? t("disconnect") : t("connect")}
+        </button>
+      </div>
+    </>
+  );
+}
+
+/** "Saved" flash for the demo SaveBar: flips a flag for 2.5s, then resets.
+ *  Replaces the per-variant saved useState + identical onSave closure. */
+function useSavedFlash(): { saved: boolean; onSave: () => void } {
+  const [saved, setSaved] = useState(false);
+  const onSave = () => {
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2500);
+  };
+  return { saved, onSave };
+}
 
 function SettingsCard({ title, children }: { title: string; children: ReactNode }) {
   return (

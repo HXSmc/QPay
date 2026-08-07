@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 import { C, S, T, MONO, R, STATUS, card, field, btn } from "../../../lib/theme";
-import { type StaffMember } from "../../_data";
+import { BRANCHES, type StaffMember } from "../../_data";
 import { TeamPanel, PageHead, useAdminDemo, tr, ROLE_LABEL, LABEL_STYLE, type UIKey } from "../_shared";
 
 const ROLE_ORDER: StaffMember["role"][] = ["owner", "branch_manager", "server", "cashier"];
@@ -15,7 +15,7 @@ const ROLE_ORDER: StaffMember["role"][] = ["owner", "branch_manager", "server", 
 const ADDABLE_ROLES: StaffMember["role"][] = ["branch_manager", "server", "cashier"];
 
 export default function TeamPage() {
-  const { locale, staff, setStaff } = useAdminDemo();
+  const { locale, branchId, staff, setStaff } = useAdminDemo();
   const t = (k: UIKey) => tr(locale, k);
   const [name, setName] = useState("");
   const [role, setRole] = useState<StaffMember["role"]>("server");
@@ -30,11 +30,12 @@ export default function TeamPage() {
   const addMember = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    const memberBranchId = branchId === "all" ? BRANCHES[0].id : branchId;
     const m: StaffMember = {
       id: `stf_${Date.now()}`,
       name: { en: trimmed, ar: trimmed },
       role,
-      branchId: "br_dhahran",
+      branchId: memberBranchId,
       status: "active",
     };
     setStaff((prev) => [...prev, m]);
