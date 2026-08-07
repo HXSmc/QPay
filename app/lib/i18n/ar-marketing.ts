@@ -265,4 +265,20 @@ export const ar: Record<string, string> = {
     "نقرة في مرحلة تجريبية مع مطاعم في السعودية.",
   "No app for diners · Works with your POS · Encrypted payments":
     "بلا تطبيق للضيوف · يعمل مع نظام نقاط البيع لديك · مدفوعات مشفّرة",
+
+  // Landing S2b - verdict columns (section 4): commission model vs Nuqra
+  "A percentage of every bill": "نسبة من كل فاتورة",
+  "Diners must download an app": "يتعيّن على الضيوف تحميل تطبيق",
+  "Your cost rises with sales": "كلفتك ترتفع مع مبيعاتك",
+  "0% of every bill": "صفر نسبة من كل فاتورة",
+  "Pay in the browser, no app": "ادفع من المتصفح، بلا تطبيق",
+  "One flat fee, whatever you sell": "رسم ثابت واحد، مهما بِعت",
+  "mada and Apple Pay ready": "جاهز لمدى وApple Pay",
+  "Nuqra": "نقرة",
+
+  // Landing S2b - pricing panel (section 6): flat fee, no invented figure
+  "Flat monthly fee per branch": "رسم شهري ثابت لكل فرع",
+  "One flat fee per branch, every month. It never grows with your sales.":
+    "رسم ثابت واحد لكل فرع، كل شهر. لا يرتفع مع مبيعاتك.",
+  "No percentage of your sales.": "بلا نسبة من مبيعاتك.",
 };

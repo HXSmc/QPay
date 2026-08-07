@@ -1,12 +1,11 @@
 "use client";
 
-// Section 5 - how-it-works as a receipt timeline (SCAFFOLD-adjacent: the
-// three steps reuse already-vetted, already-translated solution copy from
-// ar-marketing, rendered as line items on one sheet() panel with dotted
-// hairlines between rows - the same receipt-timeline convention S2b should
-// reuse for anything else that reads like ledger lines).
+// Section 5 - how-it-works as a receipt timeline: three steps rendered as LINE
+// ITEMS on one sheet() panel, dotted receipt rules between them, a pale ghost
+// step numeral (01/02/03) leading each row. NOT three cards. The copy reuses
+// already-vetted, already-translated solution strings from ar-marketing.
 
-import { C, S, sheet } from "../../lib/theme";
+import { C, MONO, S, sheet } from "../../lib/theme";
 import { useT } from "../../lib/i18n-client";
 import { Section } from "./Section";
 
@@ -25,6 +24,29 @@ const STEPS: [string, string][] = [
   ],
 ];
 
+const NUMERALS = ["01", "02", "03"];
+
+// Pale oversized step marker - the MNTN ghost-numeral idea scaled down to a
+// ledger line item. Figures are Latin/mono (MONO isolates them LTR), aria-hidden.
+function StepNumeral({ value }: { value: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        ...MONO,
+        fontSize: 28,
+        fontWeight: 700,
+        lineHeight: 1,
+        color: "rgba(23,21,15,0.12)",
+        flexShrink: 0,
+        minWidth: 36,
+      }}
+    >
+      {value}
+    </span>
+  );
+}
+
 export function HowItWorksSection() {
   const tr = useT();
 
@@ -32,9 +54,18 @@ export function HowItWorksSection() {
     <Section id="how-it-works" numeral="05" title={tr("Three steps. One sheet.")}>
       <div style={{ ...sheet({ pad: 0 }), maxWidth: 680 }}>
         {STEPS.map(([title, body], i) => (
-          <div key={title} className={i > 0 ? "qp-hairline-dotted" : undefined} style={{ padding: S[5] }}>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{tr(title)}</div>
-            <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.6, margin: `${S[2]}px 0 0` }}>{tr(body)}</p>
+          <div
+            key={title}
+            className={i > 0 ? "qp-hairline-dotted" : undefined}
+            style={{ display: "flex", gap: S[4], padding: S[5], alignItems: "flex-start" }}
+          >
+            <StepNumeral value={NUMERALS[i]} />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: C.text }}>{tr(title)}</div>
+              <p style={{ fontSize: 14, color: C.muted, lineHeight: 1.6, margin: `${S[2]}px 0 0` }}>
+                {tr(body)}
+              </p>
+            </div>
           </div>
         ))}
       </div>
