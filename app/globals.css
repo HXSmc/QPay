@@ -15,13 +15,20 @@ html {
 }
 
 /* Global canvas so the borderless sticky header blends into the page instead of
-   sitting on a hard seam. Mirrors the C.canvas design token (#F6F7F9). Crisp
-   type rendering for the Linear-clean look. */
+   sitting on a hard seam. Mirrors the C.canvas design token (#FAF9F6 — warm
+   paper). Crisp type rendering for the paper-ledger look. */
 body {
-  background: #F6F7F9;
+  background: #FAF9F6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+/* Receipt rule — a printed-sheet hairline separating line items on the ledger.
+   1px dotted, warm hairline, border-top so it sits between rows without adding
+   box height when unused. */
+.qp-hairline-dotted {
+  border-top: 1px dotted #E7E4DC;
 }
 
 /* Arabic / RTL: switch to the Arabic typeface (Geist has no Arabic glyphs).

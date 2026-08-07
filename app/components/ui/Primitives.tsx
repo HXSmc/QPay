@@ -8,6 +8,23 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { C, R, S, SHADOW, STATUS, T } from "../../lib/theme";
 
+/** Status glyph per STATUS key — Alert/Toast always pair an icon with the color
+ *  + left-border accent so meaning never relies on color alone. */
+const STATUS_ICON: Record<keyof typeof STATUS, string> = {
+  success: "✓",
+  warn: "⚠",
+  danger: "✕",
+  info: "i",
+  neutral: "•",
+};
+
+/** Toast runtime constants (paper-ledger contract). A future stack runtime uses
+ *  these: info auto-dismisses at 4000ms, warning at 7000ms, error persists until
+ *  dismissed; max 3 stacked; pause-on-hover. The current <Toast> below is a
+ *  single-toast surface styled to the same contract; duration stays caller-set. */
+export const TOAST_TIMING = { info: 4000, warning: 7000 } as const;
+export const TOAST_MAX = 3;
+
 /** Composed empty state: icon + heading + description + optional action. */
 export function EmptyState({
   icon,
@@ -99,7 +116,9 @@ export function Spinner({ size = 16, color = "currentColor" }: { size?: number; 
   );
 }
 
-/** Inline alert - error/success/warn/info, replaces bare red text + alert(). */
+/** Inline alert - error/success/warn/info, replaces bare red text + alert().
+ *  Paper-ledger contract: soft status fill + 4px left-border accent + glyph in a
+ *  tone-on-tone chip — meaning never relies on color alone. */
 export function Alert({
   kind = "danger",
   children,
@@ -117,11 +136,34 @@ export function Alert({
         color: s.fg,
         background: s.bg,
         border: `1px solid ${s.border}`,
-        borderRadius: R.md,
+        borderLeft: `4px solid ${s.fg}`,
+        borderRadius: R.sm,
         padding: `${S[2]}px ${S[3]}px`,
+        display: "flex",
+        alignItems: "flex-start",
+        gap: S[2],
       }}
     >
-      {children}
+      <span
+        aria-hidden
+        style={{
+          flexShrink: 0,
+          width: 18,
+          height: 18,
+          borderRadius: R.pill,
+          background: s.fg,
+          color: s.bg,
+          display: "grid",
+          placeItems: "center",
+          fontSize: 11,
+          fontWeight: 700,
+          lineHeight: 1,
+          marginTop: 1,
+        }}
+      >
+        {STATUS_ICON[kind]}
+      </span>
+      <span>{children}</span>
     </div>
   );
 }
@@ -158,24 +200,35 @@ export function Toast({
         alignItems: "center",
         gap: S[2],
         padding: `${S[3]}px ${S[4]}px`,
-        borderRadius: R.md,
-        background: C.ink,
-        color: "#fff",
+        borderRadius: R.sm,
+        background: C.surface,
+        color: C.text,
+        border: `1px solid ${C.border}`,
+        borderLeft: `4px solid ${s.fg}`,
         fontSize: 14,
         fontWeight: 600,
-        boxShadow: SHADOW.e3,
+        boxShadow: SHADOW.e2,
         maxWidth: "calc(100vw - 32px)",
       }}
     >
       <span
+        aria-hidden
         style={{
-          width: 8,
-          height: 8,
-          borderRadius: R.pill,
-          background: s.border,
           flexShrink: 0,
+          width: 18,
+          height: 18,
+          borderRadius: R.pill,
+          background: s.fg,
+          color: s.bg,
+          display: "grid",
+          placeItems: "center",
+          fontSize: 11,
+          fontWeight: 700,
+          lineHeight: 1,
         }}
-      />
+      >
+        {STATUS_ICON[kind]}
+      </span>
       {message}
     </div>
   );
@@ -236,7 +289,7 @@ export function Modal({
         display: "grid",
         placeItems: fullScreen ? "stretch" : "center",
         padding: fullScreen ? 0 : S[4],
-        background: "rgba(13,15,19,0.55)",
+        background: "rgba(23,21,15,0.5)",
         backdropFilter: "blur(2px)",
         WebkitBackdropFilter: "blur(2px)",
         overflow: "auto",
