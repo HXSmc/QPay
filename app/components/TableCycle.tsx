@@ -25,7 +25,7 @@
 // scope); useLocale() selects them per current language.
 
 import { useEffect, useRef, useState } from "react";
-import { C, R, S, SHADOW, MONO, STATUS, badge } from "../lib/theme";
+import { C, R, S, SHADOW, MONO, STATUS, badge, sheet } from "../lib/theme";
 import { useLocale } from "../lib/i18n-client";
 import { usePrefersReducedMotion } from "../lib/use-reduced-motion";
 
@@ -278,7 +278,10 @@ export function TableCycle() {
       const items = rtl ? ITEMS_AR : ITEMS_EN;
       return (
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-          <div style={{ flex: 1 }}>
+          {/* Printed-sheet treatment for the receipt line items: near-square
+              radius, hairline, white fill — depth from the hairline + value
+              shift against the paper card, never elevation. */}
+          <div style={{ flex: 1, ...sheet({ pad: S[3], radius: R.xs }) }}>
             {items.map(([name, price]) => (
               <div
                 key={name}
