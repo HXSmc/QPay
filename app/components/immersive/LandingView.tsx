@@ -303,11 +303,10 @@ export function LandingView() {
           <h1
             style={{
               ...TX.hero,
-              fontSize: "clamp(32px, 4.5vw, 60px)",
               color: NOIR.text,
               margin: 0,
               textWrap: "balance",
-              maxWidth: 680,
+              maxWidth: 620,
             }}
           >
             {tr("QR payments for restaurants. Get paid before they leave the table.")}
