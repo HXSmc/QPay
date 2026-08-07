@@ -129,8 +129,8 @@ export function TableCycle() {
   const [highlight, setHighlight] = useState<number | null>(0);
 
   const frontIndex = ((pos % STATES.length) + STATES.length) % STATES.length;
-  // Under RTL we keep the same slot math and only flip the gesture/keyboard
-  // directions (see handlers), so the drag feel and spin stay consistent.
+  // Under RTL the slot math and drag are physical/identical to LTR - only
+  // the keyboard arrows flip (see handlers).
 
   // Drag bookkeeping (refs, no re-render needed while tracking).
   const startXRef = useRef(0);
@@ -178,10 +178,11 @@ export function TableCycle() {
     if (activePointerRef.current !== e.pointerId) return;
     const dx = e.clientX - startXRef.current;
     if (Math.abs(dx) > TAP_PX) movedRef.current = true;
-    // Under RTL a rightward drag should feel like it pulls the ring the same
-    // visual way, so the horizontal axis is mirrored.
-    const signed = rtl ? -dx : dx;
-    setDragOffset(signed * DRAG_DEG_PER_PX);
+    // Pointer clientX and the rotateY/translateX slot math below are both
+    // physical screen space — CSS `dir` does not mirror 3D transforms — so no
+    // RTL negation here: map finger motion to card motion identically in both
+    // locales.
+    setDragOffset(dx * DRAG_DEG_PER_PX);
   };
 
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {

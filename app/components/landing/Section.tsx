@@ -35,15 +35,18 @@ import { useReveal } from "../../demo/immersive";
 import { usePrefersReducedMotion } from "../../lib/use-reduced-motion";
 import { INK } from "./ink";
 
-type Tone = "paper" | "surfaceAlt" | "ink";
+type Tone = "paper" | "surfaceAlt" | "ink" | "sky";
 
 const TONE_BG: Record<Tone, string> = {
   paper: C.canvas,
   surfaceAlt: C.surfaceAlt,
   ink: C.ink,
+  sky: C.sky,
 };
-const TONE_TEXT: Record<Tone, string> = { paper: C.text, surfaceAlt: C.text, ink: INK.text };
-const TONE_MUTED: Record<Tone, string> = { paper: C.muted, surfaceAlt: C.muted, ink: INK.muted };
+// sky is a LIGHT band (pale cyan), so it shares the dark-ink text/muted of the
+// paper tones, not the light-on-dark INK palette.
+const TONE_TEXT: Record<Tone, string> = { paper: C.text, surfaceAlt: C.text, ink: INK.text, sky: C.text };
+const TONE_MUTED: Record<Tone, string> = { paper: C.muted, surfaceAlt: C.muted, ink: INK.muted, sky: C.muted };
 
 export function GhostNumeral({ value, tone = "paper" }: { value: string; tone?: Tone }) {
   const color = tone === "ink" ? INK.faint : "rgba(23,21,15,0.07)";

@@ -294,8 +294,8 @@ export default function DemoCustomerPage() {
             style={{
               position: "relative",
               padding: S[5],
-              background: `linear-gradient(150deg, ${C.ink}, ${C.inkSoft})`,
-              color: "#fff",
+              background: C.sky,
+              color: C.text,
             }}
           >
             <div
@@ -307,7 +307,7 @@ export default function DemoCustomerPage() {
                 <div
                   style={{
                     fontSize: 11,
-                    color: C.brandLight,
+                    color: C.brand,
                     fontWeight: 700,
                     letterSpacing: "0.14em",
                     textTransform: "uppercase",
@@ -315,27 +315,27 @@ export default function DemoCustomerPage() {
                 >
                   {tr("billAt")}
                 </div>
-                <div style={{ ...T.h1, fontSize: 24, color: "#fff", marginTop: 6, overflowWrap: "break-word" }}>
+                <div style={{ ...T.h1, fontSize: 24, color: C.text, marginTop: 6, overflowWrap: "break-word" }}>
                   {pick(RESTAURANT.name)}
                 </div>
-                <div style={{ fontSize: 12.5, color: "rgba(244,246,248,0.66)", marginTop: 4 }}>
+                <div style={{ fontSize: 12.5, color: C.muted, marginTop: 4 }}>
                   {pick(BRANCH.name)}
                 </div>
               </div>
               <div
                 style={{
                   textAlign: "center",
-                  background: "rgba(255,255,255,0.05)",
+                  background: C.surface,
                   border: `1px solid ${C.brand}`,
                   borderRadius: R.md,
                   padding: "8px 14px",
                   flexShrink: 0,
                 }}
               >
-                <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.14em", color: C.brandLight }}>
+                <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.14em", color: C.brand }}>
                   {tr("table").toUpperCase()}
                 </div>
-                <div style={{ ...MONO, fontSize: 24, fontWeight: 700, lineHeight: 1.05, color: "#fff" }}>
+                <div style={{ ...MONO, fontSize: 24, fontWeight: 700, lineHeight: 1.05, color: C.text }}>
                   {TABLE.number}
                 </div>
               </div>
@@ -347,13 +347,13 @@ export default function DemoCustomerPage() {
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 8,
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.14)",
+                  background: C.surface,
+                  border: `1px solid ${C.borderStrong}`,
                   padding: "6px 13px",
                   borderRadius: R.pill,
                   fontSize: 12.5,
                   fontWeight: 600,
-                  color: "rgba(255,255,255,0.92)",
+                  color: C.text,
                 }}
               >
                 <span
@@ -381,9 +381,9 @@ export default function DemoCustomerPage() {
                   gap: 6,
                   padding: "6px 12px",
                   borderRadius: R.pill,
-                  border: "1px solid rgba(255,255,255,0.22)",
+                  border: `1px solid ${C.muted}`,
                   background: "transparent",
-                  color: "#fff",
+                  color: C.text,
                   fontFamily: "inherit",
                   fontSize: 13,
                   fontWeight: 600,
@@ -448,7 +448,7 @@ export default function DemoCustomerPage() {
                     <span style={{ ...T.h3, fontSize: 16, color: C.text }}>{tr("paidTotal")}</span>
                     <Money value={result.total} size={22} weight={700} color={STATUS.success.fg} />
                   </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 13, color: C.faint, marginTop: 10 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 13, color: C.muted, marginTop: 10 }}>
                     <span>{tr("method")}</span>
                     <span style={{ fontWeight: 600, color: C.muted }}>{METHOD_LABELS[locale][method]}</span>
                   </div>

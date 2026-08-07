@@ -1,10 +1,11 @@
 "use client";
 
 // /demo/admin: NO-AUTH polished showcase of the multi-branch operator
-// dashboard, built entirely from app/demo/_data.ts mock content. Light surface
-// (C.* tokens, matches the real /admin routes) with one Noir KPI strip up top
-// per app/demo/DIRECTION.md §10.3. Arabic-first RTL default with an EN toggle.
-// Nothing here is production: no fetch, no Supabase, no auth.
+// dashboard, built entirely from app/demo/_data.ts mock content. One light
+// paper-ledger system (C.* tokens, matches the real /admin routes): white
+// sidebar + surfaces, hairlines, single brand accent, no dark bands. Arabic-
+// first RTL default with an EN toggle. Nothing here is production: no fetch,
+// no Supabase, no auth.
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import {
@@ -420,8 +421,9 @@ function DemoSidebar({
       style={{
         width: 244,
         flexShrink: 0,
-        background: C.ink,
-        color: "#fff",
+        background: C.surface,
+        color: C.text,
+        borderInlineEnd: `1px solid ${C.border}`,
         padding: `${S[5]}px ${S[3]}px ${S[4]}px`,
         display: "flex",
         flexDirection: "column",
@@ -440,7 +442,7 @@ function DemoSidebar({
         }}
       >
         <ReceiptMark />
-        <span style={{ ...T.h2, fontWeight: 700, color: "#fff" }}>Nuqra</span>
+        <span style={{ ...T.h2, fontWeight: 700, color: C.text }}>Nuqra</span>
       </div>
       <div
         className="qp-hide-mobile"
@@ -449,7 +451,7 @@ function DemoSidebar({
           fontWeight: 700,
           letterSpacing: "0.12em",
           textTransform: "uppercase",
-          color: C.faint,
+          color: C.muted,
           padding: `0 ${S[3]}px ${S[1]}px`,
         }}
       >
@@ -474,7 +476,7 @@ function DemoSidebar({
                 letterSpacing: "-0.01em",
                 textDecoration: "none",
                 background: on ? C.brand : "transparent",
-                color: on ? "#fff" : C.faint,
+                color: on ? "#fff" : C.muted,
                 boxShadow: on ? SHADOW.cta : undefined,
                 minHeight: 40,
               }}
@@ -633,7 +635,7 @@ function BranchSwitcher({
 }
 
 // ===========================================================================
-// KPI strip: the one Noir band on this page
+// KPI strip: the primary figures row (light sheet, like every other panel)
 // ===========================================================================
 
 function KpiStrip({
@@ -708,7 +710,7 @@ function KpiStrip({
 
       {/* Pilot today + sparkline */}
       <div className="qp-kpi-spark" style={{ display: "flex", flexDirection: "column", gap: S[2], minWidth: 0 }}>
-        <div style={{ ...T.caption, color: C.faint, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+        <div style={{ ...T.caption, color: C.muted, textTransform: "uppercase", letterSpacing: "0.08em" }}>
           {t("today")} · {t("pilot")}
         </div>
         <Sparkline series={series7.map((p) => p.revenueSar)} min={min} max={max} />
@@ -761,12 +763,12 @@ function KpiTile({
           {format(val)}
         </span>
         {suffix ? (
-          <span style={{ ...T.label, color: C.faint, fontSize: 13, textTransform: "none", letterSpacing: 0 }}>
+          <span style={{ ...T.label, color: C.muted, fontSize: 13, textTransform: "none", letterSpacing: 0 }}>
             {suffix}
           </span>
         ) : null}
       </div>
-      {sub ? <div style={{ ...T.caption, color: C.faint }}>{sub}</div> : null}
+      {sub ? <div style={{ ...T.caption, color: C.muted }}>{sub}</div> : null}
     </div>
   );
 }
@@ -777,7 +779,7 @@ function PilotStat({ figure, unit }: { figure: string; unit: string }) {
       <span className="qp-count" style={{ ...MONO, color: C.text, fontSize: 16, fontWeight: 600 }}>
         {figure}
       </span>
-      {unit ? <span style={{ ...T.caption, color: C.faint, marginInlineStart: 3 }}>{unit}</span> : null}
+      {unit ? <span style={{ ...T.caption, color: C.muted, marginInlineStart: 3 }}>{unit}</span> : null}
     </div>
   );
 }
@@ -1006,8 +1008,9 @@ function RevenueChart({
               left: `${(x(hover) / W) * 100}%`,
               transform: "translateX(-50%)",
               pointerEvents: "none",
-              background: C.ink,
-              color: "#fff",
+              background: C.surface,
+              color: C.text,
+              border: `1px solid ${C.border}`,
               borderRadius: R.sm,
               padding: "6px 10px",
               boxShadow: SHADOW.e2,
@@ -1015,11 +1018,11 @@ function RevenueChart({
               textAlign: "center",
             }}
           >
-            <div style={{ ...T.caption, color: C.faint }}>{fmtDay(series[hover].date)}</div>
+            <div style={{ ...T.caption, color: C.muted }}>{fmtDay(series[hover].date)}</div>
             <div style={{ ...MONO, fontSize: 13, fontWeight: 600 }}>
-              {fmtInt(series[hover].revenueSar)} <span style={{ color: C.faint, fontFamily: "inherit", letterSpacing: 0 }}>SAR</span>
+              {fmtInt(series[hover].revenueSar)} <span style={{ color: C.muted, fontFamily: "inherit", letterSpacing: 0 }}>SAR</span>
             </div>
-            <div style={{ ...T.caption, color: C.faint }}>
+            <div style={{ ...T.caption, color: C.muted }}>
               {fmtInt(series[hover].orders)} {t("navOrders").toLowerCase()}
             </div>
           </div>
@@ -1119,7 +1122,7 @@ function FloorTile({
       >
         {t(info.labelKey)}
       </div>
-      <div style={{ ...T.caption, color: C.faint }}>
+      <div style={{ ...T.caption, color: C.muted }}>
         <span className="qp-count" style={MONO}>{tb.seats}</span> {tr(locale, "seats")}
         {tb.currentTotalSar ? (
           <>
@@ -1189,7 +1192,7 @@ function OrdersFeed({
         return (
           <OrderRow key={o.id} i={i}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 44 }}>
-              <span style={{ ...T.caption, color: C.faint, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: 10 }}>
+              <span style={{ ...T.caption, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", fontSize: 10 }}>
                 {t("colTable")}
               </span>
               <span className="qp-count" style={{ ...MONO, ...T.h3 }}>{tableNum}</span>
@@ -1204,7 +1207,7 @@ function OrdersFeed({
                   <span className="qp-count" style={MONO}>{itemCount}</span> {t("colItems").toLowerCase()}
                 </span>
               </div>
-              <div style={{ ...T.caption, color: C.faint, marginTop: 2 }}>
+              <div style={{ ...T.caption, color: C.muted, marginTop: 2 }}>
                 {firstItemName(locale, o, menuById)}
                 {elapsed !== null ? <>{" · "} <span className="qp-count" style={MONO}>{elapsed}</span> {t("ago")}</> : null}
               </div>
@@ -1212,7 +1215,7 @@ function OrdersFeed({
 
             <div style={{ textAlign: "end" }}>
               <div style={{ ...MONO, fontWeight: 600, fontSize: 15 }}>{fmtInt(total(o))}</div>
-              <div style={{ ...T.caption, color: C.faint }}>SAR</div>
+              <div style={{ ...T.caption, color: C.muted }}>SAR</div>
             </div>
           </OrderRow>
         );
@@ -1311,7 +1314,7 @@ function TopSellers({
             <div style={{ ...MONO, fontWeight: 600, fontSize: 14 }}>
               <span className="qp-count">{r.qty}</span>
             </div>
-            <div style={{ ...T.caption, color: C.faint }}>{t("colQty").toLowerCase()}</div>
+            <div style={{ ...T.caption, color: C.muted }}>{t("colQty").toLowerCase()}</div>
           </div>
         </li>
       ))}
@@ -1335,7 +1338,7 @@ function BranchTable({ locale, selected }: { locale: Locale; selected: string })
     fontWeight: 700,
     textTransform: "uppercase",
     letterSpacing: "0.05em",
-    color: C.faint,
+    color: C.muted,
     textAlign: "start",
     padding: `${S[2]}px ${S[3]}px`,
     borderBottom: `1px solid ${C.border}`,
@@ -1390,14 +1393,14 @@ function BranchTable({ locale, selected }: { locale: Locale; selected: string })
                   <span className="qp-count" style={{ ...MONO, fontWeight: 600 }}>
                     {sum ? fmtInt(sum.revenueMtdSar) : "-"}
                   </span>
-                  <span style={{ ...T.caption, color: C.faint, marginInlineStart: 4 }}>SAR</span>
+                  <span style={{ ...T.caption, color: C.muted, marginInlineStart: 4 }}>SAR</span>
                 </td>
                 <td style={{ ...td, textAlign: "end", color: on ? C.text : C.muted }}>
                   <span className="qp-count" style={MONO}>{sum ? fmtDec(sum.tableTurnsToday, 1) : "-"}</span>
                 </td>
                 <td style={{ ...td, textAlign: "end", color: on ? C.text : C.muted }}>
                   <span className="qp-count" style={MONO}>{sum ? fmtDec(sum.avgTipPct, 1) : "-"}</span>
-                  {sum ? <span style={{ ...T.caption, color: C.faint }}>%</span> : null}
+                  {sum ? <span style={{ ...T.caption, color: C.muted }}>%</span> : null}
                 </td>
               </tr>
             );
@@ -1448,7 +1451,7 @@ function TeamPanel({ locale, branchId }: { locale: Locale; branchId: string }) {
     <div style={{ display: "flex", flexDirection: "column", gap: S[4] }}>
       {groups.map((g) => (
         <div key={g.label}>
-          <div style={{ ...T.caption, color: C.faint, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: S[2] }}>
+          <div style={{ ...T.caption, color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: S[2] }}>
             {g.label}
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: S[2] }}>

@@ -19,6 +19,7 @@ export const C = {
   brandLight: "#1495B5", // lighter tonal step of the accent (hover/active, logo gradient)
   brandDark: "#0B5563", // deeper teal (logo gradient end)
   brandTint: "#E6F3F5", // pale accent surface for active/hover/quiet chips on paper
+  sky: "#E2F5F9", // pale cyan closing band (nuqra.org production light-blue)
 
   // Text: warm inks on warm paper (no competing greys).
   text: "#17150F", // primary ink (warm near-black, ~16:1 on canvas)

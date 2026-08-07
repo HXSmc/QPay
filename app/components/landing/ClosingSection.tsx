@@ -1,15 +1,15 @@
 "use client";
 
-// Section 8 - the ONE inverted band on the page (tone="ink"). Content is
-// already-vetted, already-translated copy (no scaffold needed here). No
-// ghost numeral - this is a closing statement, not another chapter in the
-// ledger narrative.
+// Section 8 - the closing band. tone="sky" (pale cyan, the production
+// nuqra.org light-blue) on a LIGHT background: dark ink text, brand accents.
+// Content is already-vetted, already-translated copy (no scaffold needed
+// here). No ghost numeral - this is a closing statement, not another chapter
+// in the ledger narrative.
 
 import Link from "next/link";
-import { R, S, btn } from "../../lib/theme";
+import { C, R, S, btn } from "../../lib/theme";
 import { useT } from "../../lib/i18n-client";
 import { Section } from "./Section";
-import { INK } from "./ink";
 
 export function ClosingSection() {
   const tr = useT();
@@ -21,7 +21,7 @@ export function ClosingSection() {
       subtitle={tr(
         "Get paid before they leave the table. Setup takes one afternoon, and we email your trial login as soon as you sign up.",
       )}
-      tone="ink"
+      tone="sky"
       align="center"
     >
       <div style={{ display: "flex", gap: S[3], justifyContent: "center", flexWrap: "wrap" }}>
@@ -40,8 +40,8 @@ export function ClosingSection() {
             borderRadius: R.pill,
             textDecoration: "none",
             background: "transparent",
-            color: INK.text,
-            borderColor: INK.border,
+            color: C.text,
+            borderColor: C.muted,
           }}
         >
           {tr("Talk to sales")}

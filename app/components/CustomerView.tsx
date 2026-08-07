@@ -409,8 +409,8 @@ export function CustomerView({
             style={{
               position: "relative",
               padding: `${S[5]}px ${S[5]}px ${S[5]}px`,
-              background: `linear-gradient(150deg, ${C.ink}, ${C.inkSoft})`,
-              color: "#fff",
+              background: C.sky,
+              color: C.text,
             }}
           >
             {/* Ember hairline anchoring the band to the brand accent */}
@@ -437,7 +437,7 @@ export function CustomerView({
                 <div
                   style={{
                     fontSize: 11,
-                    color: C.brandLight,
+                    color: C.brand,
                     fontWeight: 700,
                     letterSpacing: "0.14em",
                     textTransform: "uppercase",
@@ -449,7 +449,7 @@ export function CustomerView({
                   style={{
                     ...T.h1,
                     fontSize: 26,
-                    color: "#fff",
+                    color: C.text,
                     marginTop: 6,
                     overflowWrap: "break-word",
                   }}
@@ -460,7 +460,7 @@ export function CustomerView({
               <div
                 style={{
                   textAlign: "center",
-                  background: "rgba(255,255,255,0.05)",
+                  background: C.surface,
                   border: `1px solid ${C.brand}`,
                   borderRadius: R.md,
                   padding: "8px 14px",
@@ -472,12 +472,12 @@ export function CustomerView({
                     fontSize: 9.5,
                     fontWeight: 700,
                     letterSpacing: "0.14em",
-                    color: C.brandLight,
+                    color: C.brand,
                   }}
                 >
                   {tr("TABLE")}
                 </div>
-                <div style={{ ...MONO, fontSize: 24, fontWeight: 700, lineHeight: 1.05, color: "#fff" }}>
+                <div style={{ ...MONO, fontSize: 24, fontWeight: 700, lineHeight: 1.05, color: C.text }}>
                   {tableNumber}
                 </div>
               </div>
@@ -500,13 +500,13 @@ export function CustomerView({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 8,
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.14)",
+                  background: C.surface,
+                  border: `1px solid ${C.borderStrong}`,
                   padding: "6px 13px",
                   borderRadius: R.pill,
                   fontSize: 12.5,
                   fontWeight: 600,
-                  color: "rgba(255,255,255,0.92)",
+                  color: C.text,
                 }}
               >
                 <span
@@ -525,7 +525,7 @@ export function CustomerView({
                   ? `, ${otherGuests} ${otherGuests === 1 ? tr("other phone paying") : tr("other phones paying")}`
                   : ""}
               </div>
-              <LanguageToggle onDark />
+              <LanguageToggle borderColor={C.muted} />
             </div>
           </div>
 
@@ -1368,9 +1368,9 @@ export function CustomerView({
                           justifyContent: "center",
                           gap: 8,
                           padding: 13,
-                          background: C.ink,
-                          color: "#fff",
-                          border: "none",
+                          background: C.surface,
+                          color: C.text,
+                          border: `1.5px solid ${C.muted}`,
                           borderRadius: R.lg,
                           fontFamily: "inherit",
                           fontSize: 14.5,

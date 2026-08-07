@@ -319,7 +319,7 @@ export default function BranchFloorPage() {
           />
         </div>
 
-        <StaffSection branchId={branch.id} locale={locale} tr={tr} bl={bl} />
+        <StaffSection branchId={branch.id} tr={tr} bl={bl} />
 
         <EodSection data={data} locale={locale} tr={tr} bl={bl} />
       </main>
@@ -386,7 +386,7 @@ function StatusBar({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ ...TX.eyebrow, color: C.faint }}>
+            <span style={{ ...TX.eyebrow, color: C.muted }}>
               {bl(RESTAURANT.name) /* content data, bilingual */}
             </span>
             {isPilot && (
@@ -417,7 +417,7 @@ function StatusBar({
           <Stat label={tr("occupancy")} value={`${occupancy.occupied} / ${occupancy.total}`} />
           <div style={{ width: 1, alignSelf: "stretch", background: C.border }} />
           <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-            <span style={{ ...TX.eyebrow, color: C.faint }}>{tr("liveShift")}</span>
+            <span style={{ ...TX.eyebrow, color: C.muted }}>{tr("liveShift")}</span>
             <span style={{ ...NUM, fontSize: 18, fontWeight: 600, color: C.text }}>
               <LiveDot /> {clock}
             </span>
@@ -462,7 +462,7 @@ function LiveDot() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-      <span style={{ ...TX.eyebrow, color: C.faint }}>{label}</span>
+      <span style={{ ...TX.eyebrow, color: C.muted }}>{label}</span>
       <span style={{ ...NUM, fontSize: 18, fontWeight: 600 }}>{value}</span>
     </div>
   );
@@ -519,7 +519,7 @@ function KpiStrip({
             ...card({ pad: S[4], radius: R.lg }),
           }}
         >
-          <div style={{ ...TX.eyebrow, color: C.faint, fontSize: 11 }}>{t.label}</div>
+          <div style={{ ...TX.eyebrow, color: C.muted, fontSize: 11 }}>{t.label}</div>
           <div style={{ ...T.display, fontSize: 30, marginTop: 8, color: C.text }}>{t.node}</div>
         </div>
       ))}
@@ -637,7 +637,7 @@ function FloorGrid({
           gap: 12,
         }}
       >
-        {tables.map((t, i) => {
+        {tables.map((t) => {
           const meta = STATE_META[t.state];
           const sk = STATUS[meta.kind];
           const selected = t.id === selectedId;
@@ -713,7 +713,7 @@ function FloorGrid({
                 ) : null}
               </div>
               {occupied && elapsed != null ? (
-                <div style={{ fontSize: 12, color: C.faint, ...NUM }}>
+                <div style={{ fontSize: 12, color: C.muted, ...NUM }}>
                   {tr("seatedFor")} {elapsed} {locale === "ar" ? "د" : "min"}
                   {t.currentTotalSar ? (
                     <>
@@ -859,7 +859,7 @@ function DetailRail({
               justifyContent: "space-between",
             }}
           >
-            <span style={{ ...TX.eyebrow, color: C.faint }}>
+            <span style={{ ...TX.eyebrow, color: C.muted }}>
               {showDue ? tr("amountDue") : tr("orderTotal")}
             </span>
             <Money
@@ -931,7 +931,7 @@ function OpenTickets({
           })}
         </div>
       )}
-      <p style={{ marginTop: 14, color: C.faint, fontSize: 12.5, lineHeight: 1.5 }}>
+      <p style={{ marginTop: 14, color: C.muted, fontSize: 12.5, lineHeight: 1.5 }}>
         {tr("selectHint")}
       </p>
     </section>
@@ -942,12 +942,10 @@ function OpenTickets({
 
 function StaffSection({
   branchId,
-  locale,
   tr,
   bl,
 }: {
   branchId: string;
-  locale: Locale;
   tr: (k: keyof typeof UI) => string;
   bl: (p: Locale2) => string;
 }) {
@@ -1068,7 +1066,7 @@ function EodSection({
       >
         {summary.map((s) => (
           <div key={s.label} style={{ ...card({ pad: S[4], radius: R.lg }) }}>
-            <div style={{ ...TX.eyebrow, color: C.faint, fontSize: 11 }}>{s.label}</div>
+            <div style={{ ...TX.eyebrow, color: C.muted, fontSize: 11 }}>{s.label}</div>
             <div style={{ marginTop: 8, color: C.text }}>{s.node}</div>
           </div>
         ))}
@@ -1084,7 +1082,7 @@ function EodSection({
         className="qp-branch-eodmix"
       >
         <div style={{ ...card({ pad: S[5], radius: R.lg }) }}>
-          <div style={{ ...TX.eyebrow, color: C.faint, fontSize: 11 }}>{tr("paymentMix")}</div>
+          <div style={{ ...TX.eyebrow, color: C.muted, fontSize: 11 }}>{tr("paymentMix")}</div>
           <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
             {data.mix.map((m) => {
               const pct = Math.round((m.amount / mixTotal) * 100);
@@ -1132,7 +1130,7 @@ function EodSection({
         </div>
 
         <div style={{ ...card({ pad: S[5], radius: R.lg }) }}>
-          <div style={{ ...TX.eyebrow, color: C.faint, fontSize: 11 }}>{tr("vsYesterday")}</div>
+          <div style={{ ...TX.eyebrow, color: C.muted, fontSize: 11 }}>{tr("vsYesterday")}</div>
           <div style={{ marginTop: 10, display: "flex", alignItems: "baseline", gap: 8 }}>
             <span style={{ ...numIsolate, fontSize: 30, fontWeight: 600, color: C.brand }}>
               {data.deltaPct >= 0 ? "+" : ""}
