@@ -6,7 +6,7 @@ import { fmt, type Currency } from "../../lib/data";
 import { getMe, getSettings, listTables, listTransactions, type Me } from "../../lib/api";
 import { downloadCsv, transactionsToCsv } from "../../lib/csv";
 import type { LiveTable, TableStatus, Transaction } from "../../lib/types";
-import { C, R, S, T, NUM, MONO, STATUS, SHADOW, badge, btn, card } from "../../lib/theme";
+import { C, R, S, T, NUM, MONO, STATUS, badge, btn, card } from "../../lib/theme";
 import { Alert, EmptyState, Skeleton } from "../../components/ui/Primitives";
 import { useT } from "../../lib/i18n-client";
 
@@ -165,7 +165,7 @@ export default function DashboardPage() {
                   style={{
                     ...card({ pad: S[5], radius: R.lg }),
                     ...(featured
-                      ? { background: C.ink, border: `1px solid ${C.inkSoft}`, boxShadow: SHADOW.e1 }
+                      ? { background: C.brandTint, border: `1px solid ${STATUS.info.border}` }
                       : {}),
                     display: "flex",
                     flexDirection: "column",
@@ -202,7 +202,7 @@ export default function DashboardPage() {
                           </svg>
                         </span>
                       )}
-                      <span style={{ ...T.label, color: featured ? "#fff" : C.muted }}>
+                      <span style={{ ...T.label, color: C.muted }}>
                         {tr(m.label)}
                       </span>
                     </div>
@@ -211,8 +211,8 @@ export default function DashboardPage() {
                         style={{
                           ...T.caption,
                           fontWeight: 700,
-                          color: featured ? "#fff" : C.brand,
-                          background: featured ? C.inkSoft : C.brandTint,
+                          color: C.brand,
+                          background: C.surface,
                           padding: "4px 9px",
                           borderRadius: R.pill,
                           whiteSpace: "nowrap",
@@ -229,7 +229,7 @@ export default function DashboardPage() {
                         style={{
                           ...T.h1,
                           fontSize: 31,
-                          color: featured ? "#fff" : C.text,
+                          color: C.text,
                           ...("money" in m ? MONO : NUM),
                         }}
                       >

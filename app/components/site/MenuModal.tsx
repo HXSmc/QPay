@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getMenu } from "../../lib/api";
-import { C, R, btn } from "../../lib/theme";
+import { C, R, SHADOW, btn } from "../../lib/theme";
 import { useT } from "../../lib/i18n-client";
 import type { MenuMeta } from "../../lib/types";
 import { Modal } from "../ui/Primitives";
@@ -171,6 +171,7 @@ export function MenuModal({
               borderRadius: R.lg,
               overflow: "hidden",
               background: C.surface,
+              boxShadow: SHADOW.e1,
             }}
           >
             <div

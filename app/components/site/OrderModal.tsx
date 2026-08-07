@@ -12,7 +12,7 @@
 // prefers-reduced-motion.
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { C, R, S, T, btn, field } from "../../lib/theme";
+import { C, R, S, SHADOW, T, btn, field } from "../../lib/theme";
 import { useT } from "../../lib/i18n-client";
 import { fmt, type Currency } from "../../lib/data";
 import { placeOrder } from "../../lib/api";
@@ -148,6 +148,7 @@ export function OrderModal({
             borderRadius: R.lg,
             overflow: "hidden",
             background: C.surface,
+            boxShadow: SHADOW.e1,
           }}
         >
           {/* Header */}

@@ -15,19 +15,42 @@ html {
 }
 
 /* Global canvas so the borderless sticky header blends into the page instead of
-   sitting on a hard seam. Mirrors the C.canvas design token (#F6F7F9). Crisp
-   type rendering for the Linear-clean look. */
+   sitting on a hard seam. Mirrors the C.canvas design token (#FAF9F6 — warm
+   paper). Crisp type rendering for the paper-ledger look. */
 body {
-  background: #F6F7F9;
+  background: #FAF9F6;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
-/* Arabic / RTL: switch to the Arabic typeface (Geist has no Arabic glyphs).
-   Ledger figures keep --font-mono (Latin digits) via inline MONO. */
-html[lang="ar"] body {
+/* Receipt rule — a printed-sheet hairline separating line items on the ledger.
+   1px dotted, warm hairline, border-top so it sits between rows without adding
+   box height when unused. */
+.qp-hairline-dotted {
+  border-top: 1px dotted #E7E4DC;
+}
+
+/* Arabic / RTL: switch to the Arabic typeface (Geist has no Arabic glyphs, so
+   without this the browser falls back to an inconsistent default face), and
+   zero letter-spacing — non-zero tracking breaks Arabic cursive joining.
+   Scoped to [dir="rtl"] so it fires BOTH on real /ar pages (dir on <html>) AND
+   on the demo's client-toggled shell (dir set on its container, where html lang
+   stays "en" so the html[lang="ar"] rule below never matches). The shell sets
+   font-family on itself; descendants inherit it (T.* type tokens set no
+   fontFamily inline). :dir(rtl) resets letter-spacing globally in any Arabic
+   context — INCLUDING embedded Latin text and mono/ledger figures (their inline
+   direction:ltr changes text direction, not the HTML dir attribute, so they
+   still match :dir(rtl)). Their -0.01em tracking is therefore reset too; this
+   is intentional and visually negligible (a hair of negative tracking on Latin
+   digits). letter-spacing needs !important to beat the inline letterSpacing
+   from the T.* type tokens. */
+html[lang="ar"] body,
+[dir="rtl"] {
   font-family: var(--font-ar), system-ui, -apple-system, sans-serif;
+}
+:dir(rtl) {
+  letter-spacing: 0 !important;
 }
 
 ::-webkit-scrollbar {

@@ -16,6 +16,8 @@ import { usePrefersReducedMotion } from "../lib/use-reduced-motion";
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
 
 // Money cell: every monetary figure renders in the monospace "ledger" face.
+// MONO applies direction:ltr + unicode-bidi:isolate so each figure stays
+// sign/symbol-first even inside Arabic (RTL) flow — mono is Latin figures only.
 function Money({
   value,
   size = 15,
@@ -312,7 +314,14 @@ export function CustomerView({
   };
 
   const otherGuests = reservations.filter((r) => r.id !== ownId).length;
-  const equalNote = `${fmt(perPerson, currency)} ${tr("per person")} × ${clampedPaying}`;
+  // perPerson is a money figure embedded in a sentence — isolate it (LTR mono)
+  // so the amount stays symbol-first inside Arabic (RTL) flow.
+  const equalNote = (
+    <>
+      <Money value={perPerson} size={12} weight={600} color={C.muted} currency={currency} />{" "}
+      {tr("per person")} × {clampedPaying}
+    </>
+  );
   const itemNote =
     selectedUnits === 0
       ? tr("No items selected yet")
@@ -386,10 +395,12 @@ export function CustomerView({
       <div style={{ width: "100%", maxWidth: 420 }}>
         <div
           style={{
+            // Printed-sheet language: white sheet, near-square radius, hairline
+            // border. Depth comes from the hairline + value shift against the
+            // paper canvas — no elevation, no hover lift (a sheet doesn't lift).
             background: C.surface,
-            borderRadius: R.xl,
+            borderRadius: R.xs,
             overflow: "hidden",
-            boxShadow: SHADOW.e3,
             border: `1px solid ${C.border}`,
           }}
         >
@@ -398,8 +409,8 @@ export function CustomerView({
             style={{
               position: "relative",
               padding: `${S[5]}px ${S[5]}px ${S[5]}px`,
-              background: `linear-gradient(150deg, ${C.ink}, ${C.inkSoft})`,
-              color: "#fff",
+              background: C.sky,
+              color: C.text,
             }}
           >
             {/* Ember hairline anchoring the band to the brand accent */}
@@ -426,7 +437,7 @@ export function CustomerView({
                 <div
                   style={{
                     fontSize: 11,
-                    color: C.brandLight,
+                    color: C.brand,
                     fontWeight: 700,
                     letterSpacing: "0.14em",
                     textTransform: "uppercase",
@@ -438,7 +449,7 @@ export function CustomerView({
                   style={{
                     ...T.h1,
                     fontSize: 26,
-                    color: "#fff",
+                    color: C.text,
                     marginTop: 6,
                     overflowWrap: "break-word",
                   }}
@@ -449,7 +460,7 @@ export function CustomerView({
               <div
                 style={{
                   textAlign: "center",
-                  background: "rgba(255,255,255,0.05)",
+                  background: C.surface,
                   border: `1px solid ${C.brand}`,
                   borderRadius: R.md,
                   padding: "8px 14px",
@@ -461,12 +472,12 @@ export function CustomerView({
                     fontSize: 9.5,
                     fontWeight: 700,
                     letterSpacing: "0.14em",
-                    color: C.brandLight,
+                    color: C.brand,
                   }}
                 >
                   {tr("TABLE")}
                 </div>
-                <div style={{ ...MONO, fontSize: 24, fontWeight: 700, lineHeight: 1.05, color: "#fff" }}>
+                <div style={{ ...MONO, fontSize: 24, fontWeight: 700, lineHeight: 1.05, color: C.text }}>
                   {tableNumber}
                 </div>
               </div>
@@ -489,13 +500,13 @@ export function CustomerView({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: 8,
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.14)",
+                  background: C.surface,
+                  border: `1px solid ${C.borderStrong}`,
                   padding: "6px 13px",
                   borderRadius: R.pill,
                   fontSize: 12.5,
                   fontWeight: 600,
-                  color: "rgba(255,255,255,0.92)",
+                  color: C.text,
                 }}
               >
                 <span
@@ -514,7 +525,7 @@ export function CustomerView({
                   ? `, ${otherGuests} ${otherGuests === 1 ? tr("other phone paying") : tr("other phones paying")}`
                   : ""}
               </div>
-              <LanguageToggle onDark />
+              <LanguageToggle borderColor={C.muted} />
             </div>
           </div>
 
@@ -538,7 +549,7 @@ export function CustomerView({
                   background: menuOpen ? C.brandTint : C.surface,
                   color: C.brand,
                   border: `1.5px solid ${menuOpen ? C.brand : C.borderStrong}`,
-                  borderRadius: R.md,
+                  borderRadius: R.lg,
                   fontFamily: "inherit",
                   fontSize: 14,
                   fontWeight: 700,
@@ -584,7 +595,7 @@ export function CustomerView({
                     background: C.brand,
                     color: "#fff",
                     border: "1.5px solid transparent",
-                    borderRadius: R.md,
+                    borderRadius: R.lg,
                     fontFamily: "inherit",
                     fontSize: 14,
                     fontWeight: 700,
@@ -681,12 +692,12 @@ export function CustomerView({
                 {items.map((it) => (
                   <div
                     key={it.name}
+                    className="qp-hairline-dotted"
                     style={{
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
                       padding: "11px 0",
-                      borderBottom: `1px solid ${C.border}`,
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -926,13 +937,14 @@ export function CustomerView({
                             style={{
                               flex: 1,
                               padding: "13px 8px",
-                              borderRadius: R.md,
+                              borderRadius: R.lg,
                               cursor: "pointer",
                               textAlign: "center",
                               transition: `all 220ms ${EASE}`,
                               border: `1.5px solid ${active ? C.brand : C.border}`,
                               background: active ? C.brandTint : C.surface,
                               color: active ? C.brand : C.text,
+                              boxShadow: SHADOW.e1,
                             }}
                           >
                             <div style={{ fontSize: 13.5, fontWeight: 700 }}>{tr(o.label)}</div>
@@ -1247,7 +1259,7 @@ export function CustomerView({
                             }}
                             style={{
                               padding: "13px 0",
-                              borderRadius: R.md,
+                              borderRadius: R.lg,
                               cursor: "pointer",
                               textAlign: "center",
                               fontSize: 13,
@@ -1256,6 +1268,7 @@ export function CustomerView({
                               border: `1.5px solid ${active ? C.brand : C.border}`,
                               background: active ? C.brandTint : C.surface,
                               color: active ? C.brand : C.muted,
+                              boxShadow: SHADOW.e1,
                             }}
                           >
                             {tr(o.label)}
@@ -1355,15 +1368,16 @@ export function CustomerView({
                           justifyContent: "center",
                           gap: 8,
                           padding: 13,
-                          background: C.ink,
-                          color: "#fff",
-                          border: "none",
-                          borderRadius: R.md,
+                          background: C.surface,
+                          color: C.text,
+                          border: `1.5px solid ${C.muted}`,
+                          borderRadius: R.lg,
                           fontFamily: "inherit",
                           fontSize: 14.5,
                           fontWeight: 700,
                           cursor: payDisabled ? "default" : "pointer",
                           opacity: payDisabled ? 0.55 : 1,
+                          boxShadow: SHADOW.e1,
                         }}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -1385,12 +1399,13 @@ export function CustomerView({
                           background: C.surface,
                           color: C.text,
                           border: `1.5px solid ${C.borderStrong}`,
-                          borderRadius: R.md,
+                          borderRadius: R.lg,
                           fontFamily: "inherit",
                           fontSize: 14.5,
                           fontWeight: 700,
                           cursor: payDisabled ? "default" : "pointer",
                           opacity: payDisabled ? 0.55 : 1,
+                          boxShadow: SHADOW.e1,
                         }}
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24">
@@ -1427,7 +1442,7 @@ export function CustomerView({
                         background: C.brand,
                         color: "#fff",
                         border: "none",
-                        borderRadius: R.md,
+                        borderRadius: R.lg,
                         fontFamily: "inherit",
                         fontSize: 17,
                         fontWeight: 700,

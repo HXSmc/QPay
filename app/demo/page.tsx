@@ -5,6 +5,29 @@ import { DemoForm } from "../components/site/DemoForm";
 import { getServerLocale } from "../lib/i18n-server";
 import { t } from "../lib/i18n";
 import { C, R, S, T, card } from "../lib/theme";
+import type { Bilingual } from "./_data";
+
+// Explore-the-demos links. The demo page's editorial strings normally route
+// through the global AR dictionary (app/lib/i18n/ar-*.ts), but those files are
+// outside this task's ownership, so these few strings carry their own {en,ar}
+// pair instead of falling back to English via t().
+const DEMO_LINKS: { href: string; title: Bilingual; body: Bilingual }[] = [
+  {
+    href: "/demo/admin",
+    title: { en: "Group admin demo", ar: "تجربة إدارة المجموعة" },
+    body: { en: "The full group dashboard across branches.", ar: "لوحة التحكم الكاملة عبر الفروع." },
+  },
+  {
+    href: "/demo/branch",
+    title: { en: "Branch admin demo", ar: "تجربة إدارة الفرع" },
+    body: { en: "One branch's live floor and tables.", ar: "صالة فرعٍ واحد وطاولاته مباشرة." },
+  },
+  {
+    href: "/demo/customer",
+    title: { en: "Customer demo", ar: "تجربة العميل" },
+    body: { en: "The diner flow: split, tip, and pay.", ar: "تجربة الضيف: تقسيم، إكرامية، ودفع." },
+  },
+];
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale();
@@ -39,6 +62,8 @@ const PERKS = [
 export default async function DemoPage() {
   const locale = await getServerLocale();
   const tr = (s: string) => t(s, locale);
+  const bi = (b: Bilingual) => (locale === "ar" ? b.ar : b.en);
+  const dir = locale === "ar" ? "rtl" : "ltr";
 
   return (
     <div
@@ -209,6 +234,69 @@ export default async function DemoPage() {
           </div>
         </div>
       </div>
+
+      {/* Explore the live demos, secondary to the signup form. */}
+      <section
+        aria-labelledby="qp-demo-explore"
+        style={{ maxWidth: 1080, margin: "0 auto", padding: `0 32px 96px` }}
+      >
+        <div
+          id="qp-demo-explore"
+          style={{
+            ...T.label,
+            color: C.muted,
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+          }}
+        >
+          {bi({ en: "Explore the live demos", ar: "استكشف العروض الحية" })}
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+            gap: S[4],
+            marginTop: S[4],
+          }}
+        >
+          {DEMO_LINKS.map((d) => (
+            <Link
+              key={d.href}
+              href={d.href}
+              dir={dir}
+              style={{
+                ...card({ pad: S[5], radius: R.lg }),
+                textDecoration: "none",
+                display: "flex",
+                flexDirection: "column",
+                gap: S[2],
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: S[2] }}>
+                <span style={{ ...T.h3, color: C.text }}>{bi(d.title)}</span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  style={{ color: C.brand, transform: dir === "rtl" ? "scaleX(-1)" : undefined, flexShrink: 0 }}
+                >
+                  <path d="M5 12h14" />
+                  <path d="m12 5 7 7-7 7" />
+                </svg>
+              </div>
+              <p style={{ fontSize: 14.5, color: C.muted, lineHeight: 1.55, margin: 0 }}>
+                {bi(d.body)}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

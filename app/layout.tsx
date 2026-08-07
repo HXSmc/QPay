@@ -6,6 +6,7 @@ import "./globals.css";
 import { dir } from "./lib/i18n";
 import { getServerLocale } from "./lib/i18n-server";
 import { LocaleProvider } from "./lib/i18n-client";
+import { C } from "./lib/theme";
 
 // Geist for Latin (the Linear-clean signature), Geist Mono for ledger figures,
 // IBM Plex Sans Arabic for RTL/Arabic copy.
@@ -91,7 +92,7 @@ export default async function RootLayout({
     <html lang={locale} dir={dir(locale)}>
       <body
         className={`${geist.className} ${mono.variable} ${arabic.variable}`}
-        style={{ background: "#F6F7F9", color: "#0E1116" }}
+        style={{ background: C.canvas, color: C.text }}
       >
         {/* Single top-level landmark so every route exposes a <main> region
             (WCAG 1.3.1 / landmark-one-main) for assistive-tech navigation. */}

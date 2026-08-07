@@ -1,8 +1,11 @@
 // Arabic translations for the marketing surface. Keyed by English source string.
 export const ar: Record<string, string> = {
   // Hero
-  "QR payments for restaurants. Turn tables faster, get paid before they leave.":
-    "مدفوعات QR للمطاعم. أدِر طاولاتك بسرعة أكبر واستلم أموالك قبل مغادرتهم.",
+  "QR payments for restaurants. Get paid before they leave the table.":
+    "مدفوعات QR للمطاعم. استلم أموالك قبل أن يغادروا الطاولة.",
+  // FIX (2026-08-07): shorter 2-line headline (see Hero.tsx), reuses the
+  // already-vetted second clause of the string above.
+  "Paid before they leave the table.": "استلم أموالك قبل أن يغادروا الطاولة.",
   "Diners scan, split, tip, and pay in under 30 seconds. No app, no waiting on the check.":
     "يمسح الضيوف رمز QR، يقسّمون الفاتورة، يضيفون الإكرامية، ويدفعون في أقل من 30 ثانية. بلا تطبيق وبلا انتظار للفاتورة.",
   "Get a free demo": "احصل على عرض توضيحي مجاني",
@@ -39,12 +42,17 @@ export const ar: Record<string, string> = {
   "Built for the rush. Nuqra removes the slowest part of the meal, the wait for the check.":
     "مصمَّم لأوقات الزحام. يلغي Nuqra أبطأ جزء في الوجبة، وهو انتظار الفاتورة.",
 
+  // Table cycle section header
+  "Live floor": "الصالة مباشرة",
+  "Every table, live": "كل طاولة، مباشرة",
+  "Watch a table go from available to ordered to paid, in real time.":
+    "تابع الطاولة من متاحة إلى مطلوبة إلى مدفوعة، لحظة بلحظة.",
+
   // Settled-bill chip
   "Table 12": "طاولة 12",
   "Paid": "مدفوعة",
 
   // Ink panel
-  "Faster turns, fuller tables": "دوران أسرع، وطاولات أكثر امتلاءً",
   "Guests pay the moment they are ready, so the next party is seated sooner.":
     "يدفع الضيوف في اللحظة التي يكونون فيها جاهزين، لتجلس المجموعة التالية أسرع.",
 
@@ -223,4 +231,54 @@ export const ar: Record<string, string> = {
   "Start a free 7-day trial. No card, live in minutes.":
     "ابدأ تجربة مجانية لمدة 7 أيام. بدون بطاقة، وجاهز خلال دقائق.",
   "No thanks": "لا، شكرًا",
+
+  // Landing S2a - hero receipt artifact
+  "Scan to pay": "امسح للدفع",
+
+  // Landing S2a - commission-leak diagram (section 2)
+  "The math": "الحساب",
+  "Commission takes a cut of every bill. Nuqra takes none.":
+    "العمولة تقتطع نسبة من كل فاتورة. نقرة لا تأخذ شيئًا.",
+  "Commission model": "نموذج العمولة",
+  "Gone on a SAR 300 table, every time: SAR 9.":
+    "من فاتورة بقيمة 300 ريال، تختفي 9 ريال في كل مرة.",
+  "Zero taken from any bill. One flat fee per branch, monthly.":
+    "صفر من أي فاتورة. رسم شهري ثابت لكل فرع.",
+  "Illustrative example. Your numbers will vary.": "مثال توضيحي. أرقامك ستختلف.",
+
+  // Landing S2a - verdict columns shell (section 4, S2b completes)
+  "The old way, next to the new one.": "الطريقة القديمة، بجانب الجديدة.",
+  "Percentage taken from every bill": "نسبة تُقتطع من كل فاتورة",
+  "One flat fee. Every table, every month.": "رسم ثابت واحد. لكل طاولة، كل شهر.",
+
+  // Landing S2a - how-it-works shell (section 5)
+  "Three steps. One sheet.": "ثلاث خطوات. ورقة واحدة.",
+
+  // Landing S2a - pricing shell (section 6, S2b completes)
+  "One flat fee. Not a percentage.": "رسم ثابت واحد. ليس نسبة.",
+  "Unlimited tables at your branch": "طاولات غير محدودة في فرعك",
+  "Works with your existing POS": "يعمل مع نظام نقاط البيع الحالي لديك",
+  "Live analytics and digital receipts": "تحليلات مباشرة وإيصالات رقمية",
+
+  // Landing S2a - honest proof shell (section 7)
+  "Nuqra is in pilot with restaurants in Saudi Arabia.":
+    "نقرة في مرحلة تجريبية مع مطاعم في السعودية.",
+  "No app for diners · Works with your POS · Encrypted payments":
+    "بلا تطبيق للضيوف · يعمل مع نظام نقاط البيع لديك · مدفوعات مشفّرة",
+
+  // Landing S2b - verdict columns (section 4): commission model vs Nuqra
+  "A percentage of every bill": "نسبة من كل فاتورة",
+  "Diners must download an app": "يتعيّن على الضيوف تحميل تطبيق",
+  "Your cost rises with sales": "كلفتك ترتفع مع مبيعاتك",
+  "0% of every bill": "صفر نسبة من كل فاتورة",
+  "Pay in the browser, no app": "ادفع من المتصفح، بلا تطبيق",
+  "One flat fee, whatever you sell": "رسم ثابت واحد، مهما بِعت",
+  "mada and Apple Pay ready": "جاهز لمدى و Apple Pay",
+  "Nuqra": "نقرة",
+
+  // Landing S2b - pricing panel (section 6): flat fee, no invented figure
+  "Flat monthly fee per branch": "رسم شهري ثابت لكل فرع",
+  "One flat fee per branch, every month. It never grows with your sales.":
+    "رسم ثابت واحد لكل فرع، كل شهر. لا يرتفع مع مبيعاتك.",
+  "No percentage of your sales.": "بلا نسبة من مبيعاتك.",
 };

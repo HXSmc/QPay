@@ -13,7 +13,13 @@ import { C, R } from "../../lib/theme";
 // Marketing routes mirrored under /ar/* by the site's locale-path routing.
 const MARKETING_ROUTES = ["/", "/demo", "/contact", "/privacy", "/terms"];
 
-export function LanguageToggle({ onDark = false }: { onDark?: boolean }) {
+export function LanguageToggle({
+  onDark = false,
+  borderColor,
+}: {
+  onDark?: boolean;
+  borderColor?: string;
+}) {
   const locale = useLocale();
   const pathname = usePathname();
   const next: Locale = locale === "ar" ? "en" : "ar";
@@ -43,7 +49,7 @@ export function LanguageToggle({ onDark = false }: { onDark?: boolean }) {
         gap: 6,
         padding: "6px 12px",
         borderRadius: R.pill,
-        border: `1px solid ${onDark ? "rgba(255,255,255,0.22)" : C.borderStrong}`,
+        border: `1px solid ${onDark ? "rgba(255,255,255,0.22)" : (borderColor ?? C.borderStrong)}`,
         background: "transparent",
         color: onDark ? "#fff" : C.text,
         fontFamily: "inherit",

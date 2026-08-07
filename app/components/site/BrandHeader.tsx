@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { C, R, S, SHADOW, T, btn } from "../../lib/theme";
+import { C, R, S, SHADOW, btn } from "../../lib/theme";
 import { Wordmark } from "./Logo";
 import { LanguageToggle } from "./LanguageToggle";
 import { useT } from "../../lib/i18n-client";
@@ -12,6 +12,9 @@ import { useT } from "../../lib/i18n-client";
 // a hairline border and soft shadow. It tightens (more opaque, deeper shadow)
 // once the page scrolls. The full-width <header> is just a transparent,
 // pointer-through positioning shell; the visible pill is the inner container.
+//
+// Paper-ledger, light only. The dark "noir" variant was removed with the
+// ui-editorial migration; the whole site sits on the single warm-paper canvas.
 export function BrandHeader() {
   const [scrolled, setScrolled] = useState(false);
   const tr = useT();
@@ -29,7 +32,9 @@ export function BrandHeader() {
         position: "sticky",
         top: 0,
         zIndex: 50,
-        padding: `${S[3]}px ${S[4]}px`,
+        // 8px vertical padding + 60px pill = 76px, keeping the whole header
+        // under the 80px ceiling.
+        padding: `${S[2]}px ${S[4]}px`,
         pointerEvents: "none", // shell ignores clicks; the pill re-enables them
       }}
     >
@@ -53,7 +58,7 @@ export function BrandHeader() {
           paddingBlock: 0,
           paddingInline: `${S[5]}px ${S[3]}px`,
           borderRadius: R.pill,
-          border: `1px solid ${scrolled ? C.border : "rgba(229,232,236,0.7)"}`,
+          border: `1px solid ${C.border}`,
           background: scrolled ? "rgba(255,255,255,0.86)" : "rgba(255,255,255,0.62)",
           backdropFilter: "saturate(180%) blur(14px)",
           WebkitBackdropFilter: "saturate(180%) blur(14px)",
@@ -75,7 +80,7 @@ export function BrandHeader() {
             flexShrink: 0,
           }}
         >
-          <Wordmark />
+          <Wordmark color={C.text} />
         </Link>
 
         <nav
@@ -92,13 +97,12 @@ export function BrandHeader() {
             href="/admin/login"
             className="qp-nav qp-hide-mobile"
             style={{
-              ...T.label,
-              display: "inline-flex",
-              alignItems: "center",
               padding: `${S[2]}px ${S[3]}px`,
               textDecoration: "none",
               color: C.muted,
               borderRadius: R.pill,
+              fontSize: 13,
+              fontWeight: 600,
             }}
           >
             {tr("Sign in")}

@@ -107,7 +107,7 @@ export default function AnalyticsPage() {
                   style={{
                     width: "100%",
                     height: `${maxSum ? (m.sum / maxSum) * 100 : 0}%`,
-                    background: `linear-gradient(180deg, ${C.brand}, ${C.brandLight})`,
+                    background: C.brand,
                     borderRadius: `${R.xs}px ${R.xs}px 0 0`,
                     minHeight: 6,
                   }}
