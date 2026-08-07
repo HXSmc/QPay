@@ -3,10 +3,10 @@
 // builder inventing its own numbers — keeps the four surfaces telling the same
 // story about the same restaurant. Pure data + types, no JSX, no side effects.
 //
-// Flavor: "8 Portions Pizza" — the pilot account, Dhahran (Eastern Province,
-// KSA). Two more branches (Al Khobar, Dammam) round out the multi-branch admin
-// view. All names/prices/timestamps are realistic mock content, not real
-// business data.
+// Flavor: "Lumah Pizza" — a fictional multi-branch restaurant, Dhahran
+// (Eastern Province, KSA). Two more branches (Al Khobar, Dammam) round out
+// the multi-branch admin view. All names/prices/timestamps are invented mock
+// content, not real business data.
 
 export interface Bilingual {
   en: string;
@@ -16,8 +16,8 @@ export interface Bilingual {
 // --- Restaurant --------------------------------------------------------------
 
 export const RESTAURANT = {
-  name: { en: "8 Portions Pizza", ar: "بيتزا ٨ بورشنز" } satisfies Bilingual,
-  legalName: "8 Portions Pizza Co.",
+  name: { en: "Lumah Pizza", ar: "لُمة بيتزا" } satisfies Bilingual,
+  legalName: "Lumah Pizza Co.",
   posIntegration: "Foodics" as const,
 };
 
@@ -403,9 +403,9 @@ export interface StaffMember {
 }
 
 export const STAFF: StaffMember[] = [
-  { id: "stf_1", name: { en: "Fahad Al-Otaibi", ar: "فهد العتيبي" }, role: "owner", status: "active" },
-  { id: "stf_2", name: { en: "Nourah Al-Dossary", ar: "نورة الدوسري" }, role: "branch_manager", branchId: "br_dhahran", status: "active" },
-  { id: "stf_3", name: { en: "Yousef Al-Qahtani", ar: "يوسف القحطاني" }, role: "branch_manager", branchId: "br_khobar", status: "active" },
+  { id: "stf_1", name: { en: "Faisal Al-Rashid", ar: "فيصل الرشيد" }, role: "owner", status: "active" },
+  { id: "stf_2", name: { en: "Hessa Al-Sulaiman", ar: "حصة السليمان" }, role: "branch_manager", branchId: "br_dhahran", status: "active" },
+  { id: "stf_3", name: { en: "Turki Al-Ghanim", ar: "تركي الغانم" }, role: "branch_manager", branchId: "br_khobar", status: "active" },
   { id: "stf_4", name: { en: "Sara Al-Harbi", ar: "سارة الحربي" }, role: "branch_manager", branchId: "br_dammam", status: "active" },
   { id: "stf_5", name: { en: "Omar Al-Ghamdi", ar: "عمر الغامدي" }, role: "server", branchId: "br_dhahran", status: "active" },
   { id: "stf_6", name: { en: "Lama Al-Zahrani", ar: "لمى الزهراني" }, role: "server", branchId: "br_dhahran", status: "active" },

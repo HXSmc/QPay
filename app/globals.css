@@ -348,11 +348,6 @@ textarea:focus-visible,
 .qp-delay-6 { transition-delay: 420ms; }
 
 /* --- Noir surfaces + glass ---------------------------------------------- */
-.qp-noir-section {
-  background: #080A0D;
-  color: #F4F6F8;
-}
-
 /* Frosted panel over the Noir canvas or imagery. Solid fallback under
    prefers-reduced-transparency so content never depends on blur for contrast. */
 .qp-glass {
@@ -388,34 +383,6 @@ textarea:focus-visible,
   100% { box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
 }
 
-/* --- Marquee (max ONE instance per page — see DIRECTION.md) -------------- */
-.qp-marquee {
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-.qp-marquee-track {
-  display: flex;
-  width: max-content;
-  animation: qp-marquee-scroll 28s linear infinite;
-}
-.qp-marquee:hover .qp-marquee-track {
-  animation-play-state: paused;
-}
-/* RTL: scroll toward the reading end instead of hardcoding a left-to-right
-   direction. Content order still starts logical-start first. */
-[dir="rtl"] .qp-marquee-track {
-  animation-name: qp-marquee-scroll-rtl;
-}
-@keyframes qp-marquee-scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-@keyframes qp-marquee-scroll-rtl {
-  from { transform: translateX(0); }
-  to { transform: translateX(50%); }
-}
-
 /* --- Count-up readiness ---------------------------------------------------
    JS (builder-owned) writes the animated digits into an element carrying this
    class; it only guarantees tabular figures so digit width never jitters
@@ -441,8 +408,5 @@ textarea:focus-visible,
   .qp-glow-pulse {
     animation: none !important;
     box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.35) !important;
-  }
-  .qp-marquee-track {
-    animation: none !important;
   }
 }

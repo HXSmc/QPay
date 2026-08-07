@@ -7,7 +7,7 @@
 // existing useLocale() primitive (this is NOT a new global state system, it is
 // the same building block t() is made of).
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SITE } from "../../lib/site";
@@ -16,7 +16,6 @@ import {
   R,
   S,
   SX,
-  SHADOW,
   T,
   TX,
   MONO,

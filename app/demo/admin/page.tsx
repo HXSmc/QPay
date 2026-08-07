@@ -237,14 +237,6 @@ export default function DemoAdminPage() {
   const [branchId, setBranchId] = useState<string>("br_dhahran"); // pilot default
   const [now, setNow] = useState<Date | null>(null);
 
-  // Drive html lang/dir so the Arabic font swap and [dir="rtl"] reveal/marquee
-  // selectors fire. The wrapper div also carries dir for immediate mirroring.
-  useEffect(() => {
-    const el = document.documentElement;
-    el.lang = locale;
-    el.dir = locale === "ar" ? "rtl" : "ltr";
-  }, [locale]);
-
   useEffect(() => {
     setNow(new Date());
     const id = setInterval(() => setNow(new Date()), 30000);
