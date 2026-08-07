@@ -243,8 +243,9 @@ export default function SuperadminPage() {
       {/* Top bar */}
       <div
         style={{
-          background: C.ink,
-          color: "#fff",
+          background: C.surface,
+          color: C.text,
+          borderBottom: `1px solid ${C.border}`,
           padding: `${S[3]}px ${S[6]}px`,
           display: "flex",
           alignItems: "center",
@@ -252,17 +253,16 @@ export default function SuperadminPage() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: S[3] }}>
-          <LogoMark size={30} onDark decorative />
+          <LogoMark size={30} decorative />
           <div>
-            <div style={{ ...T.h3, color: "#fff" }}>{tr("Nuqra · Super Admin")}</div>
-            {/* C.faint (not C.muted) — passes AA on this dark ink bar (~7.3:1). */}
-            <div style={{ ...T.caption, color: C.faint }}>{me?.email ?? "."}</div>
+            <div style={{ ...T.h3, color: C.text }}>{tr("Nuqra · Super Admin")}</div>
+            <div style={{ ...T.caption, color: C.muted }}>{me?.email ?? "."}</div>
           </div>
         </div>
         <button
           onClick={signOut}
           className="qp-btn"
-          style={{ ...btn("secondary", { size: "sm" }), background: C.inkSoft, color: "#fff", borderColor: "transparent" }}
+          style={btn("secondary", { size: "sm" })}
         >
           {tr("Sign out")}
         </button>

@@ -172,8 +172,9 @@ export function Sidebar() {
       style={{
         width: 244,
         flexShrink: 0,
-        background: C.ink,
-        color: "#fff",
+        background: C.surface,
+        color: C.text,
+        borderRight: `1px solid ${C.border}`,
         padding: `${S[5]}px ${S[3]}px ${S[4]}px`,
         display: "flex",
         flexDirection: "column",
@@ -192,10 +193,10 @@ export function Sidebar() {
           gap: S[2] + 2,
           padding: `0 ${S[2]}px ${S[4]}px`,
           textDecoration: "none",
-          color: "#fff",
+          color: C.text,
         }}
       >
-        <LogoMark size={30} onDark decorative />
+        <LogoMark size={30} decorative />
         <span style={{ ...T.h2, fontWeight: 700 }}>Nuqra</span>
       </Link>
 
@@ -247,7 +248,7 @@ export function Sidebar() {
                 letterSpacing: "-0.01em",
                 textDecoration: "none",
                 background: active ? C.brand : "transparent",
-                color: active ? "#fff" : C.faint,
+                color: active ? "#fff" : C.muted,
                 boxShadow: active ? SHADOW.cta : undefined,
               }}
             >
@@ -275,7 +276,7 @@ export function Sidebar() {
           alignItems: "center",
           gap: S[2] + 2,
           padding: `${S[3]}px ${S[2]}px 0`,
-          borderTop: `1px solid ${C.inkSoft}`,
+          borderTop: `1px solid ${C.border}`,
         }}
       >
         <div
@@ -300,7 +301,7 @@ export function Sidebar() {
             style={{
               fontSize: 13.5,
               fontWeight: 600,
-              color: "#fff",
+              color: C.text,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
@@ -308,7 +309,7 @@ export function Sidebar() {
           >
             {me?.email ?? "..."}
           </div>
-          <div style={{ ...T.caption, color: C.faint }}>
+          <div style={{ ...T.caption, color: C.muted }}>
             {me?.role === "super"
               ? tr("Super Admin")
               : me?.role === "manager"
@@ -318,16 +319,16 @@ export function Sidebar() {
                   : tr("Branch admin")}
           </div>
         </div>
-        <LanguageToggle onDark />
+        <LanguageToggle />
         <button
           onClick={signOut}
           title={tr("Sign out")}
           aria-label={tr("Sign out")}
           className="qp-press"
           style={{
-            border: "none",
-            background: C.inkSoft,
-            color: C.faint,
+            border: `1px solid ${C.border}`,
+            background: C.surfaceAlt,
+            color: C.muted,
             borderRadius: R.sm,
             width: 32,
             height: 32,
