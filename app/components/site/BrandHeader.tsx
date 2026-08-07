@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { C, GLOW, NOIR, R, S, SHADOW, T, btn } from "../../lib/theme";
+import { C, R, S, SHADOW, T, btn } from "../../lib/theme";
 import { Wordmark } from "./Logo";
 import { LanguageToggle } from "./LanguageToggle";
 import { useT } from "../../lib/i18n-client";
@@ -12,17 +12,9 @@ import { useT } from "../../lib/i18n-client";
 // a hairline border and soft shadow. It tightens (more opaque, deeper shadow)
 // once the page scrolls. The full-width <header> is just a transparent,
 // pointer-through positioning shell; the visible pill is the inner container.
-export function BrandHeader({
-  variant = "light",
-}: {
-  /** "noir" is opt-in for surfaces sitting on NOIR.canvas (e.g. the landing
-   *  hero) so the pill doesn't float as a light rectangle on a dark page.
-   *  Every existing "light" caller is pixel-unchanged. */
-  variant?: "light" | "noir";
-}) {
+export function BrandHeader() {
   const [scrolled, setScrolled] = useState(false);
   const tr = useT();
-  const noir = variant === "noir";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 4);
@@ -61,21 +53,11 @@ export function BrandHeader({
           paddingBlock: 0,
           paddingInline: `${S[5]}px ${S[3]}px`,
           borderRadius: R.pill,
-          border: noir
-            ? `1px solid ${scrolled ? NOIR.borderStrong : NOIR.border}`
-            : `1px solid ${scrolled ? C.border : "rgba(229,232,236,0.7)"}`,
-          background: noir
-            ? NOIR.glass
-            : scrolled
-              ? "rgba(255,255,255,0.86)"
-              : "rgba(255,255,255,0.62)",
+          border: `1px solid ${scrolled ? C.border : "rgba(229,232,236,0.7)"}`,
+          background: scrolled ? "rgba(255,255,255,0.86)" : "rgba(255,255,255,0.62)",
           backdropFilter: "saturate(180%) blur(14px)",
           WebkitBackdropFilter: "saturate(180%) blur(14px)",
-          boxShadow: noir
-            ? `0 0 0 1px ${GLOW.brandRing}, ${scrolled ? SHADOW.e2 : SHADOW.e1}`
-            : scrolled
-              ? SHADOW.e2
-              : SHADOW.e1,
+          boxShadow: scrolled ? SHADOW.e2 : SHADOW.e1,
           transition:
             "background 280ms cubic-bezier(0.16,1,0.3,1), box-shadow 280ms cubic-bezier(0.16,1,0.3,1), border-color 280ms cubic-bezier(0.16,1,0.3,1)",
         }}
@@ -87,13 +69,13 @@ export function BrandHeader({
             display: "inline-flex",
             alignItems: "center",
             textDecoration: "none",
-            color: noir ? NOIR.text : C.text,
+            color: C.text,
             borderRadius: R.sm,
             minWidth: 0,
             flexShrink: 0,
           }}
         >
-          <Wordmark onDark={noir} color={noir ? NOIR.text : C.text} />
+          <Wordmark />
         </Link>
 
         <nav
@@ -115,7 +97,7 @@ export function BrandHeader({
               alignItems: "center",
               padding: `${S[2]}px ${S[3]}px`,
               textDecoration: "none",
-              color: noir ? NOIR.muted : C.muted,
+              color: C.muted,
               borderRadius: R.pill,
             }}
           >

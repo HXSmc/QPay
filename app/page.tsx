@@ -47,7 +47,7 @@ export default function Page() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
       />
-      <BrandHeader variant="noir" />
+      <BrandHeader />
       <LandingView />
     </div>
   );

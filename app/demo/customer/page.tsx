@@ -45,7 +45,7 @@ const LINE_ITEMS = ORDER.items.map((li) => {
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
 
-// Bill totals depend only on module-level LINE_ITEMS/TAX_RATE, compute once here.
+// Bill totals depend only on module-level LINE_ITEMS/TAX_RATE — compute once here.
 const SUBTOTAL = round2(LINE_ITEMS.reduce((a, l) => a + l.line, 0));
 const TAX = round2(SUBTOTAL * (TAX_RATE / 100));
 const TOTAL = round2(SUBTOTAL + TAX);

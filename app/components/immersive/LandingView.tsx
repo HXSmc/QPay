@@ -309,7 +309,7 @@ export function LandingView() {
               maxWidth: 620,
             }}
           >
-            {tr("QR payments for restaurants. Get paid before they leave the table.")}
+            {tr("QR payments for restaurants. Turn tables faster, get paid before they leave.")}
           </h1>
           <p
             style={{
