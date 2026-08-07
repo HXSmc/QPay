@@ -34,7 +34,15 @@ const SCAN_FILES = [
   "app/components/site/OrderModal.tsx",
   "app/components/site/MenuModal.tsx",
   "app/components/admin/Sidebar.tsx",
-  "app/components/immersive/LandingView.tsx",
+  "app/components/landing/ClosingSection.tsx",
+  "app/components/landing/CommissionLeak.tsx",
+  "app/components/landing/Hero.tsx",
+  "app/components/landing/HowItWorksSection.tsx",
+  "app/components/landing/PricingSection.tsx",
+  "app/components/landing/ProofSection.tsx",
+  "app/components/landing/ReceiptArtifact.tsx",
+  "app/components/landing/TableCycleSection.tsx",
+  "app/components/landing/VerdictSection.tsx",
 ];
 
 // Scope limits, so nobody trusts this further than it goes: extractCalls

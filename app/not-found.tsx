@@ -23,7 +23,7 @@ export default async function NotFound() {
           padding: `${S[7]}px ${S[5]}px`,
         }}
       >
-        <LogoMark size={56} />
+        <LogoMark size={56} radius={16} />
         <p
           style={{
             ...T.label,
