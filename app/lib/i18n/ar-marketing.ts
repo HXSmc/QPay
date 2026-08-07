@@ -44,6 +44,7 @@ export const ar: Record<string, string> = {
   "Paid": "مدفوعة",
 
   // Ink panel
+  "Faster turns, fuller tables": "دوران أسرع، وطاولات أكثر امتلاءً",
   "Guests pay the moment they are ready, so the next party is seated sooner.":
     "يدفع الضيوف في اللحظة التي يكونون فيها جاهزين، لتجلس المجموعة التالية أسرع.",
 
