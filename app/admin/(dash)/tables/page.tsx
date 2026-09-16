@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { billDue, fmt, type Currency } from "../../../lib/data";
 import {
   createTable,
@@ -17,6 +17,7 @@ import { OrderModal } from "../../../components/admin/OrderModal";
 import { C, R, S, T, NUM, MONO, STATUS, badge, btn, card } from "../../../lib/theme";
 import { Alert, EmptyState, Skeleton, Spinner } from "../../../components/ui/Primitives";
 import { useT } from "../../../lib/i18n-client";
+import { useRealtimeRefetch } from "../../../lib/use-realtime-refetch";
 
 const STATUS_BADGE: Record<TableStatus, "danger" | "warn" | "success" | "neutral"> = {
   unpaid: "danger",
@@ -91,22 +92,42 @@ export default function TablesPage() {
         setRestaurantName(me.email.split("@")[0]);
       })
       .catch(() => {});
-
-    // Live refresh: poll the owner-scoped table list so payment state (e.g. a
-    // customer fully paying -> "cleared" + the Clear button) appears without a
-    // manual page refresh. Pauses when the tab is hidden or an order is open.
-    const id = setInterval(() => {
-      if (document.hidden || orderOpenRef.current) return;
-      const t0 = Date.now();
-      listTables()
-        .then((rows) => {
-          // Drop the snapshot if a local mutation happened after this poll began.
-          if (lastMutationRef.current <= t0) setTables(rows);
-        })
-        .catch(() => {});
-    }, 3000);
-    return () => clearInterval(id);
   }, []);
+
+  // Live refresh: refetch the owner-scoped table list so payment state (e.g. a
+  // customer fully paying -> "cleared" + the Clear button) appears without a
+  // manual page refresh. Skips while an order is being edited so a refresh
+  // can't yank the card out from under the open modal.
+  const pollTables = useCallback(() => {
+    if (orderOpenRef.current) return;
+    const t0 = Date.now();
+    listTables()
+      .then((rows) => {
+        // Drop the snapshot if a local mutation happened after this fetch began.
+        if (lastMutationRef.current <= t0) setTables(rows);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Realtime signal when configured, the hook's poll fallback otherwise (which
+  // also pauses while the tab is hidden).
+  const [rtChannel, setRtChannel] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/realtime/channel", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { tables: null }))
+      .then((d: { tables?: string | null }) => setRtChannel(d.tables ?? null))
+      .catch(() => setRtChannel(null));
+  }, []);
+  useRealtimeRefetch(rtChannel, pollTables);
+
+  // A signal that arrived while the order modal was open was skipped above —
+  // catch up once when it closes so the swallowed refresh isn't lost.
+  const orderWasOpenRef = useRef(false);
+  useEffect(() => {
+    const wasOpen = orderWasOpenRef.current;
+    orderWasOpenRef.current = orderFor !== null;
+    if (wasOpen && orderFor === null) pollTables();
+  }, [orderFor, pollTables]);
 
   const defaultBranchId = branches[0]?.id;
   const showBranches = multiBranch && branches.length > 1;

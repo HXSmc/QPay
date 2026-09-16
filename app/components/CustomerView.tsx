@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { billDue, currencySymbol, fmt, TIP_PCT, type Currency } from "../lib/data";
-import { getPublicMenuItems, payTable, syncTable } from "../lib/api";
+import { getPublicMenuItems, getTable, payTable, syncTable } from "../lib/api";
 import type { LiveTable, MenuItem, SplitMode, TipKey } from "../lib/types";
 import { C, R, S, SHADOW, T, MONO, STATUS } from "../lib/theme";
 import { useT } from "../lib/i18n-client";
@@ -11,9 +11,16 @@ import { OrderModal } from "./site/OrderModal";
 import { Toast } from "./ui/Primitives";
 import { LanguageToggle } from "./site/LanguageToggle";
 import { usePrefersReducedMotion } from "../lib/use-reduced-motion";
+import { useRealtimeRefetch } from "../lib/use-realtime-refetch";
 
 // Calm shared easing for inline reveals and state transitions.
 const EASE = "cubic-bezier(0.16,1,0.3,1)";
+
+// Lease renewal for RESV_TTL_MS=8000 holds, not a read poll: while a diner
+// holds items, re-push the unchanged selection so the server refreshes the
+// hold's timestamp. Server-side this commit is flagged signal-free, so an
+// idle diner's keep-alive never re-broadcasts to other phones.
+const KEEPALIVE_MS = 4000;
 
 // Money cell: every monetary figure renders in the monospace "ledger" face.
 // MONO applies direction:ltr + unicode-bidi:isolate so each figure stays
@@ -58,6 +65,7 @@ export function CustomerView({
   tableNumber = "12",
   initialTable = null,
   token,
+  realtimeChannel = null,
   restaurant = "Restaurant",
   taxRate = 8,
   currency = "USD",
@@ -65,6 +73,8 @@ export function CustomerView({
   tableNumber?: string;
   initialTable?: CustTable | null;
   token: string;
+  /** Realtime signal channel for this table (null = poll fallback). */
+  realtimeChannel?: string | null;
   restaurant?: string;
   taxRate?: number;
   currency?: Currency;
@@ -229,30 +239,64 @@ export function CustomerView({
     principal <= 0 ||
     (split === "item" && selectedCount === 0);
 
-  // --- live sync: heartbeat my selection + read the merged table back ---
-  useEffect(() => {
-    let alive = true;
-    const tick = async () => {
-      const seq = ++reqSeq.current;
-      try {
-        const qty = split === "item" ? selectedQty : items.map(() => 0);
-        const next = await syncTable(tableNumber, clientId, qty, token);
-        // Drop stale responses: a later request (or a payment) already applied.
-        if (alive && seq > appliedSeq.current) {
-          appliedSeq.current = seq;
-          setTable(next);
-        }
-      } catch {
-        /* ignore transient errors */
+  // --- live sync: pull the merged table on signal/poll; push my selection ---
+  // Read-only fetch (GET) — a realtime signal must never re-POST selections,
+  // or two phones would echo holds back and forth. Same seq guard as before so
+  // an out-of-order read can't clobber newer state.
+  const pull = useCallback(async () => {
+    const seq = ++reqSeq.current;
+    try {
+      const next = await getTable(tableNumber, token);
+      if (seq > appliedSeq.current) {
+        appliedSeq.current = seq;
+        setTable(next);
       }
-    };
-    tick();
-    const iv = setInterval(tick, 3000);
-    return () => {
-      alive = false;
-      clearInterval(iv);
-    };
-  }, [tableNumber, clientId, split, selectedQty, items.length]);
+    } catch {
+      /* ignore transient errors */
+    }
+  }, [tableNumber, token]);
+
+  // Heartbeat my hold (POST): the store merges it, then signals the table
+  // channel — that signal is what updates the other phones.
+  const push = useCallback(async () => {
+    const qty = split === "item" ? selectedQty : items.map(() => 0);
+    const seq = ++reqSeq.current;
+    try {
+      const next = await syncTable(tableNumber, clientId, qty, token);
+      if (seq > appliedSeq.current) {
+        appliedSeq.current = seq;
+        setTable(next);
+      }
+    } catch {
+      /* ignore transient errors */
+    }
+  }, [tableNumber, clientId, split, selectedQty, items, token]);
+
+  // Live updates stop entirely once the bill is fully paid (both modes):
+  // passing `undefined` disables the hook — no subscription, no poll.
+  useRealtimeRefetch(fullyPaid ? undefined : realtimeChannel, pull);
+
+  // Selection changes propagate to other phones via a debounced push. Kept in
+  // a ref so a table refresh (new `items` identity) doesn't re-fire it.
+  const pushRef = useRef(push);
+  useEffect(() => {
+    pushRef.current = push;
+  }, [push]);
+  useEffect(() => {
+    if (fullyPaid) return;
+    const h = setTimeout(() => void pushRef.current(), 300);
+    return () => clearTimeout(h);
+  }, [selectedQty, split, peopleAtTable, fullyPaid]);
+
+  // Keep-alive: renew my hold's 8s server lease while items stay selected
+  // (and the bill isn't settled). Stops when the selection empties or the
+  // bill is fully paid; cleared on unmount via the effect cleanup.
+  const hasHold = split === "item" && selectedQty.some((n) => n > 0);
+  useEffect(() => {
+    if (fullyPaid || !hasHold) return;
+    const id = setInterval(() => void pushRef.current(), KEEPALIVE_MS);
+    return () => clearInterval(id);
+  }, [fullyPaid, hasHold]);
 
   // Keep my selection within what's still available after each sync.
   useEffect(() => {

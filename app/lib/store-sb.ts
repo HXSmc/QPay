@@ -15,6 +15,7 @@ import { hashPassword } from "./auth";
 import { SUPER_EMAIL, SUPER_PASSWORD } from "./constants";
 import { fmt, type Currency } from "./data";
 import { decryptPosConfig, encryptPosConfig } from "./pos-secrets";
+import { notify } from "./realtime";
 import { deleteMenuObjects, sb } from "./supabase";
 import {
   applyPayment,
@@ -319,17 +320,24 @@ export async function getTable(num: string): Promise<LiveTable | null> {
  * Compare-and-swap a table update. The row is located by `eqs` (token for the
  * customer path, owner+num for the admin path) and the conditional UPDATE keys on
  * the surrogate `id` + `version`. Retries on a lost CAS. Returns the updated
- * table, or null if not found / no-op.
+ * table, or null if not found / no-op. `onWrite` (when set) runs ONLY after a
+ * committed write — a no-op apply never signals (avoids heartbeat ping-pong).
+ * `notify: false` on the apply result means "commit the row, but don't signal"
+ * (a TTL-only reservation refresh — see syncReservation).
  */
 async function casTable(
   eqs: Eq[],
   apply: (
     t: LiveTable,
     ctx: { taxRate: number; currency: Currency },
-  ) => Promise<{ write: boolean; txn?: Transaction | null }> | {
+  ) => Promise<
+    { write: boolean; txn?: Transaction | null; notify?: boolean }
+  > | {
     write: boolean;
     txn?: Transaction | null;
+    notify?: boolean;
   },
+  onWrite?: (t: LiveTable) => void,
 ): Promise<LiveTable | null> {
   const client = await sb();
   for (let attempt = 0; ; attempt++) {
@@ -368,7 +376,12 @@ async function casTable(
       p_txn: txnPayload,
     });
     if (error) throw new Error(`store: table CAS failed — ${error.message}`);
-    if (data === true) return t; // committed (txn, if any, persisted atomically)
+    if (data === true) {
+      // committed (txn, if any, persisted atomically) — signal subscribers,
+      // unless the apply flagged itself as a signal-free write.
+      if (onWrite && res.notify !== false) onWrite(t);
+      return t;
+    }
     // Lost the CAS — another writer advanced the row. Log for observability and
     // retry (a few concurrent payers on the same table is normal; exhausting the
     // retries is not, and should be visible).
@@ -433,7 +446,10 @@ export async function createTable(
       delete insertRow.branch_id;
       ({ error } = await client.from("tables").insert(insertRow));
     }
-    if (!error) return table;
+    if (!error) {
+      notify("tables", owner);
+      return table;
+    }
     // Another concurrent create grabbed the same free num → recompute + retry.
     if (error.code === "23505" && attempt < MAX_CAS_RETRIES) {
       await sleep(15 * (attempt + 1));
@@ -462,7 +478,13 @@ export async function setTableItems(
     t.paid = 0;
     t.status = nextStatusForItems(items);
     return { write: true };
-  });
+  }, onTableWrite);
+}
+
+/** Signal both the table's diners and the admin tables page after a write. */
+function onTableWrite(t: LiveTable): void {
+  notify("table", t.token);
+  notify("tables", t.owner);
 }
 
 export async function syncReservation(
@@ -475,11 +497,31 @@ export async function syncReservation(
   return casTable([["token", token]], (t) => {
     const others = pruneReservations(t.reservations).filter((r) => r.id !== id);
     const mine = clampHold(t.items, qty);
-    t.reservations = mine.some((n) => n > 0)
+    const next = mine.some((n) => n > 0)
       ? [...others, { id, qty: mine, ts: Date.now() }]
       : others;
+    // A no-op sync (no hold of mine, same holds for everyone else) must NOT
+    // write — otherwise every diner heartbeat re-broadcasts to every phone.
+    // But an unchanged hold of MINE is a TTL refresh: commit the fresh `ts` so
+    // the 8s lease (RESV_TTL_MS) survives an idle diner's keep-alive, while
+    // skipping the signal (nothing observable changed — A1).
+    const unchanged =
+      next.length === t.reservations.length &&
+      next.every((r) =>
+        t.reservations.some(
+          (o) => o.id === r.id && JSON.stringify(o.qty) === JSON.stringify(r.qty),
+        ),
+      );
+    if (unchanged) {
+      if (mine.some((n) => n > 0)) {
+        t.reservations = next;
+        return { write: true, notify: false };
+      }
+      return { write: false };
+    }
+    t.reservations = next;
     return { write: true };
-  });
+  }, onTableWrite);
 }
 
 export async function payTable(
@@ -492,7 +534,7 @@ export async function payTable(
     if (t.items.length === 0) return { write: false };
     const { txn } = applyPayment(t, amount, opts, taxRate, currency);
     return { write: true, txn };
-  });
+  }, onTableWrite);
 }
 
 export async function setTableStatus(
@@ -508,7 +550,7 @@ export async function setTableStatus(
     if (status === "open") t.amount = "—";
     else if (t.amount === "—") t.amount = fmt(0, currency);
     return { write: true };
-  });
+  }, onTableWrite);
 }
 
 export async function deleteTable(
@@ -519,9 +561,16 @@ export async function deleteTable(
   const client = await sb();
   let q = client.from("tables").delete().eq("owner", owner).eq("num", Number(num));
   if (branchId) q = q.eq("branch_id", branchId);
-  const { data, error } = await q.select("id");
+  // Select the token too so the dying table's diners get a final signal.
+  const { data, error } = await q.select("token");
   if (error) throw new Error(`store: table delete failed — ${error.message}`);
-  return (data?.length ?? 0) > 0;
+  const deleted = (data?.length ?? 0) > 0;
+  if (deleted) {
+    notify("tables", owner);
+    const tok = (data?.[0] as { token?: string } | undefined)?.token;
+    if (tok) notify("table", tok);
+  }
+  return deleted;
 }
 
 // ---------------------------------------------------------------------------
@@ -1393,7 +1442,11 @@ export async function placeOrder(
     res = await client.from("orders").insert(orderRow).select("*").single();
   }
   if (res.error) throw new Error(`store: order create failed — ${res.error.message}`);
-  return rowToOrder(res.data as OrderRow);
+  const order = rowToOrder(res.data as OrderRow);
+  // Kitchen screens refetch; diners see the table change (new items/availability).
+  notify("orders", order.owner);
+  notify("table", token);
+  return order;
 }
 
 export async function listOrders(
@@ -1426,7 +1479,9 @@ export async function updateOrderStatus(
   if (branchId) q = q.eq("branch_id", branchId);
   const { data, error } = await q.select("*").maybeSingle();
   if (error) throw new Error(`store: order status update failed — ${error.message}`);
-  return data ? rowToOrder(data as OrderRow) : null;
+  if (!data) return null;
+  notify("orders", owner);
+  return rowToOrder(data as OrderRow);
 }
 
 // ---------------------------------------------------------------------------

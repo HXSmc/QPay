@@ -23,6 +23,10 @@ const isDev = process.env.NODE_ENV !== "production";
 // would whitelist every Supabase project on the internet as an upload/framing
 // destination for this app.
 const SUPABASE_STORAGE_ORIGIN = "https://rvcjvoqjrzjwdxsuckvh.supabase.co";
+// Realtime opens its websocket against the same host over wss:// — derived, never a separate origin.
+const SUPABASE_WS_ORIGIN = SUPABASE_STORAGE_ORIGIN
+  ? SUPABASE_STORAGE_ORIGIN.replace(/^https:/, "wss:")
+  : "";
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
@@ -32,9 +36,9 @@ const csp = [
   // The browser fetches /api (self) and PUTs menu uploads directly to Supabase Storage.
   // FUTURE (GlitchTip error tracking): when the self-hosted GlitchTip server exists and
   // NEXT_PUBLIC_SENTRY_DSN is set, the client SDK will POST envelopes to the GlitchTip
-  // host. Add that origin here, e.g. `connect-src 'self' ${SUPABASE_STORAGE_ORIGIN} https://<glitchtip-host>`
+  // host. Add that origin here, e.g. `connect-src 'self' ${SUPABASE_STORAGE_ORIGIN} ${SUPABASE_WS_ORIGIN} https://<glitchtip-host>`
   // (do NOT add it until the host is known and pinned — never a wildcard).
-  `connect-src 'self' ${SUPABASE_STORAGE_ORIGIN}`,
+  `connect-src 'self' ${SUPABASE_STORAGE_ORIGIN}${SUPABASE_WS_ORIGIN ? ` ${SUPABASE_WS_ORIGIN}` : ""}`,
   // PDF menus render in an <iframe> from Supabase Storage (prod) or the
   // same-origin /uploads path (dev) — allow those, not blanket 'none'.
   `frame-src 'self' ${SUPABASE_STORAGE_ORIGIN}`,

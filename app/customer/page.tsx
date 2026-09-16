@@ -1,4 +1,5 @@
 import { CustomerView } from "../components/CustomerView";
+import { channelName } from "../lib/realtime";
 import { getPublicRestaurant, getTableByToken } from "../lib/store";
 import { DEFAULT_TAX_RATE } from "../lib/data";
 import { C } from "../lib/theme";
@@ -44,6 +45,7 @@ export default async function CustomerPage({
       <CustomerView
         tableNumber={tableNumber || "-"}
         token={token}
+        realtimeChannel={channelName("table", token)}
         initialTable={table}
         restaurant={info?.name || t("Restaurant", locale)}
         taxRate={info?.taxRate ?? DEFAULT_TAX_RATE}

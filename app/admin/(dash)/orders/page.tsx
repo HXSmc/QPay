@@ -7,8 +7,7 @@ import { C, R, S, T, MONO, SHADOW, badge, btn } from "../../../lib/theme";
 import { EmptyState, Skeleton } from "../../../components/ui/Primitives";
 import type { Order, OrderStatus } from "../../../lib/types";
 import { useT } from "../../../lib/i18n-client";
-
-const POLL_MS = 3000;
+import { useRealtimeRefetch } from "../../../lib/use-realtime-refetch";
 
 const STATUS_BADGE: Record<OrderStatus, Parameters<typeof badge>[0]> = {
   placed: "warn",
@@ -41,11 +40,16 @@ export default function OrdersPage() {
     getSettings().then((s) => setCurrency(s.currency)).catch(() => {});
   }, []);
 
-  // Live poll so new orders appear without a refresh (mirrors the dashboard).
+  // Live refresh: subscribe to this owner's orders channel when realtime is
+  // configured, else the hook's poll fallback keeps the old 3s cadence.
+  const [rtChannel, setRtChannel] = useState<string | null>(null);
   useEffect(() => {
-    const id = setInterval(load, POLL_MS);
-    return () => clearInterval(id);
-  }, [load]);
+    fetch("/api/realtime/channel", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { orders: null }))
+      .then((d: { orders?: string | null }) => setRtChannel(d.orders ?? null))
+      .catch(() => setRtChannel(null));
+  }, []);
+  useRealtimeRefetch(rtChannel, load);
 
   const advance = async (o: Order, status: OrderStatus) => {
     setOrders((cur) => cur!.map((x) => (x.id === o.id ? { ...x, status } : x)));
